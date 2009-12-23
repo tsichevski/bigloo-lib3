@@ -1,3 +1,5 @@
+ACLOCAL_AMFLAGS = -I m4
+
 # Note: the order of building of libraries is significant
 
 LIB_SUBDIRS	= common xml rdbms node @ldap@
