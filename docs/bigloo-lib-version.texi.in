@@ -1,0 +1,13 @@
+@c -*-texinfo-*-
+@c ==================================================================
+@section Versions and Compitibility
+
+The current version of @code{bigloo-lib} is @VERSION@. It has been
+tested with @samp{bigloo2.6e}.
+
+The @value{VERSION} release of @code{bigloo-lib} was successfully
+compiled and tested on RedHat Linux 9.0.
+
+Also it is known to work on SPARC Solaris 9. Some modules have been
+also tested under CYGWIN.
+

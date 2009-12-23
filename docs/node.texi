@@ -1,0 +1,423 @@
+@node    Generic tree interface, , Top, Top
+@chapter Generic tree interface
+
+@menu
+@end menu
+
+@c ======================================================================
+@deftp {Bigloo class} node
+
+Abstract bigloo class, the base class for tree node objects. Each node
+may have a number of named attributes. The attribute names are symbols,
+the values are usually strings. All the functionality provided as a set
+of generic procedures, the base node class objects do not hold any data.
+
+@end deftp
+
+@c ======================================================================
+@c ======================================================================
+@section Node attributes
+
+
+@deffn {generic procedure} node-atts self::node @result{} pair-nil
+
+List of node attributes. The generic function returns @code{'()}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-add-attribute! self::node attname::symbol attvalue::bstring
+
+Add the attribute named @var{attname} and value @var{attvalue} to node
+@var{self}.  The generic procedure modifies the node attribute list
+using the @code{node-atts-set!} method.
+
+@end deffn
+
+@c ======================================================================
+@deffn {abstract procedure} node-atts-set! self::node atts::pair-nil
+Set the node attribute list.  This method should be redefined in
+concrete subclasses.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-attribute-string self::node attname::symbol @result{}  string or #f
+
+Return the value of the first attribute of node @var{self} with name @var{attname}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-attribute-list self::node attname::symbol @result{} pair-nil
+
+Return the list of attributes of node @var{self} with name @var{attname}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-remove-attribute! self::node attname::symbol . attvalues
+
+Remove the attributes of node @var{self} with name @var{attname}. If
+optional arguments @var{attvalues} are specified, only the attributes which
+values are within the @var{attvalues} list are removed.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-replace-attribute! self::node attname::symbol . attvalues
+
+Remove the attributes of node @var{self} with name @var{attname}. If
+optional arguments @var{attvalues} are specified, add new attributes
+with name @var{attname} and values @var{attvalues}. Otherwise the
+procedure effect is equivalent to that of @code{node-remove-attribute!}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-set-attribute! self::node attname::symbol attvalue::bstring
+
+Set the value of specified attribute. Add the new attribute if necessary.
+
+@end deffn
+
+@c ======================================================================
+@c ======================================================================
+@section Node tree navigation
+
+@c ======================================================================
+@deffn {generic procedure} node-parents self::node @result{} pair-nil
+
+Get list of node parents or empty list for top nodes. The generic
+procedure returns an empty list.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-parent self::node @result{} node
+
+Return first node as returned by @code{node-parents}, or @var{self} if
+node has no parents.
+
+@example
+(let((self(make-node)))
+  ;; generic node nether has parents
+  (eq? self(node-parent self)))
+@result{} #t
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {abstract procedure} node-parents-set! self::node parents::pair-nil
+
+Set the node parents list.  This method should be redefined in concrete
+subclasses.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-root self::node @result{} node
+
+Return the topmost node of the node tree, recursively calling the
+@code{node-parent}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-ancestors self::node @result{} pair-nil
+
+Collect all the @code{node-parents} and their parents up to root node or
+nodes. Node @var{self} is also included into the list.
+
+@example
+(let*((root(make-node))
+      (child(make-dl-node (list root))))
+  (node-ancestors child))
+@result{} (#0=#|NODE| #|DL-NODE [PARENTS: (#0#)]|)
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {abstract procedure} node-children-set! self::node children::pair-nil
+
+Set the node children list.  This method should be redefined in concrete
+subclasses.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-add-child! self::node child::node #!optional after::node
+
+Insert child node @var{child} into list of node @var{self} children. If
+the concrete implementation supports ordering of the children, the
+optional @var{after} argument may be specified, to define the node
+insertion position. The generic procedure uses @code{node-children-set!}
+to do the insertion.
+
+@end deffn
+
+@c @c ======================================================================
+@c @deffn {generic procedure} node-bind! self::node parent::node
+
+@c Insert node @code{self} into the tree. The @var{parent} node is
+@c registered in @var{self}'s parent list. The @var{self} node prepended
+@c to all @var{parent}'s children lists using @code{node-add-child!}.
+
+@c No checking for duplicates is performed.
+
+@c @example
+@c (let*((parent(make-dl-node '()))
+@c       (child(make-dl-node '())))
+@c   (node-bind! child parent)
+@c   parent)
+@c @end example
+
+@c @end deffn
+
+@c @c ======================================================================
+@c @deffn {generic procedure} node-bind-descendants! self::node
+
+@c Do @code{node-bind!} for all descendants of node @var{self}.
+
+@c @end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-children self::node @result{} pair-nil
+
+Return children list of @var{self}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-subtree self::node @result{} pair
+
+Return list including node @var{self} and all the @var{self}'s descendants.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-descendants self::node @result{} pair-nil
+
+Defined as:
+
+@example
+(define-generic(node-descendants::pair-nil self::node)
+  (cdr(node-subtree self)))
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-remove! self::node
+
+Remove the node @code{self} from the tree. The meaning of this method is
+subclass implementation-dependent. The generic procedure does nothing.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-siblings self::node @result{} pair-nil
+
+Return all the children of node returned by @code{node-parent},
+excluding the node @code{self}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-rsiblings self::node @result{} pair-nil
+
+Right siblings of node. Return all the children of node returned by
+@code{node-parent} after the node @code{self} in children list.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-lsiblings self::node @result{} pair-nil
+
+Left siblings of node. Return all the children of node returned by
+@code{node-parent} before the node @code{self} in children list.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-ifollows self::node @result{} node
+
+Node that follows the node @code{self} or the @code{self} node if no node follows.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-ipreced self::node @result{} node
+
+Node that precedes the node @code{self} or the @code{self} node if no node precedes.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-next-hierarchy self::node @result{} node
+
+Return either the node immediately following @var{self} in sibling list,
+or the node following parent node of @code{self}, if @code{self} is the
+last node in the list of siblings.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-prev-hierarchy self::node @result{} node
+
+Return either the node that immediately precedes @var{self} in sibling
+list, or the parent node of @code{self}, if @code{self} is the first
+node in the list of siblings.
+
+@end deffn
+
+@c ======================================================================
+@c ======================================================================
+@section Node naming and grove lookup
+
+The concrete tree implementation may supply the mechanism for naming
+tree nodes to let the node be found given the path string is known. The
+described here naming scheme is based upon LDAP entries naming and used
+basically by LDAP library @xref{Bigloo LDAP interface}.
+
+Every node has its own Relative Distinct Name (RDN), which must be
+unique between node siblings. The node RDN along with RDNs of node
+ancestors form the full node path, which is called Distinct Name
+(DN). The DN is result of string concatenation of node RDN and RDNs of
+node ancestors, delimited by comma character.
+
+This module provides the generic procedures for getting and setting node
+DNs and RDNs along with useful procedures for parsing DN strings.
+
+@c ======================================================================
+@deffn {abstract procedure} node-rdn self::node @result{} bstring
+
+Return the RDN (Relative Distinct Name) of node. The RDN must be unique
+between node siblings.  This method should be redefined in concrete
+subclasses.
+
+@end deffn
+
+@c ======================================================================
+@deffn {abstract procedure} node-modrdn! self::node newrdn::bstring #!optional deleteatt?
+
+Change the RDN of the node @var{self}. Using of optional
+@code{deleteatt?} is specific for LDAP node implementation only.
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-dn self::node @result{} bstring
+
+Get the DN (Distinct Name) if the node @var{self}. The generic function
+constructs DN by concatenating the RDN's of all the ancestors of the
+node, beginning with the node @var{self} itself, delimited by comma
+character. This procedure is relevant mostly for LDAP nodes.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} dn-parent s::bstring @result{} #unspecified
+
+Parse the DN string, return DN for parent node.
+
+@example
+(dn-parent "uid=wowa,dc=jet,dc=msk,dc=ru")
+@result{}  "dc=jet,dc=msk,dc=ru"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} dn-rdn s::bstring @result{} bstring
+Parse the DN of the node @var{self}, return DN of parent node.
+
+@example
+(dn-rdn "uid=wowa,dc=jet,dc=msk,dc=ru")
+@result{}  "uid=wowa"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} dn-relative dn::bstring base::bstring @result{} #unspecified
+
+`Subtract' two DNs, return the difference as a list of RDNs. Return
+@code{#f} if the @var{dn} string does not begins with the @var{base}
+string.
+
+@example
+(dn-relative
+  "s=r,cn=wowa,o=jet,c=ru"
+  "o=jet,c=ru")
+@result{} (#"cn=wowa" #"s=r")
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-lookup self::node dn::bstring @result{} node or #f
+
+Lookup node with the @var{dn} given in same grove as @var{self}. Return
+#f if not found.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} node-lookup-global dn::bstring @result{} 
+
+Find node in a global node registry.
+
+@c FIXME: examples required here
+
+@end deffn
+
+@c ======================================================================
+@c ======================================================================
+@section Other node procedures
+@c ======================================================================
+@deffn {generic procedure} node-data self::node @result{} bstring
+
+Some of classes derived from @code{node} class are assumed to redefine
+this method. The generic implementation concatenates the strings
+obtained by applying @code{node-data} to all the children of @var{self}.
+
+See the examples in @code{sgml-node} description.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} current-node #!optional value
+
+@code{current-node} is parameter procedure @xref{Bigloo Common
+Library}. Plays the role of global variable to store current position in
+any tree of nodes in end user applications. This procedure is defined
+for convenience only, none of the library functionality relies on it.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-title self::node @result{} bstring
+
+Node printed name. It is assumed that subclasses provide its own
+implementation. By default try the value of @code{cn} attribute or uses
+bigloo class name of the node.
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-display self::node port::output-port
+
+This procedure is called by @code{object-display} method for nodes.
+The generic procedure displays the string as returned by @code{node-title}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {generic procedure} node-valid? self::node @result{} bool
+
+The meaning of this method is subclass implementation-dependent. The
+generic procedure returns @code{#t}.
+
+@end deffn
+

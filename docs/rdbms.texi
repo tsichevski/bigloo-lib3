@@ -1,0 +1,318 @@
+@node Bigloo SQL database interface, , , Top
+@chapter Bigloo SQL database interface
+
+The RDBMS library is a set of miscellaneous types and procedures,
+allowing to access SQL databases from Bigloo application. The library
+has two layers: generic RDBMS system interface, implemented with use of
+Bigloo object system, and a number of back-ends, which provide the
+implementation for particular database vendors.
+
+The @code{rdbms} library is designed like @code{ODBC} and Perl @code{DB}
+system, i.e. it has a set of generic procedures and a number of specific
+drivers for different database vendors.
+
+At the moment of writing the library supports MySQL, Oracle, PostgreSQL
+and SQLite. The support of ODBC and INFORMIX is planned still.
+
+@subsection Object types
+
+This section describes the driver object types.
+
+@deftp {Bigloo class} connection
+
+The objects of @code{connection} type implement database connections.
+
+@end deftp
+
+@deftp {Bigloo class} session
+
+The objects of @code{session} type used to SQL statements and retrieve
+the SQL query results. Every @code{session} object is bound to only one
+@code{connection}.
+
+@end deftp
+
+@subsection Connection management
+
+This section describes procedures for creating and destroying the
+database connections, and for transaction management.
+
+@c **** rdbms-connect ************************************************
+@deffn {procedure} rdbms-connect vendor-tag::bstring #!key
+@cindex RDBMS connection opening
+
+This procedure creates and opens new database @code{connection}. The
+@code{vendor-tag} is the name of the database system.
+
+The @code{rdbms-drivers} thunk returns the list of possible @code{vendor-tag} values.
+
+The rest of parameters specify a vendor-specific connection information.
+
+Usually this includes:
+
+@itemize @minus
+@item @code{dbname}
+the logical name of database
+
+@item @code{username}
+the name of the database user
+
+@item @code{password}
+the password of the database user
+
+@item @code{hostname}
+the name of the host on which the database server runs
+
+@end itemize
+
+Examples:
+
+@example
+(rdbms-connect "mysql" dbname: "test" hostname: "duron")
+@print{} #|MYSQL-CONNECTION [IMPL: #<foreign:MYSQL:80947f8>]|
+
+(rdbms-connect "oracle" username: "scott" password: "tiger")
+@print{} #|oracle-connection [env::oci-env: #<foreign:oci-env:84a2e30>]
+  [impl::oci-svc-ctx: #<foreign:oci-svc-ctx:84a8508>]
+  [err::oci-error: #<foreign:oci-error:84a8574>]|
+
+@end example
+
+@end deffn
+
+@deffn {procedure} rdbms-drivers @result{} list of string
+@cindex RDBMS obtaining list of supported daatabases
+
+Return the list of supported database types, for example:
+
+@example
+(print(rdbms-drivers))
+@print{} ("mysql" "pgsql" "oracle" "sqlite")
+@end example
+
+@end deffn
+
+@defmethod connection dismiss!
+@cindex RDBMS connection closing
+
+This destroys the @code{connection}, and releases all connection's
+resources, including all bound @code{session} objects.
+
+@end defmethod
+
+@defmethod rdbms-object error-string @result{} string 
+@cindex RDBMS errors reporting
+
+Return a (vendor-specific) description of the last error occured with
+@code{rdbms-object}.
+
+@end defmethod
+
+@defmethod connection begin-transaction! #!optional (timeout 60) @result{} bool 
+@cindex RDBMS transaction begin
+@cindex RDBMS transaction management
+
+Check whether the implementation supports transactions. If yes, begin a
+transaction and return #t. Otherwise return #f.
+
+The optional argument @var{timeout} sets transaction
+timeout value.
+
+@end defmethod
+
+@defmethod connection commit-transaction! 
+@cindex RDBMS transaction management
+@cindex RDBMS transaction commit
+
+Close the transaction for @code{connection}. Some implementations do not
+require the @code{begin-transaction} call before calling this method,
+but you should not call the @code{commit-transaction} if the
+implementation does not support transactions.
+
+@end defmethod
+
+@defmethod connection rollback-transaction! 
+@cindex RDBMS transaction rolling back
+
+This ends the transaction, revert all changes made since transaction's
+beginning. Some implementations do not require the
+@code{begin-transaction} call before calling this method, but you should
+not call the @code{rollback-transaction} if the implementation does not
+support transactions.
+
+@end defmethod
+
+@defmethod connection acquire @result{} session 
+@cindex RDBMS session creating
+
+This creates new @code{session} for the given @code{connection}.
+
+@subsection Session management
+
+@end defmethod
+
+@defmethod session cancel! 
+@cindex RDBMS session canceling
+
+Cancel the query answering process, if any. Make a @code{session} ready
+for execution.
+
+@end defmethod
+
+@defmethod session dismiss! @result{} #unspecified
+@cindex RDBMS session releasing
+
+Destroy a @code{session} object, and release all the
+session's resources.
+
+@end defmethod
+
+@defmethod session execute @result{} bool
+@cindex RDBMS query executing
+
+Execute a previously prepared statement. Return #t if the answer set is
+implied by the statement (i.e. the statement is SQL SELECT
+command). Otherwise return #f.
+
+@end defmethod
+
+@defmethod session prepare sql::bstring @result{} bool
+@cindex RDBMS query preparing
+
+Prepares an SQL query for execution. The position of optional parameters
+is marked up with parameter number preceded by colon sign. See example
+in the @code{bind!} section if this manual.
+
+
+@example
+(prepare sess "insert into person values(:1, :2, :3)")
+(bind! sess '(100 "Tsichevski" "Vladimir"))
+@end example
+
+@end defmethod
+
+@defmethod session bind! bindings::pair-nil
+@cindex RDBMS query parameter binding for input
+
+Positionally bind parameters of prepared session.
+
+Example: prepare and bind an SQL INSERT statement. The positions of
+bound parameters are marked with @code{:1}, @code{:2}, and @code{:3}.
+
+@example
+(prepare sess "insert into person values(:1, :2, :3)")
+(bind! sess '(100 "Tsichevski" "Vladimir"))
+@end example
+
+@end defmethod
+
+@defmethod session has-answer? @result{} bool
+@cindex RDBMS query result querying
+
+This answers #t if the answer set is implied by previously prepared
+statement. Note: some implementation require you have to execute the
+session before calling this method.
+
+@end defmethod
+
+@defmethod session fetch! @result{} pair-nil 
+@cindex RDBMS query result obtaining
+
+Fetch next record from the query answer set, and return it as a scheme
+@code{list} object. If the end of the answer stream is reached, return
+an empty list.
+
+Example: prepare and execute an SQL statement. Fetch and print all
+result records.
+
+@example
+(prepare sess "select * from person")
+(let loop()
+   (let((value(fetch! self)))
+      (when(pair? value)
+         (print value)
+	 (loop))))
+
+@end example
+
+@end defmethod
+
+@defmethod session describe @result{} pair-nil 
+@cindex RDBMS query result structure querying
+
+Describe the result of SQL query. Return a scheme list of column
+descriptions. The format of column descriptions depends on database
+imlementation.  Typical column descriptors provides the following
+information:
+
+@itemize @minus
+@item name of the column (string)
+@item the database-specific column type id (integer)
+@item length (integer, database-specific)
+@item nullable? (are NULL values allowed?)
+@end itemize
+
+@end defmethod
+
+@subsubsection Complete example
+
+In the following example, the @code{connection} with MySQL database
+named @code{dept} is established. Next, the table named @code{person}
+with columns named @code{id}, @code{last_name} and @code{first_name} is
+created and a few records inserted into the table. The contents of the table
+is retrieved back then and displayed. After that, the table is
+destroyed.
+
+Here is the example :
+
+@example
+
+(define conn
+  (rdbms-connect "mysql" dbname: "test" hostname: "duron"))
+(define sess (acquire conn))
+
+(prepare sess
+"create table person (
+  id          INTEGER PRIMARY KEY,
+  last_name    CHAR(20),
+  first_name   CHAR(20))")
+
+(execute sess)
+
+(prepare sess "insert into person values(:1,:2,:3)")
+
+(bind! sess '(100 "Tsichevski" "Vladimir"))
+(execute sess)
+(bind! sess '(101 "Taranoff" "Alexander"))
+(execute sess)
+(bind! sess '(102 "Ananin" "Vladimir"))
+(execute sess)
+
+(prepare sess "select * from person")
+(execute sess)
+
+(let loop ((answer-record(fetch! sess)))
+  (when(pair? answer-record)
+       (write answer-record)
+       (newline)
+       (loop (fetch! sess))))
+
+(prepare sess "drop table person")
+(execute sess)
+
+(dismiss! conn)
+
+@end example
+
+The output of the program looks like this :
+
+@example
+(100 "Tsichevski" "Vladimir")
+(101 "Taranoff" "Alexander")
+(102 "Ananin" "Vladimir")
+@end example
+
+@ignore
+@subsubsection More examples
+TBD
+@end ignore

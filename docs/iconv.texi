@@ -1,0 +1,127 @@
+@node iconv, time, Miscellanea, Bigloo Common Library
+@comment  node-name,  next,  previous,  up
+@section iconv - charset conversion procedures
+
+This section describes the interface to @code{iconv} - a set of
+@code{libc} functions for character set conversion. See @code{iconv(3)}
+manual page for details.
+
+The @code{iconv} module is optional, i.e. you can disable its
+compilation by using @code{--without-iconv} flag for
+@code{configure}. Or the @code{configure} may detect that your
+@code{libc} does not have @code{iconv} functions and automatically
+disable this feature.
+
+To let you detect whether character conversion is supported by the
+library from inside the interpreted code, the @code{'iconv} symbol is
+defined through the @code{register-eval-srfi!} mechanism, so you can
+check it with @code{cond-expand}.
+
+@c ======================================================================
+@deftp {foreign type} iconv
+
+The structure holding the information about the source and target
+character sets and current state of conversion.
+
+@end deftp
+@c ======================================================================
+@deffn {procedure} iconv-open tocode::string fromcode::string  writer::procedure @result{} iconv
+
+The @code{iconv-open} procedure returns a conversion descriptor that
+describes a conversion from the codeset specified by the @var{fromcode}
+argument to the codeset specified by the @var{tocode} argument.  For
+state-dependent encodings, the conversion descriptor will be in a
+codeset-dependent initial shift state, ready for immediate use with the
+@code{iconv} procedure.
+
+The @code{writer} should be a one-argument procedure which handles
+partial conversion result strings during subsequent calls to the
+@code{iconv-write}.
+
+In the folowing example the @code{iconv} objects is created which will
+display the converted strings to the @code{current-output-port}.
+
+@example
+(iconv-open "KOI8-R" "UTF-8" display)
+@result{} #<foreign:ICONV:21410>
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} iconv-write cd::iconv src::bstring
+
+The @code{iconv-write} procedure converts the sequence of characters
+from the code set specified in parameter @var{fromcode} of
+@code{iconv-open}, in the array specified by @var{src}, into a
+sequence of corresponding characters in the code set specified in
+parameter @var{tocode} of @code{iconv-open}, in the return string.
+The code sets are those specified in the @var{cd} argument.
+
+The result of conversion is passed to the procedure specified in
+parameter @var{writer} of @code{iconv-open}.
+
+@ignore
+If a sequence of input bytes does not form a valid character in the
+specified code set, conversion stops after the previous successfully
+converted character. If the input buffer ends with an incomplete
+character or shift sequence, conversion stops after the previous
+successfully converted bytes.  If the output buffer is not large enough
+to hold the entire converted input, conversion stops just prior to the
+input bytes that would cause the output buffer to overflow. The variable
+pointed to by inbuf is updated to point to the byte following the last
+byte successfully used in the conversion.  The value pointed to by
+inbytesleft is decremented to reflect the number of bytes still not
+converted in the input buffer. The variable pointed to by outbuf is
+updated to point to the byte following the last byte of converted out-
+put data.  The value pointed to by outbytesleft is decremented to
+reflect the number of bytes still available in the output buffer.  For
+state-dependent encodings, the conversion descriptor is updated to
+reflect the shift state in effect at the end of the last successfully
+converted byte sequence.
+
+If @code{iconv-write} encounters a character in the input buffer that is legal, but
+for which an identical character does not exist in the target code set,
+@code{iconv-write} performs an implementation-defined conversion on this character.
+@end ignore
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} make-iconv-encoder from::bstring to::bstring @result{} #unspecified
+
+Returns the procedure of the form @code{(lambda (#!optional s #!key from
+to onerror))}. This procedure, being called with arguments returns the
+string @var{s} converted to the target encoding. The keyed arguments
+@var{from} and @var{to} may be used to make the translation on the
+substring of @code{s}.
+
+You should close the @code{iconv} object used to perform the translation
+by calling this procedure with no parameters.
+
+Examples:
+
+Translate my name in Russian from @code{KOI8-R} (one of
+Cyrillic most widely used Russian code sets) to
+@code{UTF-8}:
+
+@example
+(define koi8->utf8(make-iconv-encoder "KOI8-R" "UTF-8"))
+(koi8->utf8 "Вова")
+@result{} "\320\222\320\276\320\262\320\260"
+
+;; Now skip one character
+(koi8->utf8 "Вова" from: 1)
+@result{} "\320\276\320\262\320\260"
+
+;; Close the iconv structure
+(koi8->utf8)
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} iconv-close cd::iconv @result{} int
+
+Release the @var{cd} object and all related resources.
+
+@end deffn

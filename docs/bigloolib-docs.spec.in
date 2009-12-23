@@ -1,0 +1,47 @@
+# -*-rpm-spec-*-
+Summary: 	Bigloo library
+Name:    	bigloolib-docs
+Version: 	@VERSION@
+Release: 	1
+Copyright: 	LGPL
+Vendor:		Vladimir Tsichevski <wowa1@online.ru>
+Source: 	http://download.sourceforge.net/bigloo-lib/bigloolib-docs-@VERSION@.tar.gz
+Group:		Development
+Packager:	David Fox <dsfox@cogsci.ucsd.edu>, Vladimir Tsichevski <wowa@jet.msk.su>
+BuildRoot:	/var/tmp/bigloolib-docs
+#BuildRequires:	bigloo,openldap-devel,expat
+
+%description
+The bigloolib-docs is documentation for bigloo-lib package
+
+%prep
+%setup
+./configure --prefix=@prefix@
+
+%build
+make
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+make install DESTDIR=%{buildroot}
+gzip %{buildroot}@prefix@/info/*.info
+gzip %{buildroot}@prefix@/info/*.info-*
+
+%clean
+#rm -rf %{buildroot}
+
+%post
+if [ "$1" = "1" ]; then
+  install-info @prefix@/info/bigloo-lib.info.gz /etc/info-dir
+fi
+
+%postun
+if [ "$1" = "0" ]; then
+  install-info --remove @prefix@/info/bigloo-lib.info.gz /etc/info-dir
+fi
+
+%files
+@prefix@/info/*info*
+
+%changelog

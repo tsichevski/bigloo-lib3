@@ -1,0 +1,24 @@
+@node    commandline, ,afile, Bigloo Common Library
+@section Command-line applications support
+
+This optional subpackage helps creating Bigloo applicatons that read
+input from the user a line at a time.  It currently supports
+@code{termios}, @code{readline} (the GNU readline library API) and
+@code{history} (the GNU history library API).
+
+It is compiled as an optional part of @code{common} library. To switch
+the compilation of this subpackage on, use @code{--with-commandline}
+option of @code{configure} script.
+
+@subsection Termios
+@include termios.texi
+
+@subsection The GNU readline library API
+@include readline.texi
+
+@subsection The GNU history library API
+@include history.texi
+
+
+
+

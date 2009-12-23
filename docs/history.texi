@@ -1,0 +1,442 @@
+This section describes API to the GNU History library, a programming tool
+that provides a consistent user interface for recalling lines of
+previously typed input.
+
+The programmer using the History library has available functions for
+remembering lines on a history list, associating arbitrary data with a
+line, removing lines from the list, searching through the list for a
+line containing an arbitrary text string, and referencing any line in
+the list directly.  In addition, a history "expansion" function is
+available which provides for a consistent user interface across
+different programs.
+
+@subsection Initializing History and State Management
+
+This section describes functions used to initialize and manage the
+state of the History library when you want to use the history functions
+in your program.
+
+@c ======================================================================
+@deffn {procedure} using-history 
+
+Begin a session in which the history functions might be used.  This
+initializes the interactive variables.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-get-history-state  @result{} history-state
+@deffnx {procedure} history-set-history-state state::history-state 
+
+Save and restore the current state of the input history.
+
+@end deffn
+
+@c ----------------------------------------------------------------------
+@subsubsection History List Management
+
+These functions manage individual entries on the history list, or set
+parameters managing the list itself.
+
+@c ======================================================================
+@deffn {procedure} history-state entry::string 
+
+Place @var{entry} at the end of the history list.
+
+For example: 
+@example
+(history-add "the first entry")
+@result{}
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-remove which::int @result{} string obj
+
+Remove history entry at offset @var{which} from the history. Return two
+scheme values: the removed entry string and data object (or scheme @code{#f}
+the data was not set for that entry).
+
+For example: 
+@example
+(history-clear)
+(history-add "the first entry")
+(history-add "the second entry")
+(multiple-value-bind
+      (string data)
+   (history-remove 0)
+   (print string)
+   (print data))
+@print{} the second entry
+@print{} #f
+(multiple-value-bind
+      (string data)
+   (history-remove 0)
+   (print string)
+   (print data))
+@print{} "the first entry"
+@print{} #f
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-replace
+        which::int
+        line::string
+        data::obj
+        @result{} string obj
+
+Make the history entry at offset @var{which} have @var{line} and
+@var{data}.  This returns the old entry's components.  In the case of an
+invalid @var{which}, scheme @code{#f} value is returned.
+
+In this example we add a new history entry replace it to another one, remove it, and try to remove a now non-existent entry:
+
+@example
+(history-clear)
+;; add a neww entry
+(history-add "the first entry")
+
+;; replace it by another one, set up the entry's data part
+;; and print the string part of the replaced entry
+(history-replace 0 "another entry" '(a b c))
+@result{} "the first entry"
+
+;; remove the replacement, print both the removed entry's
+;; string and data parts
+(multiple-value-bind
+      (string data)
+   (history-remove 0)
+   (print string)
+   (print data))
+@print{} another entry
+@print{} (a b c)
+
+;; now the history is empty, so we get #f
+(history-remove 0)
+@result{} #f
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-clear
+
+Clear the history list by deleting all the entries.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} stifle-history max::int 
+
+Stifle the history list, remembering only @var{max} number of entries.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} unstifle-history  @result{} int
+
+Stop stifling the history.  This returns the previous amount the history
+was stifled or scheme @code{#f} if the history wasn't stifled.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-stifled?  @result{} bool
+
+Return false if the history isn't stifled.
+
+@end deffn
+
+@subsubsection Information About the History List
+
+These functions return information about the entire history list or
+individual list entries.
+
+@c ======================================================================
+@deffn {procedure} history-list @result{} pair-nil
+
+Return the history contents as a list of pairs. Each pair consists of entry's string and data object.
+
+For example:
+@example
+(history-clear)
+(history-add "")
+(history-add "the first entry")
+(history-replace 0 "the second entry" '(a b c))
+@result{} "the first entry"
+(history-list)
+@result{} (("the second entry" a b c) ("" . #f))
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} history-where  @result{} int
+
+Returns the position of the current history element (the last added
+entry's position, or the position explicitly set with
+@code{history-set-pos!}).
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-current  @result{} string obj
+
+Return the history entry's string and data object at the current
+position (the last added entry position, or the position explicitly set
+with @code{history-set-pos!}).  If there is no entry there (in a case of
+an empty history, for example), return @code{#f}.
+
+For example: 
+@example
+(history-add "an entry")
+(history-current)
+@result{} "an entry"
+
+(history-add "another one")
+(history-current)
+@result{} "another one"
+
+(history-clear)
+(history-current)
+@result{} #f
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-get offset::int  @result{} string obj
+
+Return the history entry at position @var{offset}, starting from the
+value returned by @var{history-base}.  If there is no entry there, or if
+@var{offset} is greater than the history length, return scheme
+@code{#f}.
+
+@end deffn
+
+@subsubsection Moving Around the History List
+
+@c ======================================================================
+@deffn {procedure} history-set-pos! pos::int  @result{} bool
+
+Set the current history offset to @var{pos}, an absolute index into the
+list.  Returns @code{#f} if @var{pos} is less than zero or greater
+than the number of history entries.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} previous-history  @result{} hist-entry
+
+Back up the current history offset to the previous history entry,
+and return that entry's string and data.  If there is no previous
+entry, return @code{#f}.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} next-history  @result{} hist-entry
+
+Move the current history offset forward to the next history entry
+and return that entry's string and data.  If there is no next
+entry, return @code{#f}.
+
+@end deffn
+
+@subsubsection Searching the History List
+
+These functions allow searching of the history list for entries
+containing a specific string.  Searching may be performed both forward
+and backward from the current history position.  The search may be
+"anchored", meaning that the string must match at the beginning of the
+history entry.
+
+@c ======================================================================
+@deffn {procedure} history-search string::string #!optional backward?
+
+Search the history for @var{string}, starting at the current history
+offset.  If @var{backward?} is true, then the search is through previous
+entries, otherwise through subsequent entries.  If @var{string} is
+found, then the current history index is set to that history entry, and
+the value returned is the offset in the line of the entry where
+@var{string} was found.  Otherwise, nothing is changed, and @code{#f} is
+returned.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-search-prefix string::string #!optional backward?
+
+Same as @code{history-search}, but lines that begin with @var{string}
+are searched for.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} history-search-pos string::string #!optional backward? pos
+
+Search for @var{string} in the history list, starting at @var{pos}, an
+absolute index into the list.  If @var{backward?} is true, the search
+proceeds backward from @var{pos}, otherwise forward.  Returns the
+absolute index of the history element where @var{string} was found, or
+@code{#f} otherwise.
+
+@end deffn
+
+@subsubsection Managing the History File
+
+The History library can read the history from and write it to a file.
+This section documents the functions for managing a history file.
+
+@c ======================================================================
+@deffn {procedure} history-read #!optional filename from to
+
+Add a range of lines from @var{filename} to the history list, a line at
+a time.  If @code{filename} is missing, then read from `~/.history'.
+Start reading at line @var{from} and end at @var{to}. If @var{from}
+argument is missing, then read from the beginning of the file. If
+@var{to} is missing, then read up to the end of the file.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-write filename::string  @result{} int
+
+Write the current history to @var{filename}, overwriting @var{filename}
+if necessary.  If @code{filename} argument is missing, then write the
+history list to `~/.history'.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-append nelements::int filename::string  @result{} int
+
+Append the last @var{nelements} of the history list to @var{filename}.
+If @code{filename} argument is missing, then append to `~/.history'.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} history-truncate-file filename::string lines::int  @result{} int
+
+Truncate the history file @var{filename}, leaving only the last @var{lines}. If @code{filename} argument is missing, then `~/.history' is truncated.
+
+@end deffn
+
+@subsubsection History Expansion
+
+These functions implement history expansion. See the @code{History}
+documentation for the expansion details.
+
+@c ======================================================================
+@deffn {procedure} history-expand s::string 
+
+Expand @var{string}.  Returns:
+
+@table @r
+@item @code{#f}
+
+If no expansions took place (or, if the only change in the
+text was the removal of escape characters preceding the
+history expansion character);
+
+@item expanded string
+If expansions did take place;
+
+@item a list with the expanded string
+
+If the returned line should be displayed, but not executed,
+as with the @code{:p} modifier.
+
+@end table
+
+An error is signaled, if an error ocurred in expansion.
+
+For example: 
+@example
+(history-clear)
+(history-add "the first entry")
+(history-expand "!!")
+@result{} "the first entry"
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} history-arg-extract string::string !#optional first last  @result{} pair-nil
+
+Extract the args specified, starting at @var{first}, and ending at
+@var{last}.  The args are taken from @var{string}.  If either
+@var{first} or @var{last} is < 0, then make that arg count from the
+right (subtract from the number of tokens, so that @var{first} = -1 means the
+next to last token on the line).  If @var{last} is omitted the last arg from
+@var{string} is used.
+
+For example: 
+@example
+(history-arg-extract "one two three")
+@result{} "one two three"
+
+(history-arg-extract "one two three" 1)
+@result{} "two three"
+
+(history-arg-extract "one two three" 1 1)
+@result{} "two"
+
+(history-arg-extract "zero one two three")
+@result{} "zero one two three"
+
+(history-arg-extract "zero one two three" 2)
+@result{} "two three"
+
+(history-arg-extract "zero one two three" 2 3)
+@result{} "two three"
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} history-get-event s::string delimiting-quote::char 
+
+The procedure @code{history-get-event} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} history-tokenize string::string @result{} pair-nil
+
+Return an array of tokens parsed out of @var{string}, much as the shell
+might.  The tokens are split on the characters in the
+@code{history-word-delimiters}, and shell quoting conventions are
+obeyed.
+
+For example: 
+@example
+(history-tokenize "zero one two three")
+@result{} ("zero" "one" "two" "three")
+@end example
+@end deffn
+
+@subsubsection History Variable wrappers
+
+TODO
+
+@subsubsection History Programming Example
+
+The following is a tiny command line utility which reads user inputs,
+expand the lines and demonstrates some history-related commands:
+@code{history-write}, @code{history-read}, @code{history-list} and
+@code{history-remove}.
+
+@example
+@include history-example.scm
+@end example

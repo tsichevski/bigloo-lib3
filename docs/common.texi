@@ -1,0 +1,475 @@
+@node    Bigloo Common Library, , Top, Top
+@chapter Bigloo Common Library
+
+@menu
+* Bigloo Common Introduction::  
+* regex::                       internationalized basic and extended
+                                regular expression matching
+* gdbm::                        The GNU DBM interface
+* compat::                      MzScheme compatibility procedures
+* dl::                          Dynamic link support
+* SRFI-1 support::              SRFI-1 List Library
+* SRFI-13 support::             SRFI-13 String Library
+* Miscellanea::                 assorted stuff
+* cgen::                        bigloo preprocessor
+* iconv::                       charset conversion procedures
+* time::                        times and dates
+* afile::                       advanced afile utility
+* commandline::                 Command-line applications support
+@end menu
+
+@c ==================================================================
+@node    Bigloo Common Introduction, regex, Bigloo Common Library, Bigloo Common Library
+
+@section Introduction
+
+The @code{bigloo-common} library is a set of miscellaneous types and
+procedures. Some other @code{bigloo-lib}'s libraries rely on it. This
+library includes:
+
+@itemize @bullet
+@item Basic Regular Expression support
+@item The GNU DBM interface
+@item SRFI-1 support
+@item iconv (code set conversion utility) support
+@item C runtime crypt() support
+@item UNIX locale support
+@item md5 support
+@item UNIX operation system selected calls
+@item random number generation
+@item limited srfi-13 support
+@item C runtime time-related functions support
+
+@end itemize
+
+At the moment, the stuff was selected based only on my own practical
+needs in course of working on some Web-related projects. By this reason,
+the library is not (and probably never will be) completed.
+
+Also, though a few Bigloo procedures are re-implemented in this library,
+in no case this library replaces the Bigloo runtime library.
+
+@c ==================================================================
+
+@include regexp.texi
+@include gdbm.texi
+@include compat.texi
+@include dl.texi
+@c ==================================================================
+@node    SRFI-1 support, SRFI-13 support, dl, Bigloo Common Library
+@section SRFI-1 List Library
+@cindex SRFI
+@cindex List Library
+
+TBD
+
+@ignore
+@subsection Constructors
+
+@c ==================================================================
+@deffn {procedure} cons a d @result{} pair
+
+The primitive constructor. Returns a newly allocated pair whose
+@code{car} is a and whose @code{cdr} is @code{d}. The pair is guaranteed
+to be different (in the sense of eqv?) from every existing object.
+
+@end deffn
+@end ignore
+
+@include string-lib.texi
+@c ==================================================================
+@node    Miscellanea, iconv, SRFI-13 support, Bigloo Common Library
+@section Miscellaneous stuff
+
+@include os.texi
+
+@deffn {procedure} crypt passwd::bstring salt::bstring  @result{} bstring
+@code{crypt}@footnote{This function is compiled only if C runtime
+supports it} is the password encryption function.  It is based on the
+Data Encryption Standard (DES) algorithm with variations intended
+(among other things) to discourage use of hardware implementations of
+a key search.
+
+@var{passwd} is a user's typed password.
+
+@var{salt} is a two-character string chosen from the set [a-zA-Z0-9./].
+This string is used to perturb the algorithm in one of 4096 different
+ways.
+
+See the man pages for @code{crypt(3)}.
+
+@example
+(crypt "my-secret-password" "joe")
+ @result{} "jonhWNi0AD56g"
+@end example
+
+@end deffn
+
+@deffn {procedure} md5 data::bstring #!optional start end @result{} bstring
+
+Calculate digest using @code{md5} algorithm. Return 16-byte long
+byte string. Optional @var{start} and @var{end} parameters may be
+used to work with substrings. For example:
+
+@example
+(pp (md5 "qwerty"))
+@print{} #"\330W\216\337\204X\316\006\373\305\273v\245\214\\\244"
+@end example
+
+@code{md5} digest may include any characters, it is usually converted
+to printed form with @code{string->hex}, for example:
+
+@example
+(string->hex (md5 "qwerty"))
+@result{} "d8578edf8458ce06fbc5bb76a58c5ca4"
+@end example
+
+@end deffn
+
+@deffn {procedure} char->hex c::uchar @result{} bstring
+
+@code{char->hex} prints character @var{c} to hexadecimal string, for
+example:
+
+@example
+(char->hex #\newline)
+@result{} "0a"
+@end example
+
+@end deffn
+
+@deffn {procedure} string->hex str::bstring @result{} bstring
+
+@code{string->hex} prints string @var{str} using @code{char->hex}
+conversion, for example:
+
+@example
+(string->hex "Hello")
+@result{} "48656c6c6f"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-grammar-apply  s::bstring next-token::procedure @result{} bstring
+
+@var{s} string to parse.  @var{next-token} procedure of one argument
+which must be a scheme input port.
+
+The procedure @code{string-grammar-apply} translates strings. It creates
+an input port, and applies @var{next-token} to this port. The string
+output port is also created, and the result returned by @var{next-token}
+is printed to it using scheme @code{display} procedure. The operation
+repeats until the input is exausted.
+
+The contents of an output port is returned.
+
+For example an @code{http-url-decode} procedure in @code{http} library,
+which decodes @code{URL} uses this procedure:
+
+@example
+(define (http-url-decode str)
+  (string-grammar-apply
+   str
+   (lambda(port)
+     (read/rp
+      (regular-grammar
+       ()
+       ((: (in "%^") xdigit xdigit)
+	(integer->char(string->number(the-substring 1 3)16)))
+       (#\+ #\space))
+      port))))
+
+(http-url-decode "%61%62+%63%64") @result{} "ab cd"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string*->string-list sp::string*  @result{} pair-nil
+@deffnx {procedure} string-list->string* sl::pair-nil  @result{} string*
+
+@var{sp} a pointer to a C array of C zero-terminated strings. The array
+must be terminated by NULL value.
+
+The convenience procedures @code{string*->string-list} and
+@code{string-list->string*} converts an array of C strings to and from
+scheme list object correspondingly. Such arrays are very common in C
+APIs.
+
+For example, the C-runtime @var{environ} global variable may be accessed
+in this way:
+
+@example
+(pragma "extern char** environ")
+(pp(string*->string-list(pragma::string* "environ")))
+@print{}
+("PWD=/home/wowa/"
+ "HOSTNAME=duron"
+ "LD_LIBRARY_PATH=/usr/X11R6/lib:/usr/local/lib"
+ "HOSTDISPLAY=localhost:0.0"
+ @dots{}
+)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} apropos rexp::regexp-or-string
+
+The procedure @code{apropos} returns the list of all Bigloo globals
+visible to @code{eval} procedure which match the given regular
+expression.
+
+Examples: 
+
+Print all globals having "string->" in a name:
+
+@example
+(pp(apropos "string->"))
+@print{}
+(string->keyword
+  string->elong
+  string->obj
+  ieee-string->double
+  ucs2-string->utf8-string
+  string->hex
+  string->integer
+  string->symbol
+  ieee-string->real
+  string->0..2^x-1
+  ieee-string->float
+  string->0..255
+  utf8-string->ucs2-string
+  string->list
+  string->number
+  string->llong
+  string->real
+  ucs2-string->list
+  string->symbol-ci)
+@end example
+
+Print all globals wich a name ending with "list":
+
+@example
+(pp(apropos "list$"))
+@print{}
+(symbol-plist
+  process-list
+  directory->list
+  list
+  vector->list
+  string*->string-list
+  make-list
+  circular-list
+  unix-path->list
+  path->list
+  hashtable-key-list
+  string->list
+  hashtable->list
+  ucs2-string->list
+  flatten-list
+  history-list)
+
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} object-data-set! o data #!optional selector
+@deffnx {procedure} object-data-get o #!optional selector
+@deffnx {procedure} object-data-free! o
+
+These procedures deal with global object table.  The
+@code{object-data-set!} binds scheme objects to the registry under the
+key. The @code{object-data-get} finds the object by the key, and
+@code{object-data-free!} removes the binding. These keys are compared
+with @code{equal?} function.
+
+Example: bind/locate the string ``bar'' under the key 'foo.
+
+@example
+(object-data-get 'foo)
+@print{} #f
+(object-data-set! 'foo "bar")
+(object-data-get 'foo)
+@print{}  "bar"
+@end example
+
+It is possible to specify secondary keys as the @var{selector}
+arguments.
+
+In the later case the associative list is bound, and the
+@code{selector} used as the key then creating or locating objects in it.
+These secondary keys are compared with @code{eq?} function.
+
+Example: bind/locate the string ``bar'' under the key 'foo1 and subkey
+'hi
+
+@example
+(object-data-set! 'foo "bar" 'hi)
+(object-data-get 'foo1 'hi)
+@print{}  "bar"
+@end example
+
+Note: it is impossible to mix both methods with same primary key. Example:
+
+@example
+(object-data-set! 'foo "bar")
+(object-data-set! 'foo "bar" 'hi)
+@error{}
+*** ERROR:bigloo:alist-set!:
+Type `pair-nil' expected, `bstring' provided -- bar
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} object-ref o . finalizers
+@deffnx {procedure} object-lookup o
+@deffnx {procedure} object-unref o
+
+These procedures allows to store reference counter to scheme objects
+in an underlying global object table.
+
+The @code{object-ref} procedure assures the given object is in the
+global object table, and increases the counter associated with the
+object on every procedure invocation. The @code{object-unref}
+decreases the counter. If it reaches zero, the finalizers are invoked,
+and the association released.
+
+@code{object-ref} does nothing then applyed to non-pointer scheme
+objects i.e. integers on characters.
+
+@code{object-ref} returns the record associated with the object. The
+record is a list consisting of the object, the reference counter, and
+the rest of the list are finalizers.
+
+@code{object-ref} returns the record associated a given object if
+any. The record is a list consisting of the object, the reference
+counter, the rest of the list are finalizers.
+
+The @code{object-lookup} retrieves the record associated with the
+given object.
+
+Example: reference/lookup/unreference the string ``bar''.
+
+@example
+(define o "bar")
+(object-lookup o)
+@print{} #f
+(object-ref o)
+@print{} ("bar" 1) ;; one reference, no finalizers
+(object-ref o (lambda(o)(print o " about to disappear")))
+@print{} ("bar" 2 #<procedure:400fae60.1>) ;; two references, one finalizer
+(object-unref o)
+@print{} (bar 1 #<procedure:400fae60.1>)
+(object-unref o)
+@print{} bar about to disappear
+@end example
+
+The main purpose of these procedures is to keep references to the
+object passed to external non GC-based functions, and hence prevent
+these object from being collected by Bigloo GC. For example, all
+scheme procedures used as callbacks in bigloo-gtk library use these
+method.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} map-delimited proc thunk #!rest lists 
+
+The procedure @code{map-delimited} is similar to the standard Scheme
+@code{map} procedure. The difference is that results of calling the
+@var{thunk} procedure are inserted between the results of invoking the
+@var{proc}.
+
+For example: 
+@example
+(map-delimited
+  (lambda(a b)
+    (+ a b))
+  (lambda() 0)
+  '(1 2 3)
+  '(4 5 6))
+@result{} (5 0 7 0 9)
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} for-each-delimited proc thunk #!rest lists 
+@var{proc}
+@var{thunk}
+The rest of arguments @var{lists} are 
+
+The procedure @code{for-each-delimited} is similar to the standard
+Scheme @code{for-each} procedure.  The difference is that the
+@var{thunk} procedure is called after each call to @var{proc}
+procedure, except the last call. 
+
+For example:
+
+@example
+(for-each-delimited
+ (lambda(a b)
+   (display(+ a b)))
+ (lambda()
+   (display ", "))
+ '(1 2 3)
+ '(4 5 6))
+@print{} 5, 7, 9
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} print-list-delimited lyst #!optional (delim "") (display display) 
+
+The procedure @code{print-list-delimited} invokes the @var{display}
+procedure on each element of the @code{lyst}. It also invokes the same
+procedure on the @var{delim} argument in between the calls.
+
+For example, to print a list comma-separated:
+@example
+(print-list-delimited '(1 2 3) ", ")
+@print{} 1, 2, 3
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} add-printer predicate::procedure display::procedure 
+
+The procedure @code{add-printer} lets assign a specific @code{display}
+routine to any scheme object matching the @var{predicate}. It does for
+any bigloo object what the @code{object-display} generic procedure
+does for class object.
+
+The @var{predicate} should be a procedure of exactly one argument.
+
+The @code{display} should be a procedure taking three arguments: the
+initial displaying procedure, the object and the optional output port.
+
+It is possible to set a new @var{display} procedure multiple times for
+same predicate: the old @var{display} procedure will be replaced by
+the new one.
+
+The unrealistic example: instead of numbers print its square
+instead.
+
+@example
+(add-printer
+   number?
+  (lambda (old-display n port)
+    (old-display (* n n)
+	         (or port (current-output-port)))))
+(display 5)
+@print{} 25
+
+(display 10)
+@print{} 100
+@end example
+@end deffn
+
+@c ======================================================================
+@include iconv.texi
+@include time.texi
+@include cgen.texi
+@include afile.texi
+@include commandline.texi

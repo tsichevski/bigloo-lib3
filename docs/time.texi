@@ -1,0 +1,328 @@
+@node time, cgen, iconv, Bigloo Common Library
+@section Time-related procedures
+
+This section describes types and procedures, dealing with time. They let
+you measure calendar and UNIX process time, print time using locale
+settings, and also do some arithmetics with times and dates.
+
+@c ======================================================================
+@deftp {foreign} tm
+
+A wrapper for C library @code{struct tm} structure, broken-down time
+representation.
+
+The following read accessors are defined:
+
+@table @r
+
+@item tm-sec
+The number of seconds after the minute, normally in the range 0 to 59,
+but can be up to 61 to allow for leap seconds.
+
+@item tm-min
+The number of minutes after the hour, in the range 0 to 59.
+
+@item tm-hour
+The number of hours past midnight, in the range 0 to 23.
+
+@item tm-mday
+The day of the month, in the range 1 to 31.
+
+@item tm-mon
+The number of months since January, in the range 0 to 11.
+
+@item tm-year
+The number of years since 1900.
+
+@end table
+
+See also @code{strftime} procedure description to print these objects in
+human-readable form.
+
+@end deftp
+
+@c ======================================================================
+@deffn {procedure} make-tm  @result{} tm
+
+Allocate an uninitialized object of type @code{tm}. This procedure is
+used internally by other time-manipulation procedures. Perhaps, you do
+not want to call it explicitly.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gmtime seconds::elong #!optional tm::tm @result{} tm
+
+Interface for C runtime @code{gmtime} call. Take number of seconds
+elapsed since 00:00:00 on January 1, 1970, Coordinated Universal Time
+(UTC), and convert it to broken-down time representation, expressed in
+Coordinated Universal Time (UTC).
+
+@example
+(strftime (gmtime (current-seconds)))
+@result{} 04/16/00 17:56:54
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} localtime seconds::elong #!optional tm::tm @result{} tm
+
+Same as @code{gmtime}, but the result is expressed relative to the user's
+specified time zone.
+
+The procedure also sets the values returned by @var{tzname} and
+@var{timezone} and @code{daylight}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} timezone @result{} int
+
+Return number of seconds west of UTC. For example, here in Moscow:
+
+@example
+(timezone)
+@result{} -10800
+(/ (timezone) 3600)
+@result{} -3
+@end example
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} tzname @result{} 2 scheme values
+
+Return names of time zone as two scheme values. See @code{tzset} manual
+pages for details. The values are also set by @code{localtime}. For
+example:
+
+@example
+(define(tzprint)
+  (multiple-value-bind
+   (name name1)
+   (tzname)
+   (print name ", " name1)))
+
+(tzprint)
+(localtime 0.0) ;; this call for side effects only
+(tzprint)
+@result{} GMT, GMT
+MSK, MSD
+@end example
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} daylight @result{} bool
+
+A flag that indicates whether daylight saving time is in effect at the
+time described.  Return positive value if daylight saving time is in
+effect, zero if it is not, and negative value if the information is not
+available.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} strftime tm::tm #!optional format::bstring @result{} bstring
+
+The @code{strftime} procedure formats the broken-down time @var{tm}
+according to the @var{format} specification. If @var{format} argument is
+omitted, the @code{"%x %X"} string is used to format output. See
+@code{strftime} manual pages for details.
+
+Examples:
+
+@example
+(define now(localtime(current-seconds)))
+@result{} #<foreign:TM:806dbd0>
+
+(strftime now)
+"04/16/00 23:38:14"
+
+(strftime now "%Y%m%d%H%M%S")
+"20000416233814"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} current-milliseconds  @result{} elong
+
+Return the time since the Epoch (00:00:00 UTC, January 1, 1970),
+measured in milliseconds.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} ctime seconds::elong @result{} bstring
+
+Interface for @code{ctime_r} C runtime procedure. Return 26-character
+string with fixed-format time representation, for example:
+
+@example
+@end example
+(ctime (current-seconds))
+@result{} "Mon Apr 17 12:28:54 2000"
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} mktime year month day #!optional hour minute second @result{} tm
+
+Constructor for objects of @code{tm} type. The arguments are:
+
+@table @r
+@item year::int
+The year, including the century number
+@item month::int
+Month in an year number from 1 to 12
+@item day::int
+Day in a month number
+@item hour::int
+Hour in day number from 0 to 23. Default is 0.
+@item minute::int
+Minute in a hour number from 0 to 59. Default is 0.
+@item second::int
+Second in a minute number. Default is 0.
+@end table
+
+Example:
+@example
+(strftime(mktime 1960 12 27))
+@result{} "12/27/60 00:00:00"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} read-date fmt::bstring port::input-port @result{} tm
+
+Read date/time from port @var{port} using the specification
+@var{fmt}. The format of the specification is a subset that of
+@code{strftime} specification (only @code{%S}, @code{%M}, @code{%H},
+@code{%I}, @code{%d}, @code{%m}, @code{%Y}, @code{%p} and @code{%%}
+escape sequences are supported).
+
+Examples:
+
+@example
+(strftime
+  (read-date "%Y%m%d%H%M%S"
+             (open-input-string "20000416233814")))
+@result{} "04/16/00 23:38:14"
+(strftime
+  (read-date
+    "%d.%m.%Y %H:%M:%S"
+    (open-input-string "26.05.2002 14:16:01")))
+@result{} "05/26/02 14:16:01"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} times #!optional which? @result{} long
+@cindex process time measuring
+
+The @code{times} procedure measures various time-accounting information.
+Depending on value of argument @var{which?} of @code{symbol} type it
+returns the following values:
+
+@table @r
+@item @code{utime}
+User time
+@item @code{stime}
+System time
+@item @code{cutime}
+User time of children
+@item @code{cstime}
+System time of children
+@end table
+
+If argument @var{which?} is absent, the @code{times} procedure returns
+five scheme values: the number of clock ticks that have elapsed since
+the system has been up, and all the values just described,
+i.e. @code{utime}, @code{stime}, @code{cutime} and @code{cstime}.
+
+All the values are measured in system clock ticks. The length of one
+tick is system-dependent. Number of clocks per second may be obtained by
+calling @code{clocks-per-second} procedure.
+
+Examples:
+
+Here number of system clock ticks from the system start-up is measured:
+
+@example
+(times)
+@result{} 1720216
+@end example
+
+The same value but now in seconds:
+
+@example
+(/(times)(clocks-per-second))
+@result{} 17340.09
+@end example
+
+The following example is a complete utility that measures the external
+process times.
+
+The initial times are measured and stored in local variables
+@var{total}, @var{cutime} and @var{cstime}, external process is spawned
+using bigloo @code{run-process} procedure @inforef{Process support,
+,bigloo}. After the spawned process is finished, the statistics is
+printed to standard error port in form similar that of Unix @code{time}
+utility.
+
+@example
+#!/usr/local/bin/bigloo-common
+
+(multiple-value-bind
+ (total utime stime cutime cstime)
+ (times)
+ (apply run-process
+	(append (cddr(command-line))
+		'(wait: #t)))
+ (multiple-value-bind
+  (ntotal nutime nstime ncutime ncstime)
+  (times)
+  (let((ticks(clocks-per-second))
+       (user-ticks(- ncutime cutime))
+       (system-ticks(- ncstime cstime))
+       (elapsed-ticks(- ntotal total)))
+    (fprintf
+     (current-error-port)
+     "~auser ~asystem ~aelapsed ~a%CPU~%"
+     (/ user-ticks ticks)
+     (/ system-ticks ticks)
+     (/ elapsed-ticks ticks)
+     (inexact->exact
+      (*(/(+ user-ticks system-ticks) elapsed-ticks)100))))))
+@end example
+
+The utility usage example (provided the @code{./time} is the script
+location):
+
+@example
+bash$ ./time gzip -c /vmlinuz > /dev/null
+1.17user 0.03system 1.2elapsed 100%CPU
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tm->utctime time::tm @result{} bstring
+
+Print @var{time} argument in UTC time format.
+
+@example
+(tm->utctime(localtime(current-seconds)))
+@result{} 20000531123949Z
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} utctime->tm utc::bstring @result{} tm
+@var{utc}
+@example
+(strftime(utctime->tm "20000531123949Z"))
+@result{} 05/31/00 12:39:49
+@end example
+@end deffn
+

@@ -1,0 +1,848 @@
+@node    Bigloo LDAP interface, , Top, Top
+@chapter Bigloo LDAP interface
+
+@menu
+* LDAP types::
+* LDAP connection::
+* LDAP data modifying::
+* LDAP searching::
+* LDAP cache control::
+* LDAP errors handling::
+* LDAP misc utilities::
+@end menu
+
+This chapter describes a scheme interface for client LDAP library. The
+interface allows to write LDAP clients with Bigloo scheme. It was tested
+with @code{OpenLDAP-1.2.9} package from @url{http://www.openldap.org}
+@footnote{For each LDAP C API call, which has both synchronous and
+asynchronous versions, only the synchronous API is implemented}.
+
+The chapter includes many verbatim excerpts from corresponding
+original manual pages, describing the C interface, which are provided
+with the package from @url{http://www.openldap.org}
+
+@section API for C library
+
+@c ENTITY definitions
+@set ld-param Result of a successful call to @code{ldap-open} or @code{ldap-init}
+
+@set msg-param LDAP message object, resulted from successful invocation of @code{ldap-result}
+@set mods-param Specifies non-empty list of modifiers. @xref{LDAP types}.
+@set msgid-param Specifies LDAP request id, returned by successful invocation of one of LDAP operation routines (e.g., @code{ldap-search}, @code{ldap-modify}).
+@set exception-return Return #unspecified. Generates exception in case of error. Use @code{ldap-errno} to get LDAP error code.
+
+@node LDAP types, LDAP connection, Bigloo LDAP interface, Bigloo LDAP interface
+@subsection LDAP types
+
+@deftp {foreign} ldap
+LDAP server connection handle, resulted from successful call of
+@code{ldap-open} or @code{ldap-init}.
+
+@end deftp
+
+
+@deftp {Bigloo type} attlist
+
+List of attribute names and values. @code{attlist} is a scheme list,
+each element of which is a scheme list itself, which has the following
+structure: the first element is the attribute name string, and the rest
+is a (possibly empty) list of the attribute value strings. For example :
+
+@example
+'(("objectclass" "organizationalPerson")
+  ("telephonenumber" "1234567" "7654321"))
+@end example
+
+The objects of the @code{attlist} type are passed as arguments of the
+following functions: @code{ldap-add}, @code{ldap-modify-delete
+ldap-modify-replace} and @code{ldap-get-attributes}.
+
+@end deftp
+
+@c =========================== LDAP procedures ==============================
+@node LDAP connection, LDAP data modifying, LDAP types, Bigloo LDAP interface
+@subsection LDAP connection
+@cindex LDAP connection management
+
+@c =========================== ldap-init ==============================
+@deffn {procedure} ldap-init #!optional host::string port::int
+@cindex LDAP connection initialize
+
+@table @r
+@item host
+LDAP server hostname string. See @code{ldap_init(3)} manual page for details.
+@item port
+LDAP server port number. See @code{ldap_init(3)} manual page for details.
+
+Allocates an LDAP structure but does not open an initial connection
+
+Return LDAP connection handle of type @code{ldap}.
+
+See also @code{ldap_init(3)} manual page.
+@end table
+
+@end deffn
+
+@c =========================== ldap-open ==============================
+@deffn {procedure} ldap-open #!optional host::string port::int
+@cindex LDAP connection opening
+
+@table @r
+@item host
+LDAP server hostname string. See @code{ldap_open(3)} manual page for details.
+@item port
+LDAP server port number. See @code{ldap_open(3)} manual page for details.
+@end table
+
+Opens a connection to an LDAP server and allocates an LDAP structure
+
+Return LDAP connection handle of type @code{ldap}.
+
+See also @code{ldap_open(3)} manual page.
+
+@end deffn
+
+@c =========================== ldap-bind ==============================
+@deffn {procedure} ldap-bind ld::ldap who::string cred::string
+@cindex LDAP connection authorize
+
+@table @r
+@item ld
+@value{ld-param}
+@item who
+Specifies DN for an LDAP entry corresponding to user logging in
+
+@item cred
+Specifies the @code{userPassword}
+attribute value of a LDAP entry corresponding to the user
+logging in or other credentials
+@end table
+
+@code{ldap-bind} provides the connection with authentication
+information, and is an interface to @code{ldap_simple_bind} C client
+library function.
+
+Example
+
+This binds the user with DN @code{cn=root,o=jet,c=ru} and password
+@code{secret} :
+
+@example
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ @dots{}
+ )
+@end example
+
+See also @code{ldap_simple_bind(3)} manual page.
+
+@end deffn
+@c =========================== ldap-unbind ==============================
+@deffn {procedure} ldap-unbind ld::ldap
+@cindex LDAP connection authorize
+
+@table @r
+@item ld
+@value{ld-param}
+@end table
+
+@code{ldap-unbind} unbinds from directory, terminates the current
+association, closes the connection @var{ld} and frees resources
+associated with the corresponding LDAP structure
+
+See also @code{ldap_unbind(3)} manual page.
+
+@end deffn
+@c =========================== LDAP data modifying ==============================
+@node LDAP data modifying, LDAP searching, LDAP connection, Bigloo LDAP interface
+@subsection LDAP data modifying
+
+@c =========================== ldap-add ==============================
+@deffn {procedure} ldap-add ld::ldap dn::string mods::attlist @result{} #unspecified
+@cindex LDAP entry adding
+@cindex adding LDAP entry
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+
+Specifies DN for a LDAP entry to add
+@item mods
+Specifies non-empty @code{attlist}. @xref{LDAP types}.
+@end table
+
+@code{ldap-add} adds new LDAP entry, it is an interface to
+@code{ldap_add} C library function.
+
+@value{exception-return}
+
+Example :
+
+@example
+(let((ld(ldap-open))) ;; open default LDAP connection
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret") ;; introduce self to server
+ ;; add new entry
+ (ldap-add ld
+         "cn=Tsichevski,o=jet,c=ru"
+         '(("cn" "Tsichevski Vladimir")
+           ("objectclass" "person")
+           ("organization" "jet"))))
+@end example
+
+See also @code{ldap_add(3)} manual page.
+
+@end deffn
+@c =========================== ldap-modify-add ==============================
+@deffn {procedure} ldap-modify-add ld::ldap dn::string mods::ldapattr
+@cindex adding attributes to LDAP entry
+@cindex LDAP attributes adding
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+Specifies DN for an existing LDAP entry
+@value{mods-param}
+@end table
+
+@code{ldap-modify-add} adds new attributes to LDAP entry, it is an
+interface to @code{ldap_modify} C library function.
+
+Example :
+
+@example 
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ (ldap-modify-add ld
+                 "cn=Tsichevski,o=jet,c=ru"
+                 '(("cn" "Tsichevski Vladimir")
+                 ("objectclass" "person")
+                 ("organization" "jet"))))
+@end example
+
+See also@code{ldap_modify(3)} manual page.
+
+@end deffn
+@c =========================== ldap-modify-delete ==============================
+@deffn {procedure} ldap-modify-delete ld::ldap dn::string mods::attlist
+@cindex LDAP attributes removing
+@cindex removing LDAP attributes
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+Specifies DN for an existing LDAP entry
+@item mods
+Specifies non-empty @code{attlist}. @xref{LDAP types}.
+@end table
+
+@code{ldap-modify-delete} removes attributes from LDAP entry, and is an
+interface to @code{ldap_modify} C API function.
+
+Example :
+
+In the following example the value @code{jet} of attribute
+@code{organization} will be removed from entry @code{cn=Tsichevski,o=jet,c=ru}.
+
+@example
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ (ldap-modify-delete ld
+                 "cn=Tsichevski,o=jet,c=ru"
+                 '(("organization" "jet"))))
+@end example
+
+In the next example the entire attribute @code{organization} will be
+removed from @code{cn=Tsichevski,o=jet,c=ru} entry.
+
+@example
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ (ldap-modify-delete ld
+                 "cn=Tsichevski,o=jet,c=ru"
+                 '(("organization"))))
+@end example
+
+See also @code{ldap_modify(3)} manual page.
+
+@end deffn
+@c =========================== ldap-modify-replace ==============================
+@deffn {procedure} ldap-modify-replace ld::ldap dn::string mods::attlist
+@cindex LDAP attributes replacing
+@cindex replacing LDAP attributes
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+Specifies the distinct name of an existing LDAP entry
+@item mods
+Specifies non-empty @code{attlist}. @xref{LDAP types}.
+@end table
+
+@code{ldap-modify-replace} replaces attributes of LDAP entry, creating
+the attribute in necessary, and is an interface to @code{ldap_modify}
+LDAP client library.
+
+Example :
+
+In the following example the new value @code{jet} of attribute
+@code{organization} replaces the old value in entry
+@code{cn=Tsichevski,o=jet,c=ru}.
+
+@example
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ (ldap-modify-replace ld
+                 "cn=Tsichevski,o=jet,c=ru"
+                 '(("organization" "jet"))))
+@end example
+
+See also @code{ldap_modify(3)} manual page.
+
+@end deffn
+@c =========================== ldap-delete ==============================
+@deffn {procedure} ldap-delete ld::ldap dn::string
+@cindex LDAP entry removing
+@cindex removing LDAP entries
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+Specifies DN for an existing LDAP entry to remove
+@end table
+
+@code{ldap-delete} removes LDAP entry, and is an interface to
+@code{ldap_delete} C API function.
+
+Example :
+
+@example
+(let((ld(ldap-open)))
+ (ldap-bind ld "cn=root,o=jet,c=ru" "secret")
+ (ldap-delete ld
+         "cn=Tsichevski,o=jet,c=ru"))
+@end example
+
+See also @code{ldap_delete(3)} manual page.
+
+@end deffn
+@c =========================== LDAP searching ==============================
+@node LDAP searching, LDAP cache control, LDAP data modifying, Bigloo LDAP interface
+@subsection LDAP searching
+
+@c =========================== ldap-search ==============================
+@deffn {procedure} ldap-search ld::ldap #!key base scope filter atts attrsonly?
+
+@cindex LDAP search performing
+
+@table @r
+
+@item ld
+@value{ld-param}
+
+@item base
+Search base DN. System default value used if not specified. See
+@code{ldap.conf(5)} manual page.
+
+@item scope
+Symbol @code{base} or integer 0, to search the object itself, symbol
+@code{onelevel} or integer 1, to search the object's immediate children,
+symbol @code{subtree} or integer 2 to get all the object subtree. The
+default is @code{subtree}.
+
+@item filter
+String representation of the filter to apply. See @code{ldap_search(3)}
+manual page for details. Default is "objectclass=*".
+
+@item atts
+List of names of LDAP attributes to be shown in search results. If
+omitted, all the attributes will be shown.
+
+@item attrsonly
+If true, then search result will have only the names of LDAP attributes (no attribute values).
+@end table
+
+@code{ldap-search} returns integer result LDAP message
+id or raises an exception in case of error.
+
+See example in @code{ldap-next-entry}.
+
+See also @code{ldap_search(3)} manual page.
+@end deffn
+
+@c =========================== ldap-count-entries ==============================
+@deffn {procedure} ldap-count-entries ld::ldap msg::ldap-message @result{} int
+
+@cindex LDAP search results retrieving
+
+@table @r
+@item ld
+@value{ld-param}
+@value{msg-param}
+@end table
+
+Return value
+
+@code{ldap-count-entries} returns the number of entries in search result
+or raises an exception in case of error.
+
+
+Example :
+
+In this example the total number of entries in LDAP tree is measured :
+
+@example
+(let*((ld(ldap-open))
+ (msgid(ldap-search ld atts: '()));; only DN's, no attributes
+ (result(ldap-result ld msgid)))
+ (ldap-count-entries ld result))
+@end example
+
+See also @code{ldap_count_entries(3)} manual page.
+@end deffn
+
+@c =========================== ldap-first-entry ==============================
+@deffn {procedure} ldap-first-entry ld::ldap msg::ldap-message*
+@cindex LDAP search results browsing
+
+@table @r
+@item ld
+@value{ld-param}
+@value{msg-param}
+@end table
+
+@code{ldap-first-entry} returns the first result entry or @code{#f} if no more
+entries available.
+
+The following returns root entry in LDAP tree:
+@example
+(let*((ld(ldap-open))
+ (msgid(ldap-search ld atts: '()))
+ (result(ldap-result ld msgid)))
+ (ldap-first-entry ld result))
+@end example
+
+See also @code{ldap_first_entry(3)} manual page.
+
+@end deffn
+@c =========================== ldap-get-dn ==============================
+@deffn {procedure} ldap-get-dn ld::ldap msg::ldap-message*
+@cindex LDAP search results browsing
+
+@table @r
+@item ld
+@value{ld-param}
+@item msg
+LDAP message object as returned from
+@code{ldap-first-entry} or @code{ldap-next-entry}
+@end table
+
+return DN of LDAP message
+
+See also @code{ldap_get_dn(3)} manual page.
+
+@end deffn
+@c =========================== ldap-get-attributes ==============================
+@deffn {procedure} ldap-get-attributes ld::ldap msg::ldap-message* @result{} attlist
+@cindex LDAP search results browsing
+
+@table @r
+@item ld
+@value{ld-param}
+@item msg
+LDAP message object as returned from
+@code{ldap-first-entry} or
+@code{ldap-next-entry}
+@end table
+
+Return list of entry attributes in form of @code{attlist}. @xref{LDAP types}.
+
+Example :
+
+See example in @code{ldap-next-entry}.
+
+@end deffn
+@c =========================== ldap-get-values ==============================
+@deffn {procedure} ldap-get-values ld::ldap msg::ldap-message* attr::string
+@cindex LDAP message attributes
+
+@table @r
+@item ld
+@value{ld-param}
+@item msg
+The LDAP message object returned from @code{ldap-first-entry},
+@code{ldap-next-entry}
+@item attr
+The attribute name (scheme string)
+@end table
+
+returns values of specific attribute
+
+Return list of attribute values (scheme strings) or @code{#f} of entry
+has no such attribute.
+
+Example :
+
+The following statement returns first value of attribute
+@code{objectclass} of LDAP root entry
+
+@example
+(let*((ld(ldap-open))
+ (msgid(ldap-search ld))
+ (result(ldap-result ld msgid))
+ (msg(ldap-first-entry ld result)))
+ (ldap-get-values ld result "objectclass"))
+
+@result{} ("organization")
+@end example
+
+See also @code{ldap_get_values(3)} manual page.
+
+@end deffn
+@c =========================== ldap-message-free ==============================
+@deffn {procedure} ldap-message-free msg::ldap-message*
+@cindex LDAP message releasing
+
+@table @r
+@item msg
+LDAP message object returned from @code{ldap-first-entry}, @code{ldap-next-entry}
+@end table
+
+frees an LDAP message structure
+
+@end deffn
+@c =========================== ldap-next-entry ==============================
+@deffn {procedure} ldap-next-entry ld::ldap msg::ldap-message*
+@cindex LDAP search results browsing
+
+@table @r
+@item ld
+@value{ld-param}
+@value{msg-param}
+@end table
+
+@code{ldap-next-entry} returns the result entry following given entry
+or @code{#f} if no more entries available.
+
+Example :
+
+This opens LDAP connection, and retrieves all antries in the LDAP tree :
+
+@example
+(let*((ld(ldap-open))
+      (msgid(ldap-search ld atts: '()))
+      (result(ldap-result ld msgid)))
+  (let loop((msg(ldap-first-entry ld result))
+            (accu '()))
+    (if msg
+        (let((node(cons(ldap-get-dn ld msg)
+                       (ldap-get-attributes ld msg))))
+          (loop
+           (ldap-next-entry ld msg)
+           (cons node accu)))
+        (begin(ldap-message-free result)
+              (reverse accu)))))
+@result{}
+(("dc=jet,dc=msk,dc=ru"
+  ("cn" "Jet Infosystems Int.")
+  ("objectclass" "dmd"))
+ ("uid=archive,dc=jet,dc=msk,dc=ru"
+  ("uid" "archive")
+  ("objectclass" "documentSeries")
+  ("cn" "Archive of documents"))
+@dots{}
+@end example
+
+See also @code{ldap_first_entry(3)} manual page.
+
+@end deffn
+@c =========================== ldap-result ==============================
+@deffn {procedure} ldap-result ld::ldap msgid::int #!optional timeout
+@cindex LDAP search results retrieving
+
+@table @r
+@item ld
+@value{ld-param}
+@item msgid
+@value{msgid-param}
+@item timeout
+Optionally specifies the response waiting timeout in seconds. If is not
+provided the infinite wait assumed.
+@end table
+
+This routine is used to wait for and return the result of an
+operation previously initiated by one of the LDAP operation
+routines (e.g., @code{ldap-search}, @code{ldap-modify}).
+
+@code{ldap-result} returns the result LDAP message or raises an
+exception in case of error.
+
+See example in @code{ldap-next-entry}.
+
+See also @code{ldap_result(3)} manual page.
+@end deffn
+@c =========================== LDAP cache control ==============================
+@node LDAP cache control, LDAP errors handling, LDAP searching, Bigloo LDAP interface
+@subsection LDAP cache control
+
+@c =========================== ldap-flush-cache! ==============================
+@deffn {procedure} ldap-flush-cache! ld::ldap
+@cindex LDAP cache deleting
+
+@table @r
+@item ld
+@value{ld-param}
+@end table
+
+Deletes cache contents, but does not effect it in any other way
+
+See also @code{ldap_flush_cache(3)} manual page.
+
+@end deffn
+@c =========================== ldap-destroy-cache! ==============================
+@deffn {procedure} ldap-destroy-cache! ld::ldap
+@cindex LDAP cache deleting
+
+@table @r
+@item ld
+@value{ld-param}
+@end table
+
+
+Turn off caching and completely remove cache from memory
+
+See also @code{ldap_destroy_cache(3)} manual page.
+
+@end deffn
+@c =========================== ldap-disable-cache! ==============================
+@deffn {procedure} ldap-disable-cache! ld::ldap
+@cindex LDAP cache disabling
+
+@table @r
+@item ld
+@value{ld-param}
+@end table
+
+Temporarily disables use of cache (new requests are
+not cached and cache is not checked when returning
+results). It does not delete the cache contents from memory
+
+See also @code{ldap_disable_cache(3)} manual page.
+
+@end deffn
+@c =========================== ldap-enable-cache! ==============================
+@deffn {procedure} ldap-enable-cache! ld::ldap timeout::int maxmem::int
+@cindex LDAP cache enabling
+
+@table @r
+@item ld
+@value{ld-param}
+@item timeout
+Timeout in seconds. Used to
+decide how long to keep cached requests
+@item maxmem
+Cache size limit in bytes. Used to set an upper bound on how much memory
+cache will use. You can specify 0 for maxmem to restrict cache size by
+the timeout only.
+@end table
+
+Turns on local caching or changes cache parameters
+(lifetime of cached requests and memory used).
+
+See also @code{ldap_enable_cache(3)} manual page.
+
+@end deffn
+@c =========================== ldap-set-cache-options! ==============================
+@deffn {procedure} ldap-set-cache-options! ld::ldap opts::int
+@cindex LDAP cache options
+
+@table @r
+@item ld
+@value{ld-param}
+@item opts
+See @code{ldap_set_cache_options(3)} manual page for details.
+@end table
+
+See @code{ldap_set_cache_options(3)} manual page for details.
+
+@end deffn
+@c =========================== ldap-uncache-entry! ==============================
+@deffn {procedure} ldap-uncache-entry! ld::ldap dn::string
+@cindex LDAP entry caching control
+
+@table @r
+@item ld
+@value{ld-param}
+@item dn
+DN of entry to remove.
+@end table
+
+Removes all requests that make reference to the DN from the cache
+
+See also @code{ldap_uncache_entry(3)} manual page.
+
+@end deffn
+@c =========================== ldap-uncache-request! ==============================
+@deffn {procedure} ldap-uncache-request! ld::ldap msgid::int
+@cindex LDAP request caching control
+
+@table @r
+@item ld
+@value{ld-param}
+@item msgid
+@value{msgid-param}
+@end table
+
+remove the request indicated by
+the LDAP request id msgid from the cache
+
+See also @code{ldap_uncache_request(3)} manual page.
+@end deffn
+@c =========================== LDAP errors handling ==============================
+@node LDAP errors handling, LDAP misc utilities, LDAP cache control, Bigloo LDAP interface
+@subsection LDAP errors handling
+
+@c =========================== ldap-errno ==============================
+@deffn {procedure} ldap-errno ld::ldap @result{} int
+@cindex LDAP errors
+
+@table @r
+@item ld
+@value{ld-param}
+@end table
+
+Result of the last LDAP API call. The value of 0 if no error.
+To get a readable error description use
+@code{ldap-error-string}.
+
+@end deffn
+@c =========================== ldap-error-string ==============================
+@deffn {procedure} ldap-error-string errno::int @result{} string
+@cindex LDAP errors
+
+@table @r
+@item errno
+LDAP error number. Use @code{ldap-errno}
+to get this value from @code{ldap} structure.
+@end table
+
+Interface to @code{ldap_err2string()} C API call.
+
+See also @code{ldap_err2string(3)} manual page.
+
+@end deffn
+@c =========================== LDAP misc utilities ==============================
+@node LDAP misc utilities,  , LDAP errors handling, Bigloo LDAP interface
+@subsection LDAP misc utilities
+
+@c =========================== ldap-explode-dn ==============================
+@deffn {procedure} ldap-explode-dn dn::string
+@cindex LDAP DN parsing
+
+@table @r
+@item dn
+DN string as returned by
+@code{ldap-get-dn}
+@end table
+
+Takes a DN as returned by @code{ldap-get-dn} and breaks it up into its
+component parts. This is an interface to @code{ldap_explode_dn()} C
+call.
+
+See also @code{ldap_explode_dn(3)} manual page.
+
+Example :
+
+@example
+(ldap-explode-dn " o=jet, c=ru") @result{} ("c=ru" " o=jet")
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} ldap-answer ld::ldap msgid::int @result{} pair-nil
+
+Given a result of successful @code{ldap-search} operation @var{msgid},
+returns the list of LDAP entries. Every element of this list is a result
+of @code{cons} operation on the DN of the entry, and entry attribute
+list in a @code{attlist} format.
+
+This example code does essentially same operation as the example code
+provided in @code{ldap-next-entry} section.
+
+@example
+(let*((ld    (ldap-open))
+      (msgid (ldap-search ld)))
+  (ldap-answer ld msgid))
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} ldap-delete-recursive ld::ldap dn::bstring @result{} pair-nil
+
+This procedure deletes the LDAP entry along with all descendants of that
+entry. Return the entry list just deleted in a form described in
+@code{ldap-answer} section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} current-ldap #!optional new-value
+@cindex LDAP connection default
+
+Get/set default LDAP connection. Other procedures use
+the result of calling @code{current-ldap} procedure as a default LDAP
+connection handle.
+
+@example
+;; No connection was set up, return the default connection
+(current-ldap)
+@result{} #<foreign:ldap:8ce00d8>
+
+;; Open a connection to localhost and make it current
+(current-ldap (ldap-open "localhost"))
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} ldap-defbase #!optional arg default @result{} bstring
+
+Realizes the ldap default base concept according to the following rules:
+
+@itemize @minus
+@item
+If no arguments given, and value was previously set, returns this value.
+@item
+If no arguments given, and value was @emph{not} previously set, returns the value defined in ldap.conf
+@item
+If an argument given, and the argument is a string, store and return that value.
+@item
+If an argument given, and the argument is a LDAP connection handle, perfor a @code{ldap-search} operation without giving a @code{base} argument, return the DN of entry returned.
+@item
+If an argument given, and the value was not previously set, resolve the default base using @code{(current-ldap)} as a LDAP connection.
+@end itemize
+
+@example
+;; Read default value from ldap.conf
+(ldap-defbase)
+@result{} "dc=jet,dc=msk,dc=ru"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} ldap-commit! dn::bstring new-atts::pair #!optional ldap
+@cindex LDAP update incremental
+
+Intellectual LDAP entry update. Reads the LDAP entry, examines the
+difference between the old attributes and the new ones. Performs the
+appropriate updates: removes the obsolete attributes with the use of
+@code{ldap-modify-delete}, adds the new attributes using
+@code{ldap-modify-add}, replaces the attribute values with the use of
+@code{ldap-modify-replace}.
+
+@end deffn
+

@@ -1,0 +1,251 @@
+@node    HTTP/CGI support, , Top, Top
+@chapter HTTP/CGI support
+
+@menu
+* http-parse::        HTTP header parsing
+* http-response::     form HTTP messages
+@end menu
+
+The @code{bigloo-http} is a pure Bigloo scheme library, which includes
+basic support for HTTP protocol and CGI programming.
+
+@anchor{http-parse}
+@section HTTP header parsing
+
+@c ======================================================================
+@deffn {procedure} http-request-read-status-line #!optional (port (current-input-port)) 
+
+The procedure @code{http-request-read-status-line} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-request-read #!optional (port (current-input-port)) 
+
+The procedure @code{http-request-read} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-url-decode str 
+@var{str}
+
+The procedure @code{http-url-decode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-url-encode str #!optional (escape %) 
+@var{str}
+
+The procedure @code{http-url-encode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-decode-x-www-form-urlencoded s 
+@var{s}
+
+The procedure @code{http-decode-x-www-form-urlencoded} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-print-query vals::pair 
+@var{vals}
+
+The procedure @code{http-print-query} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-parse-cookie s::bstring 
+@var{s}
+
+The procedure @code{http-parse-cookie} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-process-message-header alist::pair-nil  @result{} pair-nil
+@var{alist}
+
+The procedure @code{http-process-message-header} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@anchor{http-response}
+@section form HTTP messages
+
+@c ======================================================================
+@deffn {procedure} http-emit-header code message attributes 
+@var{code}
+@var{message}
+@var{attributes}
+
+The procedure @code{http-emit-header} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-ok #!optional (attributes (quote ())) 
+
+The procedure @code{http-ok} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-redirect url 
+@var{url}
+
+The procedure @code{http-redirect} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-redirect-relative uri 
+@var{uri}
+
+The procedure @code{http-redirect-relative} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} http-authorization-required-answer #!optional (realm default) 
+
+The procedure @code{http-authorization-required-answer} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@anchor{cgi-support}
+@section CGI support
+
+@c ======================================================================
+@deffn {procedure} current-http-query #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-http-params #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-http-cookies #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-http-path #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-http-method #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-userid #!optional
+@end deffn
+@c ======================================================================
+@deffn {procedure} current-document-base #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-http-url #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-http-cookies-attributes #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-http-request-uri #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-http-script-name #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-http-body . args
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} cgi-mode? . args
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-content-type . args
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-content-length . args
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-content-disposition . args
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-query-disposition #!optional
+@end deffn
+       
+@c ======================================================================
+@deffn {procedure} current-query-content-type #!optional
+@end deffn
+       

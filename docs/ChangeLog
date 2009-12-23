@@ -1,0 +1,8 @@
+2003-12-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common.texi (string-grammar-apply): example fixed
+
+2003-06-12  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* Format section obsoleted, and removed from the build
+

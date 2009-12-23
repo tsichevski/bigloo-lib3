@@ -1,0 +1,49 @@
+@node    afile, commandline, cgen, Bigloo Common Library
+@section Advanced afile utility
+@cindex afile
+@cindex modules
+
+This package includes the advanced version of @code{afile} utility
+(included into Bigloo @code{bee}). The list improvements made is:
+
+@itemize @bullet
+@item
+every fatal error stops now the execution of the program
+@item
+it is now a fatal error, if any module file cannot be found
+@item
+if program ends with error, no output is written
+@item
+new command line option @code{-I} added. The arguments of each @code{-I}
+option form file search path. So output of
+
+@example
+afile -I ../compat -I ../node compat.scm node.scm
+@end example
+
+now looks like
+
+@example
+;; /jet/tmp/bigloo-lib-0.11/common
+;; Wed Apr 12 14:08:55 2000
+
+((compat #"../compat/compat.scm")
+ (node #"../node/node.scm"))
+@end example
+
+Note that the current directory is automatically added to search path
+only if no any @code{-I} option is given.  Also note the required space
+between the @code{-I} and filename.
+
+@item
+no backups (suffixed by tilde char) are created anymore @footnote{IMHO
+backup files are useful for manually edited stuff only, which cannot be
+recreated automatically. Besides, @code{afile} does not damage the old
+output file in case of exit on error}
+
+@item
+no files are changed if the old target file exists and the contents of
+new file and an old one are effectively same. This feature significantly
+reduces the stuff that should usually be recompiled due to that
+compilation of scheme sources formally depends on this file contents
+@end itemize

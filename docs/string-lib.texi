@@ -1,0 +1,1095 @@
+@c ==================================================================
+@node    SRFI-13 support, Miscellanea, SRFI-1 support, Bigloo Common Library
+@section SRFI-13 String Library
+@cindex SRFI-13
+@cindex String Library
+
+@code{Bigloo-lib} provides a limited support for @code{string-lib}, the
+SRFI-13 string library. The limitations are as follows:
+
+@itemize @minus
+@item
+The implementation is currently based on SRFI-13 draft as of 2000/4/30;
+
+@item
+Charsets are not used;
+
+@item
+All string comparisons and case-sensitivity issues are locale-dependent,
+as opposed to SRFI document;
+
+@item
+unimplemented procedures: @code{string-compare},
+@code{string-compare-ci} (really I did not understand the specification).
+
+@end itemize
+
+The rest of this chapter is based mostly on original SRFI document,
+copyrighted by Olin Shivers.
+@c The original SRFI document copyright
+@c statement you will find at the end of the chapter.
+
+@subsection Procedure specifications
+
+In the following procedure specifications:
+
+@itemize @minus
+
+@item
+An @code{s} parameter is a string.
+
+@item
+A @code{char} parameter is a character.
+
+@item
+@code{start} and @code{end} parameters are half-open string indices
+specifying a substring within a string parameter; when optional, they
+default to 0 and the length of the string, respectively. When specified,
+it must be the case that 0 <= @code{start} <= @code{end} <=
+(string-length S), for the corresponding parameter @code{s}. They
+typically restrict a procedure's action to the indicated substring.
+
+@item
+A @code{pred} parameter is a unary character predicate procedure, returning a
+true/false value when applied to a character.
+
+@item
+A @code{char/char-set/pred} parameter is a value used to select/search for a
+character in a string. If it is a character, it is used in an equality
+test; if it is a character set, it is used as a membership test; if it
+is a procedure, it is applied to the characters as a test predicate.
+
+@item
+An @code{i} parameter is an exact non-negative integers specifying an index
+into a string.
+
+@item
+@code{len} and @code{nchars}parameters are exact non-negative integers specifying a
+length of a string or some number of characters.
+
+@end itemize
+
+Passing values to procedures with these parameters that do not satisfy these
+types is an error.
+
+@subsection Predicates
+@c ======================================================================
+@deffn {procedure} string-null? s::bstring @result{} bool
+
+Is @code{s} the empty string?
+
+@example
+(string-null? "")
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-every pred::procedure s::string #!optional start end
+
+Checks to see if predicate @code{pred} is true of every character in S,
+proceeding from left (index @code{start}) to right (index @code{end}).
+
+If STRING-EVERY returns true, the returned true value is the one
+produced by the final application of @code{pred} to S[@code{end}]. If
+STRING-EVERY is applied to an empty sequence of characters, it simply
+returns @code{#t}.
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-any pred::procedure s::string #!optional start end
+
+Checks to see if predicate @code{pred} is true of any character in S,
+proceeding from left (index @code{start}) to right (index @code{end}).
+
+If @code{string-any} returns true, the returned true value is the one produced
+by the application of @code{pred}.
+
+@example
+(string-every values "qwerty")
+@result{}
+@end example
+@end deffn
+
+@subsection Constructors
+
+@c ======================================================================
+@deffn {procedure} string-tabulate proc::procedure len::int @result{} bstring
+@code{proc} is an @code{integer->char} procedure. Construct a string of
+size @code{len} by applying @code{proc} to each index to produce the
+corresponding string element. The order in which @code{proc} is applied
+to the indices is not specified.
+
+Example:
+@example
+(string-tabulate (lambda(i)(integer->char(+fx i 32))) 20)
+@result{} " !\"#$%&'()*+,-./0123"
+@end example
+@end deffn
+
+@subsection List & string conversion
+
+@c ======================================================================
+@deffn {procedure} string->list s::bstring #!optional start end @result{} pair-nil
+
+@code{string->list} returns a newly allocated list of the characters
+that make up the given string.  @code{list->string} returns a newly
+allocated string formed from the characters in the list
+@code{char-list}, which must be a list of
+characters. @code{string->list} and @code{list->string} are inverses so
+far as @code{equal?} is concerned.
+
+@code{string->list} is extended from the R5RS definition to take optional
+@code{start}/@code{end} arguments.
+
+
+@example
+(string->list "asdf")
+@result{} (#\a #\s #\d #\f)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} reverse-list->string char-list::pair-nil @result{} bstring
+
+An efficient implementation of @code{(compose string->list reverse)}:
+
+@example
+(reverse-list->string '(#\a #\B #\c))
+@result{} "cBa"
+@end example
+
+This is a common idiom in the epilog of string-processing loops
+that accumulate an answer in a reverse-order list. (See also
+@code{reverse-string-concatenate} for the "chunked" variant.)
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-join string-list::pair-nil #!optional delimiter grammar @result{} bstring
+
+This procedure is a simple unparser - it pastes strings together using
+the @var{delimiter} string.
+
+The @var{grammar} argument is a symbol that determines how the delimiter is
+used, and defaults to 'infix.
+
+@itemize
+@item @code{'infix}
+ means an infix or separator grammar: insert the delimiter
+between list elements.  An empty list will produce an empty string --
+note, however, that parsing an empty string with an infix or separator
+grammar is ambiguous. Is it an empty list, or a list of one element,
+the empty string?
+
+@item @code{'strict-infix}
+means the same as @code{'infix}, but will raise an error if given an
+empty list.
+
+@item @code{'suffix}
+
+means a suffix or terminator grammar: insert the delimiter
+after every list element. This grammar has no ambiguities.
+
+@item @code{'prefix}
+
+means a prefix grammar: insert the delimiter
+before every list element. This grammar has no ambiguities.
+@end itemize
+
+The @var{delimiter} is the string used to delimit elements; it defaults to
+a single space @code{" "}.
+
+Example:
+
+@example
+(join-strings '("foo" "bar" "baz") ":")         @result{} "foo:bar:baz"
+(join-strings '("foo" "bar" "baz") ":" 'suffix) @result{} "foo:bar:baz:"
+
+;; Infix grammar is ambiguous wrt empty list vs. empty string,
+(join-strings '()   ":") @result{} ""
+(join-strings '("") ":") @result{} ""
+
+;; but suffix & prefix grammars are not.
+(join-strings '()   ":" 'suffix) @result{} ""
+(join-strings '("") ":" 'suffix) @result{} ":"
+@end example
+@end deffn
+
+@subsection Selection
+
+@c ======================================================================
+@deffn {procedure} string-copy s::bstring #!optional start end @result{} bstring
+
+@code{string-copy} is extended from its R5RS definition by the addition of
+its optional @code{start}/@code{end} parameters. In contrast to SUBSTRING/SHARED,
+it is guaranteed to produce a freshly-allocated string.
+
+Use @code{string-copy} when you want to indicate explicitly in your code that you
+wish to allocate new storage; use SUBSTRING/SHARED when you don't care if 
+you get a fresh copy or share storage with the original string.
+
+Example:
+@example
+(string-copy "Beta substitution") @result{} "Beta substitution"
+(string-copy "Beta substitution" 1 10) 
+@result{} "eta subst"
+(string-copy "Beta substitution" 5) @result{} "substitution"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} substring/shared s::bstring #!optional start end @result{} bstring
+
+@code{substring/shared} returns a string whose contents are the characters of @var{s}
+beginning with index @code{start} (inclusive) and ending with index @code{end}
+(exclusive). It differs from the R5RS @code{substring} in two ways:
+
+@itemize
+@item
+The @code{end} parameter is optional, not required.
+@item
+@code{substring/shared} may return a value that shares memory with @code{s} or
+is @code{eq?} to @code{s}.
+@end itemize
+
+Example:
+@example
+(let((s "Beta substitution"))
+  (eq?(substring/shared s 0)s))
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-copy! target::bstring tstart s #!optional start end @result{} bstring
+
+Copy the sequence of characters from index range
+(@code{start},@code{end}) in string @code{s} to string @var{target},
+beginning at index @code{tstart}. The characters are copied
+left-to-right or right-to-left as needed -- the copy is guaranteed to
+work, even if @var{target} and @code{s} are the same string.
+
+It is an error if the copy operation runs off the end of the target
+string, e.g.
+
+@example
+(string-copy! (string-copy "Microsoft") 0
+"Regional Microsoft Operating Companies") @error{}
+@end example
+
+Note: though the result of @code{string-copy!} is defined as unspecified
+by SRFI document, the implementation always returns the @var{target} argument.
+
+Example:
+@example
+(string-copy! "qwerty" 2 "asdf")
+@result{} "qwasdf"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-take s::bstring nchars::int @result{} bstring
+
+@code{string-take} returns the first @code{nchars}of @var{s}; 
+
+If this procedure produces the entire string, it may return either
+@code{s} or a copy of @var{s}; in some implementations, proper
+substrings may share memory with @code{s}.
+
+Example:
+@example
+(string-take "Pete Szilagyi" 6) @result{} "Pete S"
+@end example
+
+It is an error to take more characters than are in the string:
+@example
+(string-take "foo" 37) @error{}
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {inline procedure} string-drop s::bstring nchars::int @result{} bstring
+
+@code{string-drop} returns all but the first @code{nchars}of @var{s}.
+
+If this procedure produces the entire string, it may return either
+@code{s} or a copy of @var{s}; in some implementations, proper
+substrings may share memory with @code{s}.
+
+Example:
+@example
+(string-drop "Pete Szilagyi" 6) @result{} "zilagyi"
+@end example
+
+It is an error to drop more characters than are in the string:
+@example
+(string-drop "foo" 37) @error{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-take-right s::bstring nchars::int @result{} bstring
+
+@code{string-take-right} returns the last @code{nchars}of @var{s}.
+
+If this procedure produces the entire string, it may return either
+@code{s} or a copy of @var{s}; in some implementations, proper
+substrings may share memory with @code{s}.
+
+Example:
+@example
+(string-take-right "Beta rules" 5) @result{} "rules"
+@end example
+It is an error to take more characters than are in the string:
+@example
+(string-take-right "foo" 37) @error{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-drop-right s::bstring nchars::int @result{} bstring
+
+@code{string-drop-right} returns all but the last @code{nchars}of @var{s}.
+
+If this procedure produces the entire string, it may return either
+@code{s} or a copy of @var{s}; in some implementations, proper
+substrings may share memory with @code{s}.
+
+Example:
+@example
+(string-drop-right "Beta rules" 5) @result{} "Beta "
+@end example
+It is an error to drop more characters than are in the string:
+@example
+(string-drop-right "foo" 37) @error{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-pad s::bstring len::int #!optional char start end @result{} bstring
+
+Build a string of length @code{len} comprised of @code{s} padded on the
+left by as many occurrences of the character @code{char} as needed. If
+@code{s} has more than @code{len} chars, it is truncated on the left to
+length @code{len}. @var{char} defaults to @code{#\space}.
+
+If @code{len <= end - start}, the returned value is allowed to share
+storage with @var{s}, or be exactly @code{s} (if @code{len = end -
+start}).
+
+Example:
+@example
+(string-pad     "325" 5) @result{} "  325"
+(string-pad   "71325" 5) @result{} "71325"
+(string-pad "8871325" 5) @result{} "71325"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-pad-right s::bstring len::int #!optional char start end @result{} bstring
+
+Build a string of length @code{len} comprised of @code{s} padded on the
+right by as many occurrences of the character @code{char} as needed. If
+@code{s} has more than @code{len} chars, it is truncated on the right to
+length @code{len}. @var{char} defaults to @code{#\space}.
+
+If @code{len <= end - start}, the returned value is allowed to share
+storage with @var{s}, or be exactly @code{s} (if @code{len = end -
+start}).
+
+Example:
+@example
+(string-pad-right     "325" 5) @result{} "325  "
+(string-pad-right   "71325" 5) @result{} "71325"
+(string-pad-right "8871325" 5) @result{} "88713"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-trim s::bstring #!optional char/char-set/pred start end @result{} bstring
+
+The @code{string-trim}, @code{string-trim-right},
+@code{string-trim-both} procedures trim @code{s} by skipping over all
+characters on the left / on the right / on both sides that satisfy the
+second parameter @var{char/char-set/pred}:
+
+@itemize
+@item
+if it is a character @var{char}, characters equal to @code{char} are
+trimmed;
+
+@item
+If it is a char set @var{cs}, characters contained in @var{cs} are
+trimmed;
+
+@item
+If it is a predicate @code{pred}, it is a test predicate that is applied
+to the characters in @var{s}; a character causing it to return true is
+skipped.
+@end itemize
+
+@var{char/char/set-pred} defaults to the character set
+@code{char-set:whitespace} defined in SRFI-14.
+
+If no trimming occurs, these functions return @code{s}.
+
+Example:
+@example
+(string-trim #"  The outlook wasn't brilliant,  \n\r")
+@result{} #"The outlook wasn't brilliant,  \n\r"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-trim-right s::bstring #!optional char/char-set/pred start end @result{} bstring
+
+See description of @code{string-trim}.
+
+Example:
+@example
+(string-trim-right #"  The outlook wasn't brilliant,  \n\r")
+@result{} #"  The outlook wasn't brilliant,"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-trim-both s::bstring #!optional char/char-set/pred start end @result{} bstring
+
+See description of @code{string-trim}.
+
+Example:
+@example
+(string-trim-both #"  The outlook wasn't brilliant,  \n\r")
+@result{} #"The outlook wasn't brilliant,"
+@end example
+@end deffn
+
+@subsection Modification
+
+@c ======================================================================
+@deffn {procedure} string-fill! s::bstring char::char #!optional start end
+
+Stores @code{char} in every element of @code{s} and returns (in this
+implementation only) the @code{s} string.
+
+@code{string-fill!} is extended from the R5RS definition to take optional
+@code{start}/@code{end} arguments.
+
+Example:
+@example
+(let((s "12345678"))
+  (string-fill! s #\space 2 4)
+  s)
+@result{} "12  5678"
+@end example
+@end deffn
+
+@subsection Comparison
+
+These procedures are the lexicographic extensions to strings of the
+corresponding orderings on characters.  For example, STRING< is the
+lexicographic ordering on strings induced by the ordering CHAR<? on
+characters.  If two strings differ in length but are the same up to the
+length of the shorter string, the shorter string is considered to be
+lexicographically less than the longer string.
+
+The optional @code{start/end} indices restrict the comparison to the indicated
+substrings of @code{s1} and @code{s2}.
+
+@code{string-ci=}, @code{string-ci<>}, @code{string-ci<},
+@code{string-ci>}, @code{string-ci<=} and @code{string-ci>=} procedures
+are case-insensitive variants of @code{string=}, @code{string<>},
+@code{string<}, @code{string>}, @code{string<=} and @code{string>=}
+correspondingly.
+
+Comparison is simply done on individual code-points of the string. 
+True text collation is not handled by this SRFI.
+
+Case-insensitive comparison is done by case-folding characters with 
+the operation
+(char-downcase (char-upcase c))
+
+@ignore
+
+string-compare    s1 s2 proc< proc= proc> [start1 end1 start2 end2] -> values
+string-compare-ci s1 s2 proc< proc= proc> [start1 end1 start2 end2] -> values
+
+Apply @code{proc}<, @code{proc}=, @code{proc}> to the mismatch index, depending
+upon whether S1 is less than, equal to, or greater than S2.
+The "mismatch index" is the largest index i such that for
+every 0 <= j < i, s1[j] = s2[j] -- that is, i is the first 
+position that doesn't match.
+
+@code{string-compare-ci} is the case-insensitive variant. Case-insensitive
+comparison is done by case-folding characters with the operation
+(char-downcase (char-upcase c))
+where the two case-mapping operations are assumed to be 1-1, locale- and
+context-insensitive, and compatible with the 1-1 case mappings specified
+by Unicode's UnicodeData.txt table:
+@url{ftp://ftp.unicode.org/Public/UNIDATA/UnicodeData.txt}
+
+The optional @code{start/end} indices restrict the comparison to the
+indicated substrings of S1 and S2. The mismatch index is always an index
+into S1; in the case of @code{proc}=, it is always @code{end}1; we
+observe the protocol in this redundant case for uniformity.
+
+@example
+(string-compare
+  "The cat in the hat"
+  "abcdefgh" 
+  4 6		; Select "ca" 
+  2 4)	        ; & "cd"
+@result{} 5	; Index of S1's "a"
+@end example
+
+Comparison is simply done on individual code-points of the string. 
+True text collation is not handled by this SRFI.
+@end ignore
+
+@c ======================================================================
+@deffn {procedure} string= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test strings for equality. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string<> s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test strings for inequality. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string< s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is less than @code{s2} string. See notes at the
+beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string> s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is greater than @code{s2} string. See notes at the
+beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string<= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is less than or equal to @code{s2} string. See
+notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string>= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is greater than or equal to @code{s2} string. See
+notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test strings for equality case-insensitive. See notes at the beginning
+of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci<> s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test strings for inequality case-insensitive. See notes at the beginning
+of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci< s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is less than @code{s2} string
+case-insensitive. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci> s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is greater than @code{s2} string
+case-insensitive. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci<= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is less than or equal to @code{s2} string
+case-insensitive. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-ci>= s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} bool
+
+Test if @code{s1} string is greater than or equal to @code{s2} string
+case-insensitive. See notes at the beginning of this section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-hash s::bstring #!optional bound start end @result{} int
+
+Compute a hash value for the string @code{s}. @code{bound} is either
+@code{#f} or a non-negative exact integer. If an integer, it gives the
+target range of the hash function -- the returned value will be in the
+range [0,@code{bound}].
+
+If @code{bound} is either @code{#f} or not given, the implementation may use
+an implementation-specific default value, which might be chosen, 
+for instance, to map all strings into the range of integers that
+can be efficiently represented.
+
+The optional @code{start/end} indices restrict the hash operation to the 
+indicated substring of @code{s}.
+
+Invariants:
+@code{(<= 0 (string-hash s b) (- b 1))}
+
+@example
+(string=    s1 s2)  @result{}  (= (string-hash s1 b)    (string-hash s2 b))
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-hash-ci s::bstring #!optional bound start end @result{} int
+
+@code{string-hash-ci} is the case-insensitive variant of @code{string-hash}.
+
+Invariants:
+@code{(<= 0 (string-hash-ci s b) (- b 1))}
+
+@example
+(string-ci= s1 s2)  @result{}  (= (string-hash-ci s1 b) (string-hash-ci s2 b))
+@end example
+
+@end deffn
+
+@subsection Prefixes & suffixes
+
+@c ======================================================================
+@deffn {procedure} string-prefix-length s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Return the length of the longest common prefix of the two strings.
+This is equivalent to the "mismatch index" for the strings (modulo
+the @code{start}i index offsets).
+
+The optional @code{start/end} indices restrict the comparison to the indicated
+substrings of @code{s1} and @code{s2}.
+
+Example:
+@example
+(string-prefix-length "qwertyasdf" "qwertypoiuy")
+@result{} 6
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-suffix-length s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Return the length of the longest common suffix of the two strings.
+This is equivalent to the "mismatch index" for the strings (modulo
+the @code{start}i index offsets).
+
+The optional @code{start/end} indices restrict the comparison to the indicated
+substrings of @code{s1} and @code{s2}.
+
+Example:
+@example
+(string-prefix-length "asdfqwerty" "poiuqwerty")
+@result{} 6
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-prefix-length-ci s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Case-insensitive variant of @code{string-prefix-length}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-suffix-length-ci s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Case-insensitive variant of @code{string-suffix-length}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-prefix? s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Is @code{s1} a prefix of @code{s2}?
+
+Example:
+@example
+(string-prefix? "qwerty" "qwertyasdf"
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-suffix? s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Is @code{s1} a suffix of @code{s2}?
+
+Example:
+@example
+(string-prefix? "qwerty" "asdfqwerty"
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-prefix-ci? s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Case-insensitive variant of @code{string-prefix?}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-suffix-ci? s1::bstring s2::bstring #!optional start1 end1 start2 end2 @result{} int
+
+Case-insensitive variant of @code{string-suffix?}.
+
+@end deffn
+
+@subsection Searching
+
+@c ======================================================================
+@deffn {procedure} string-index s::bstring char/char-set/pred #!optional start end @result{} int or #f
+
+@code{string-index} searches through the string from the left, returning
+the index of the first occurrence of a character which
+
+@itemize @minus
+@item
+equals @code{char/char-set/pred} (if it is a character);
+@item
+is in @code{char/char-set/pred} (if it is a character set);
+@item
+satisfies the predicate @code{char/char-set/pred} (if it is a procedure).
+@end itemize
+
+If no match is found, the functions return @code{#f}.
+
+The @code{start} and @code{end} parameters specify the beginning and end
+indices of the search; the search includes the @code{start} index, but
+not the @code{end} index. The first index considered is @code{end}-1.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-index-right s::bstring char/char-set/pred #!optional start end @result{} int or #f
+
+@code{string-index-right} searches through the string from the right,
+returning the index of the first occurrence of a character which
+
+@itemize @minus
+@item
+equals @code{char/char-set/pred} (if it is a character);
+@item
+is in @code{char/char-set/pred} (if it is a character set);
+@item
+satisfies the predicate @code{char/char-set/pred} (if it is a procedure).
+@end itemize
+
+If no match is found, the functions return @code{#f}.
+
+The @code{start} and @code{end} parameters specify the beginning and end
+indices of the search; the search includes the @code{start} index, but
+not the @code{end} index. The first index considered is @code{start}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-skip s::bstring char/char-set/pred #!optional start end @result{} int or #f
+
+The @code{string-skip} functions is similar to @code{string-index}, but
+uses the complement of the criteria: is searches for the first char that
+*doesn't* satisfy the test. E.g., to skip over initial whitespace, say
+
+@example
+(cond ((string-skip s char-set:whitespace) =>
+  (lambda (i)
+    ;; (string-ref s i) is not whitespace.
+    @dots{})))
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-skip-right s::bstring char/char-set/pred #!optional start end @result{} int or #f
+
+The @code{string-skip-right} functions is similar to
+@code{string-index-right}, but uses the complement of the criteria: is
+searches for the first char that *doesn't* satisfy the test.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-count s char/char-set/pred #!optional start end
+
+TBD
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-contains s1::bstring s2::bstring #!optional start1 end1 start2 end2
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-contains-ci s1 s2 #!optional start1 end1 start2 end2
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-titlecase s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-titlecase! s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-upcase s #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-upcase! s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-downcase s #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-downcase! s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-reverse s #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-reverse! s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-concatenate string-list::pair-nil @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-concatenate/shared string-list::pair-nil @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-append/shared string-list @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} reverse-string-concatenate string-list #!optional final-string end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} reverse-string-concatenate/shared string-list #!optional final-string end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-map proc s #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-map! proc s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-fold kons knil s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-fold-right kons knil s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-unfold p f g seed #!optional base make-final @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-unfold-right p f g seed #!optional base make-final @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-for-each proc s #!optional start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xsubstring s from #!optional to start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-xcopy! target tstart s sfrom #!optional sto start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-replace s1 s2 #!optional start1 end1 start2 end2 @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-tokenize s #!optional token-set start end @result{} pair-nil
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-filter s char/char-set/pred #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-delete s char/char-set/pred #!optional start end @result{} bstring
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-parse-start+end proc s args
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-parse-final-start+end proc s args
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} check-substring-spec proc s start end
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} substring-spec-ok? s start end @result{} bool
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} make-kmp-restart-vector c= s #!optional start end @result{} vector
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} kmp-step pat rv c= c i
+
+TBD
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} string-search-kmp pat rv c= i s #!optional start end @result{} int
+
+TBD
+
+@end deffn
+

@@ -1,0 +1,78 @@
+@node    GTK+, , Top, Top
+@ifhtml
+<a name=gtk>
+@end ifhtml
+
+@chapter GTK+ interface
+
+This chapter describes the interface for @code{GTK+}, the Open Source
+Free Software GUI Toolkit, primarily developed for use with the X Window
+System. The most detailed information about @code{GTK+} may be found at
+@url{http://www.gtk.org}.
+
+The interface is designed after the popular @code{guile-gtk} analog, the
+@code{GTK+} interface for using with @code{guile} scheme
+implementation. My intention was to make the interface as compatible
+with that of @code{guile-gtk} as possible in order to utilize the
+tutorials, examples and other software written for @code{guile-gtk}.
+
+For generation of multiple interfaces to @code{GTK+} functions the
+@code{cgen} utility was developed @xref{cgen}, which was used to process
+the specification of @code{GTK+} interface found in @code{guile-gtk}.
+
+@code{guile-gtk} may be found at
+@url{http://www.ping.de/sites/zagadka/guile-gtk/}.
+
+@section Testing the GTK interface
+
+Since the main goal of GTK+ is to provide a graphical user interface, it
+is practically impossible to test it automatically. Instead, a test
+application was derived from analogous program provided with GTK+ (file
+gtk/testgtk.c in GTK+ distribution) and guile-gtk.
+ 
+Also this application may be used as a source of examples how to use
+bigloo-gtk.
+
+@subsection testgtk program
+
+The @code{testgtk} is port of @code{testgtk.c} provided with GTK+
+distribution, to @code{bigloo-gtk}. Initially is was derived from
+@code{testgtk.scm} provided with @code{guile-gtk}. Now most of the text
+is redesigned, many tests made more up-to-date than the corresponding
+@code{guile-gtk} analogs.
+
+All the original tests @code{testgtk.c} from latest GTK+ distribution
+are listed in main @code{testgtk} window, labels for whose that are
+still unimplemented are grayed.
+
+The simplest way to run the @code{testgtk} is to process its source code
+by @code{bigloo-bgtk} driver program:
+
+@example
+bigloo-bgtk ./testgtk.defs
+@end example
+
+but to make all the tests work, you probably have to compile and run binary
+executable:
+
+@example
+make testgtk && ./testgtk
+@end example
+
+@subsection example programs
+
+@code{Bigloo-gtk} provides a small set of examples, derived from whose
+provided in "GTK+ Tutorial". You'll find the examples in
+@code{gtk/examples/} subdirectory. All the examples are shell scripts,
+though may be compiled. You need to install the package before running
+this examples.
+
+@section Bigloo-gtk reference
+
+Currently this reference guide of very far from completeness.  Only
+selected calls are documented. Look at working tests code in
+@code{testgtk.defs} for example.
+
+@include gdk-refman.texi
+@include gtk-refman.texi
+

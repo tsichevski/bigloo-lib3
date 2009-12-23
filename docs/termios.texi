@@ -1,0 +1,578 @@
+These procedures control terminal attributes, terminal line, baud rate,
+and terminal foreground process group ID.
+
+The description of @code{termios} parameters and function was taken
+mostly from that found in @code{termios} man page.
+
+@c ======================================================================
+@deftp {foreign type} termios
+
+Objects of this type are pointers to to the C @code{termios} structure. They are created by @code{make-termios} procedure.
+
+@end deftp
+
+@c ======================================================================
+@deffn {procedure} termios-iflag o::termios  @result{} iflag
+@deffnx {procedure} set-termios-iflag! o::termios iflag 
+
+These procedures access the @code{iflag} field of the @code{termios}
+object, which controls the terminal input modes.
+
+The values returned by @code{termios-iflag} or passed as @var{iflag}
+argument of @code{set-termios-iflag!} must be scheme lists of any of the
+following symbols:
+
+@table @code
+@item ignbrk
+ignore BREAK condition on input
+
+@item brkint
+If @code{ignbrk} is not set, generate SIGINT on BREAK condition, else
+read BREAK as character \0.
+
+@item ignpar
+ignore framing errors and parity errors.
+
+@item parmrk
+if @code{ignpar} is not set, prefix a character with a parity error or
+framing error with \377 \0.  If neither @code{ignpar} nor @code{parmrk}
+is set, read a character with a parity error or framing error as \0.
+
+@item inpck
+enable input parity checking
+
+@item istrip
+strip off eighth bit
+
+@item inlcr
+translate NL to CR on input
+
+@item igncr
+ignore carriage return on input
+
+@item icrnl
+translate carriage return to newline on input (unless @code{igncr} is
+set)
+
+@item iuclc
+map uppercase characters to lowercase on input
+
+@item ixon
+enable XON/XOFF flow control on output
+
+@item ixany
+enable any character to restart output
+
+@item ixoff
+enable XON/XOFF flow control on input
+
+@item imaxbel
+ring bell when input queue is full
+@end table
+
+In this example we create a fresh @code{termios} instance, then read
+into it the attributes of the terminal attached to standard input, and
+print the value of @code{iflag}:
+
+@example
+(define termios (make-termios 0))
+(termios-iflag termios)
+@result{}
+(ixon icrnl)
+@end example
+@end deffn
+@c ======================================================================
+@deffn {procedure} termios-oflag o::termios  @result{} tc-oflag
+@deffnx {procedure} set-termios-oflag! o::termios v::tc-oflag 
+
+These procedures access the @code{oflag} field of the @code{termios}
+object, which controls the terminal output modes.
+
+The values returned by @code{termios-oflag} or passed as @var{iflag}
+argument to @code{set-termios-oflag!} must be scheme lists of any of the
+following symbols:
+
+@table @code
+@item opost
+enable implementation-defined output processing
+
+@item olcuc
+map lowercase characters to uppercase on output
+
+@item onlcr
+map NL to CR-NL on output
+
+@item ocrnl
+map CR to NL on output
+
+@item onocr
+don't output CR at column 0
+
+@item onlret
+don't output CR
+
+@item ofill
+send fill characters for a delay, rather than using a timed delay
+
+@item ofdel
+fill character is ASCII DEL.  If unset, fill  character is ASCII NUL
+
+@item nldly
+newline delay mask.  Values are NL0 and NL1.
+
+@item crdly
+carriage  return  delay mask.  Values are CR0, CR1, CR2, or CR3.
+
+@item tabdly
+horizontal tab delay mask.  Values are TAB0, TAB1, TAB2, TAB3, or XTABS.
+A value of XTABS expands tabs to spaces (with tab stops every eight
+columns).
+
+@item bsdly
+backspace delay mask.  Values are BS0 or BS1.
+
+@item vtdly
+vertical tab delay mask.  Values are VT0 or VT1.
+
+@item ffdly
+form feed delay mask.  Values are FF0 or FF1.
+@end table
+
+In this example we create a fresh @code{termios} instance, then read
+into it the attributes of the terminal attached to standard output, and
+print the value of the @code{oflag} field:
+
+@example
+(define termios (make-termios 1))
+(termios-oflag termios)
+@result{}
+(opost)
+@end example
+@end deffn
+@c ======================================================================
+@deffn {procedure} termios-cflag o::termios  @result{} tc-cflag
+@deffnx {procedure} set-termios-cflag! o::termios v::tc-cflag 
+
+These procedures access the @code{cflag} (terminal control modes) field
+of the @code{termios} object.
+
+The values returned by @code{termios-cflag} or passed as @var{iflag}
+argument to @code{set-termios-cflag!} must be scheme lists of any of the
+following symbols:
+
+@table @code
+@item csize
+character size mask.  Values are CS5, CS6, CS7, or CS8.
+
+@item cstopb
+set two stop bits, rather than one.
+
+@item cread
+enable receiver.
+
+@item parenb
+enable parity generation on output and parity checking for input.
+
+@item parodd
+parity for input and output is odd.
+
+@item hupcl
+lower modem control lines after last process closes the device (hang up).
+
+@item clocal
+ignore modem control lines
+
+@item cibaud
+mask for input speeds (not used).
+
+@item crtscts
+flow control.
+@end table
+
+In this example we create a fresh @code{termios} instance, then read
+into it the attributes of the terminal attached to standard output, and
+print the value of the @code{cflag} field:
+
+@example
+(define termios (make-termios 1))
+(termios-cflag termios)
+@result{} (cread csize)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} termios-lflag o::termios  @result{} tc-lflag
+@deffnx {procedure} set-termios-lflag! o::termios v::tc-lflag 
+
+These procedures access the @code{lflag} field of the @code{termios}
+object, which controls the terminal local modes.
+
+The values returned by @code{termios-lflag} or passed as @var{iflag}
+argument to @code{set-termios-lflag!} must be scheme lists of any of the
+following symbols:
+
+
+In this example we create a fresh @code{termios} instance, then read
+into it the attributes of the terminal attached to standard output, and
+print the value of the @code{lflag} field:
+
+@table @code
+
+@item isig
+when any of the characters INTR, QUIT, SUSP, or DSUSP are received,
+generate the corresponding signal.
+
+@item icanon
+enable canonical mode.  This enables the special characters EOF, EOL,
+EOL2, ERASE, KILL, REPRINT, STATUS, and WERASE, and buffers by lines.
+
+@item xcase
+if ICANON is also set, terminal is uppercase only. Input is converted to
+lowercase, except for characters preceded by \.  On output, uppercase
+characters are preceded by \ and lowercase characters are converted to
+uppercase.
+
+@item echo
+echo input characters.
+
+@item echoe
+if ICANON is also set, the ERASE character erases the preceding input
+character, and WERASE erases the preceding word.
+
+@item echok
+if ICANON is also set, the KILL character erases
+the current line.
+
+@item echonl
+if ICANON is also set, echo the NL character even
+if ECHO is not set.
+
+@item echoctl
+if ECHO is also set, ASCII control signals
+other than TAB, NL, START, and STOP are echoed
+as ^X, where X is the character with ASCII code
+0x40 greater than the control signal.  For
+example, character 0x08 (BS) is echoed as ^H.
+
+@item echoprt
+if ICANON and IECHO are also set, characters
+are printed as they are being erased.
+
+@item echoke
+if ICANON is also set, KILL is echoed by erasing
+each character on the line, as specified by ECHOE
+and ECHOPRT.
+
+@item flusho
+output is being flushed.  This flag is toggled by
+typing the DISCARD character.
+
+@item noflsh
+disable flushing the input and output queues when generating the SIGINT
+and SIGQUIT signals, and flushing the input queue when generating the
+SIGSUSP signal.
+
+@item tostop
+send the SIGTTOU signal to the process group of a
+background process which tries to write to its
+controlling terminal.
+
+@item pendin
+all characters in the input queue are reprinted
+when the next character is read.  (bash handles
+typeahead this way.)
+
+@item iexten
+enable implementation-defined input processing.
+@end table
+
+In this example we create a fresh @code{termios} instance, then read
+into it the attributes of the terminal attached to standard output, and
+print the value of the @code{lflag} field:
+
+@example
+(define termios (make-termios 1))
+(termios-lflag termios)
+@result{} (iexten echoke echoctl echok echoe icanon isig)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcgetattr fd::int termios::termios  @result{} int
+
+The procedure @code{tcgetattr} gets the parameters associated with the
+object referred by @var{fd} and stores them in the @var{termios} object.
+This procedure may be invoked from a background process; however, the
+terminal attributes may be subsequently changed by a foreground process.
+
+For example:
+
+@example
+;; Create a termios object
+;; Read stdio terminal attributes
+(define termios (make-termios 0))
+
+;; Change the termios object with any of cfsetispeed, cfsetospeed,
+;; tcsetpgrp or set-termios-XXX! procedures
+...
+
+;; Write it back to terminal
+(tcsetattr 0 termios)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcsetattr fd::int termios::termios #!optional (option 'now)
+
+The procedure @code{tcsetattr} sets the parameters associated with the
+terminal (unless support is required from the underlying hardware that
+is not available) from the @code{termios} parameter.  Optional
+@var{option} symbol specifies when the changes take effect:
+
+@table @code
+@item now
+the change occurs immediately. This is the default value.
+
+@item drain
+the change occurs after all output written to @var{fd} has been
+transmitted.  This function should be used when changing parameters that
+affect output.
+
+@item flush
+the change occurs after all output written to the object referred by
+@var{fd} has been transmitted, and all input that has been received but
+not read will be discarded before the change is made.
+@end table
+
+See example in @code{tcgetattr} section.
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcsendbreak fd::int duration::int 
+@var{fd}
+@var{duration}
+
+The procedure @code{tcsendbreak} transmits a continuous stream of
+zero-valued bits for a specific duration, if the terminal is using
+asynchronous serial data transmission.  If duration is zero, it
+transmits zero-valued bits for at least 0.25 seconds, and not more that
+0.5 seconds.  If duration is not zero, it sends zero-valued bits for
+duration*N seconds, where N is at least 0.25, and not more than 0.5.  If
+the terminal is not using asynchronous serial data transmission,
+@code{tcsendbreak} returns without taking any action.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcdrain fd::int 
+@var{fd}
+
+The procedure @code{tcdrain} waits until all output written to the
+object referred to by @var{fd} has been transmitted.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcflush fd::int queue-selector::tcflush-selector 
+
+The procedure @code{tcflush} discards data written to the object
+referred to by @var{fd} but not transmitted, or data received but not
+read, depending on the value of @var{queue-selector} symbol:
+
+@table @code
+@item input
+flushes data received but not read.
+@item output
+flushes data written but not transmitted.
+@item both
+flushes both data received but not read, and written but not
+transmitted.
+@end table
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcflow fd::int action::int 
+@var{fd}
+@var{action}
+
+The procedure @code{tcflow} suspends transmission or reception of data on the
+object referred to by @var{fd}, depending  on the value of action:
+
+@table @code
+@item ooff
+suspends output.
+
+@item oon
+restarts suspended output.
+
+@item ioff
+transmits a STOP character, which stops the terminal device from
+transmitting data to the system.
+
+@item ion
+transmits a START character, which starts the terminal device
+transmitting data to the system.
+@end table
+
+The default on open of a terminal file is that neither its
+input nor its output is suspended.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} make-termios #!optional fd::int  @result{} termios
+
+The procedure @code{make-termios} returns a new instance of @code{termios}.
+If the @var{fd} argument was given, the instance is initialized it with
+attributes of the terminal attached to that file descriptor.
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} cfmakeraw  @result{} termios
+
+The convenience procedure @code{cfmakeraw} changes the attributes of the
+@code{termios} object as follows:
+
+@table @code
+@item iflag
+
+clear all the attributes except @code{ignbrk}, @code{brkint}, @code{parmrk},
+@code{istrip}, @code{inlcr}, @code{igncr}, @code{icrnl} and @code{ixon}.
+
+@item oflag
+clear all the attributes except @code{opost}
+
+@item lflag
+clear all the attributes except @code{echo}, @code{echonl},
+@code{icanon}, @code{isig} and @code{iexten}
+
+@item cflag
+clear all the attributes except @code{csize} and @code{parenb}. Set
+@code{cs8} attribute.
+@end table
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} cfgetospeed termios::termios  @result{} symbol
+@deffnx {procedure} cfsetospeed termios::termios speed::symbol
+@deffnx {procedure} cfgetispeed termios::termios  @result{} uint
+@deffnx {procedure} cfsetispeed termios::termios speed::uint 
+
+These baud rate functions are provided for getting and setting the
+values of the input and output baud rates in the termios structure.  The
+new values do not take effect until @code{tcsetattr} is successfully
+called.
+
+The zero baud rate, @code{b0}, is used to terminate the connection.  If
+@code{b0} is specified, the modem control lines shall no longer be
+asserted.  Normally, this will disconnect the line.
+
+The procedure @code{cfgetospeed} returns the output baud rate stored in
+the @var{termios} object.
+
+The procedure @code{cfsetospeed} sets the output  baud  rate stored in the
+@code{termios} to speed.
+
+The procedure @code{cfsetispeed} sets the input baud rate stored in the
+@code{termios} object to @var{speed}. If the optional @var{speed} argument is
+omitted, the input baud rate will be equal to the output baud rate.
+
+The speed must be one of these symbols: @code{b0}, @code{b50},
+@code{b75}, @code{b110}, @code{b134}, @code{b150}, @code{b200},
+@code{b300}, @code{b600}, @code{b1200}, @code{b1800}, @code{b2400},
+@code{b4800}, @code{b9600}, @code{b19200}, @code{b38400}, @code{b57600},
+@code{b115200} or @code{b230400}
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} tcgetpgrp fd::int  @result{} uint
+@deffnx {procedure} tcsetpgrp termios::termios pgrpid::uint 
+
+The procedure @code{tcgetpgrp} returns process group ID of foreground
+processing group.
+
+The procedure @code{tcsetpgrp} sets process group ID to @var{pgrpid}.
+@var{pgrpid} must be the ID of a process group in the same session.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} set-termios-cc! termios::termios what::symbol #!optional (value 0)
+
+The procedure @code{set-termios-cc!} sets special control characters
+
+Here are the @var{what} argument meanings and corresponding initial values:
+
+@table @code
+@item intr
+interrupt  character:  0177,  DEL,  rubout
+@item quit
+quit character: 034, FS, Ctrl-\)
+@item erase
+erase  character:  010,  BS,  Ctrl-H
+@item kill
+kill character: 025, NAK, Ctrl-U;
+@item eof
+end-of-file character: 004,  EOT,  Ctrl-D
+@item time
+@item min
+@item swtc
+switch character: 0, NUL
+@item start
+start character: 021, DC1, Ctrl-Q
+@item stop
+stop character:  023,  DC3, Ctrl-S
+@item susp
+suspend  character:  032,  SUB, Ctrl-Z
+@item eol
+additional  end-of-line  character: 0, NUL
+@item reprint
+reprint unread characters: 022, DC2, Ctrl-R
+@item discard
+discard pending output: 017, SI, Ctrl-O
+@item werase
+word erase: 027, ETB, Ctrl-W
+@item lnext
+literal  next:  026,  SYN, Ctrl-V
+@item eol2
+yet another end-of-line character: 0,  NUL
+@end table
+
+These symbolic subscript values are all different, except that
+@code{time}, @code{min} may have the same value as @code{eol},
+@code{eof}, respectively.  (In non-canonical mode the special character
+meaning is replaced by the timeout meaning. @code{min} represents the
+minimum number of characters that should be received to satisfy the
+read. @code{time} is a decisecond-valued timer. When both are set, a
+read will wait until at least one character has been received, and then
+return as soon as either @code{min} characters have been received or
+time @code{time} has passed since the last character was received. If
+only @code{min} is set, the read will not return before @code{min}
+characters have been received.  If only @code{time} is set, the read
+will return as soon as either at least one character has been received,
+or the timer times out. If neither is set, the read will return
+immediately, only giving the currently already available characters.)
+
+The @var{value} argument is coerced to an integer with the use of
+following rules:
+
+If it is a character it is converted to an integer with @code{char->integer}
+
+If it is a string, the first string character is taken, then it is converted to an integer with @code{char->integer}. The escape control sequences such as @code{^N} (the @code{^} followed by uppercase letter) are also recognized.
+
+Examples:
+
+These equivalent expressions all attache the terminal STOP (originally
+attached to control-S character) operation to control-N character:
+
+@example
+(set-termios-cc! termios 'stop 14)
+(set-termios-cc! termios 'stop #\016)
+(set-termios-cc! termios 'stop "^N")
+@end example
+@end deffn
+
+

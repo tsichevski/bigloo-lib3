@@ -1,0 +1,25 @@
+@node    XML parser, , Top, Top
+@chapter XML parser (expat interface)
+
+@menu
+* xml2expat::                   
+@end menu
+
+This chapter describes the Bigloo interface to @code{expat}, the popular
+XML parser by James Clark. The @code{expat} package may be
+downloaded from @url{http://www.libexpat.org}.
+
+TBD
+
+@c ==================================================================
+@node    xml2expat,  , XML parser, XML parser
+@section xml2expat
+
+@code{xml2expat} is a tool which converts XML text to Bigloo object file
+format. It is useful, for example, when working with XML templates to
+produce dynamic HTML pages or in any similar situation when all the XML
+files are known at the compilation time, so you do not need to add the
+XML support into you application.
+
+TBD
+
