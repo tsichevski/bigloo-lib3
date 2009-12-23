@@ -1,0 +1,211 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ sqlite3
+ (import rdbms)
+ (library common) ;; uses time type
+ (include "common.sch")
+ (extern
+  (include "sqlite3.h")
+  (macro sqlite_errcode::int (::sqlite3) "sqlite3_errcode")
+  (macro sqlite3_close::int (::sqlite3) "sqlite3_close")
+  (macro sqlite3_errmsg::string (::sqlite3) "(char*)sqlite3_errmsg")
+  (macro sqlite3_column_count::int (::sqlite3-stmt)"sqlite3_column_count")
+  (macro sqlite3_finalize::int (::sqlite3-stmt)"sqlite3_finalize")
+  (macro sqlite3_step::int (::sqlite3-stmt) "sqlite3_step")
+  (macro sqlite3_reset::int (::sqlite3-stmt) "sqlite3_reset")
+  (macro sqlite3_column_name::string (::sqlite3-stmt ::int) "sqlite3_column_name")
+  (macro sqlite3_column_text::string (::sqlite3-stmt ::int)
+	 "(char*)sqlite3_column_text")
+  (macro sqlite3_column_type::int (::sqlite3-stmt ::int) "sqlite3_column_type")
+  (macro sqlite3_column_decltype::string (::sqlite3-stmt ::int)
+	 "(char*)sqlite3_column_decltype")
+  (macro sqlite3_column_int::int (::sqlite3-stmt ::int) "sqlite3_column_int")
+  (macro sqlite3_column_double::double (::sqlite3-stmt ::int) "sqlite3_column_double")
+  (macro sqlite3_column_int64::llong (::sqlite3-stmt ::int) "sqlite3_column_int64")
+  (macro sqlite3_column_bytes::int (::sqlite3-stmt ::int) "sqlite3_column_bytes")
+  (macro sqlite3_column_blob::void* (::sqlite3-stmt ::int) "sqlite3_column_blob")
+  (macro string_to_bstring_len::bstring (::string ::int) "string_to_bstring_len")
+  )
+ 
+ (export
+  (class sqlite3-connection::connection impl::sqlite3)
+  
+  (class sqlite3-session::session
+	 (stmt::sqlite3-stmt (default (pragma::sqlite3-stmt "NULL")))
+	 )
+  ))
+
+(define-macro (switch expr . cases)
+  `(let((value ,expr))
+     (cond
+      ,@(map
+	 (lambda(c)
+	   (match-case
+	    c
+	    ((else ?expr . ?body)
+	     `(else ,expr ,@body))
+
+	    ((?v ?expr . ?body)
+	     `((=fx (pragma::int ,(symbol->string v)) value)
+	       ,expr ,@body))
+
+	    (else
+	     (error "switch" "invalid case statement" c))))
+	 cases))))
+;;(pp(expand-once '(switch (a 1) (SQLITE_INTEGER (print "int") 1)(else (print "float")))))
+
+(define-macro (sqlite-error who db)
+  `(error ,who (sqlite3_errmsg ,db) ,db))
+
+(register-eval-srfi! 'sqlite3)
+
+(define-object (sqlite3 "sqlite3*") ())
+(define-object sqlite3_stmt ())
+
+(define (sqlite-connect::sqlite3-connection filename::string)
+  (let*((db::sqlite3 (pragma::sqlite3 "NULL")))
+    (when(pragma::bool "sqlite3_open($1, &$2)" filename db)
+	 (sqlite3_close db)
+	 (sqlite-error "sqlite3_open" db))
+    (instantiate::sqlite3-connection (impl db))))
+
+(rdbms-register! "sqlite3" sqlite-connect)
+
+(define-method (_acquire::session self::sqlite3-connection)
+  (instantiate::sqlite3-session(connection self)))
+ 
+(define-method (prepare::bool self::sqlite3-session sql::bstring)
+  (call-next-method)
+  (with-access::sqlite3-session
+   self
+   (connection statement)
+   (with-access::sqlite3-connection
+    connection
+    (impl)
+    (let((csql::string statement)
+	 (len::int (string-length statement))
+	 (left-over::string (pragma::string "NULL"))
+	 (stmt::sqlite3-stmt (pragma::sqlite3-stmt "NULL"))
+	 (db::sqlite3 impl))
+      
+      (when (pragma::bool
+	     "sqlite3_prepare($1, (const char *)$2, $3, &$4, (const char **)&$5)"
+	     db csql len stmt left-over)
+	    (sqlite3_finalize stmt)
+	    (sqlite-error "sqlite3_prepare" impl))
+      (sqlite3-session-stmt-set! self stmt)
+      (sqlite3_column_count stmt)))))
+      
+(define (sqlite3-text::bstring stmt::sqlite3-stmt i::int)
+  (string_to_bstring_len 
+   (sqlite3_column_text stmt i)
+   (sqlite3_column_bytes stmt i)))
+
+;; return true if there are more statements
+(define-static (sqlite3-step::bool self::sqlite3-session)
+  (with-access::sqlite3-session
+   self (connection stmt)
+   (switch
+    (sqlite3_step stmt)
+    (SQLITE_ROW #t)
+    (SQLITE_DONE (sqlite3_reset stmt) #f)
+    (else
+     (sqlite-error "sqlite3_step" (sqlite3-connection-impl connection))))))
+
+(define-method (execute::bool self::sqlite3-session)
+  (sqlite3-step self))
+
+(define-method (fetch!::pair-nil self::sqlite3-session)
+  (with-access::sqlite3-session
+   self (connection stmt)
+   (if (=fx 0 (sqlite3_column_type stmt 0))
+       '()
+       (begin0
+	(let loop((lst '())
+		  (i::int (-fx (sqlite3_column_count stmt)1)))
+	  (if (<fx i 0)
+	      lst
+	      (loop
+	       (cons*
+		(let((col_type::int (sqlite3_column_type stmt i)))
+		  (switch col_type
+			  (SQLITE_INTEGER (sqlite3_column_int stmt i))
+			  (SQLITE_FLOAT   (sqlite3_column_double stmt i))
+			  (SQLITE_TEXT    (sqlite3-text stmt i))
+			  (SQLITE_BLOB    (sqlite3-text stmt i))
+			  (SQLITE_NULL    #unspecified)
+			  (else
+			   [error
+			    "sqlite3_column_type"
+			    "invalid column type" col_type])))
+		lst)
+	       (-fx i 1))))
+	(sqlite3-step self)))))
+  
+(define-method(_dismiss! self::sqlite3-session)
+  (cancel! self))
+
+(define-method (_dismiss! self::sqlite3-connection)
+  (with-access::sqlite3-connection
+   self (impl)
+   (pragma "sqlite3_close($1)"impl)
+   #unspecified))
+
+(define-method (begin-transaction!::bool self::sqlite3-connection . timeout)
+  ;; NO TRANSACTIONS AVAILABLE
+  #f)
+
+(define-method (cancel! self::sqlite3-session)
+  ;; TODO
+  #unspecified)
+
+(define-method (has-answer?::bool self::sqlite3-session)
+  (with-access::sqlite3-session
+   self (stmt)
+   (sqlite3_column_count stmt)))
+
+(define-method (bind! self::sqlite3-session bindings::pair-nil)
+  ;; TODO
+  #unspecified
+  )
+
+(define-method (describe self::sqlite3-session)
+  (with-access::sqlite3-session
+   self
+   (stmt)
+   (let loop((lst '())
+	     (i::int (-fx (sqlite3_column_count stmt)1)))
+     (if (<fx i 0)
+	 lst
+	 (loop
+	  (cons
+	   (list
+	    (sqlite3_column_decltype stmt i)
+	    (sqlite3_column_bytes stmt i)
+	    )
+	   lst)
+	  (-fx i 1))))))

@@ -1,0 +1,198 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ sqlite
+ (import rdbms)
+ (library common) ;; uses time type
+ (include "common.sch")
+ (extern
+  (include "sqlite.h")
+  (export sqlite-execute-callback "sqlite_execute_callback")
+  )
+ (export
+  (class sqlite-connection::connection impl::sqlite)
+
+  (class sqlite-session::session
+;	 (result::sqlite-res (default (pragma::sqlite-res "NULL")))
+	 (query (default #f))
+	 (result (default #f))
+	 (columns (default #f))
+;	 (callback
+;	  (default
+;	    (lambda args
+;	      ;; CHANGE IT!
+;	      (print args)
+;	      #f)
+;	    ))
+	 )
+
+  (sqlite-execute-callback::bool
+   this::void*
+   argc::int
+   argv::string*
+   column-names::string*)
+  )
+ )
+
+(register-eval-srfi! 'sqlite)
+
+(define-object sqlite ())
+
+(define (sqlite-connect::sqlite-connection
+	 filename::string
+	 #!optional (mode #o0666))
+  (let*((mode::int mode)
+	(errmsg::string (pragma::string "NULL"))
+	(conn::sqlite
+	 (pragma::sqlite
+	  "sqlite_open($1, $2, &$3)"
+	  filename
+	  mode
+	  errmsg)))
+    (if(pragma::bool "$1 == NULL" conn)
+       (error "sqlite-connect" errmsg filename)
+       (instantiate::sqlite-connection (impl conn)))))
+
+(rdbms-register! "sqlite" sqlite-connect)
+
+(define-method (_acquire::session self::sqlite-connection)
+  (instantiate::sqlite-session(connection self)))
+
+(define-method (prepare::bool self::sqlite-session sql::bstring)
+  (call-next-method)
+  (with-access::sqlite-session
+   self
+   (query result)
+   (set! query #f)
+   (set! result #f)
+   #t))
+
+(define (sqlite-execute-callback::bool
+	 this::void*
+	 argc::int
+	 argv::string*
+	 column-names::string*)
+  (let((this::sqlite-session (pragma::sqlite-session "$1" this)))
+    (with-access::sqlite-session
+     this (result columns)
+     (unless columns
+	     (set! columns (string*->string-list column-names argc)))
+     (push! result (string*->string-list argv argc))
+     #f
+     )))
+
+(define-method(execute::bool self::sqlite-session)
+  (with-access::sqlite-session
+   self
+   (connection statement result query)
+
+   (let((may-be-bound(or query statement)))
+     (with-access::sqlite-connection
+      connection
+      (impl)
+      (unless may-be-bound
+	      (error "sqlite-session-execute"
+		     "no statement to execute"
+		     self))
+      (set! result '())
+      
+      (let*((may-be-bound::string may-be-bound)
+	    (errmsg::string (pragma::string "NULL"))
+	    (errcode(pragma::int
+		     "sqlite_exec($1,$2,sqlite_execute_callback,$3, &$4)"
+		     impl
+		     may-be-bound
+		     self
+		     errmsg)))
+	(unless(=fx errcode 0)
+	       ;; errmsg may be set during the sqlite_exec, if
+	       ;; not, then try to deduce it from the errcode
+	       (let((errmsg
+		     (if (pragma::bool "$1 == NULL"errmsg)
+			 (pragma::string "(char *)sqlite_error_string($1)"
+					 errcode)
+			 errmsg)))
+		 (error "sqlite_exec" errmsg may-be-bound)))
+	(set! result (reverse! result))
+	#t)))))
+
+(define-method(fetch!::pair-nil self::sqlite-session)
+  (with-access::sqlite-session
+   self (result)
+   (unless result
+	   (error "session:fetch"
+		  "Invalid cursor state: not executed"
+		  self))
+   (if (pair? result)
+       (pop! result)
+       '())))
+
+(define-method (fetch-all!::pair-nil self::sqlite-session)
+  (with-access::sqlite-session
+   self (result)
+   (begin0
+    result
+    (set! result #f))))
+
+(define-method(_dismiss! self::sqlite-session)
+  (cancel! self))
+
+(define-method(_dismiss! self::sqlite-connection)
+  (with-access::sqlite-connection
+   self (impl)
+   (pragma "sqlite_close($1)"impl)
+   #unspecified))
+
+(define-method(begin-transaction!::bool self::sqlite-connection . timeout)
+  ;; NO TRANSACTIONS AVAILABLE
+  #f)
+
+(define-method(cancel! self::sqlite-session)
+  (with-access::sqlite-session
+   self (result)
+   (set! result #f)))
+
+(define-method (has-answer?::bool self::sqlite-session)
+  (with-access::sqlite-session
+   self (result)
+   result))
+
+(define-method(bind! self::sqlite-session bindings::pair-nil)
+  (with-access::sqlite-session
+   self
+   (result statement query)
+   (set! query (rdbms-format statement bindings))))
+
+(define-method(describe self::sqlite-session)
+  ;; FIXME: the only info we can get are names of the result columns,
+  ;; the only way to get them is to execute the statement
+  (with-access::sqlite-session
+   self
+   (columns)
+   (unless columns
+	   (execute self))
+   (map list columns)
+   ))

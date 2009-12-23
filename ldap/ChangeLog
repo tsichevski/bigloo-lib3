@@ -1,0 +1,9 @@
+2003-11-24  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* ldap.m4,ldap.defs,Makefile.am: check added: whether
+	ldap_*_cache() functions are present in system -lldap
+
+2003-07-30  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Makefile.am (LIBS): common libraries added to the list
+

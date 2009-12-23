@@ -1,0 +1,363 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003 Alex Ott <ott@jet.msk.su>                         */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module pgsql
+   (extern
+    (include "libpq-fe.h"))
+   (import rdbms)
+   (library common)
+   (include "common.sch")
+   (export
+    (class pgsql-connection::connection
+	   (impl::pgsql-conn (default (pragma::pgsql-conn "NULL")))
+	   ;; cached information about type/oid
+	   (types::pair-nil (default '()))
+       )
+    
+    (class pgsql-session::session
+       (result::pgsql-res (default (pragma::pgsql-res "NULL")))
+       (query (default #f))
+       (field-count::int (default 0))
+       (current-tuple::int (default 0))  ;; current line to fetch
+       (tuple-count::int (default 0))
+       (desc::pair-nil (default '()))
+       )
+
+    (pgsql-type::string type::int self::pgsql-connection)
+  )
+ )
+
+(register-eval-srfi! 'pgsql)
+
+(define-object (pgsql-conn "PGconn*")())
+(define-object (pgsql-res "PGresult*")())
+
+(define-enum (pgsql-conn-status-type "ConnStatusType")
+   (ok CONNECTION_OK)
+   (bad CONNECTION_BAD)
+   (started CONNECTION_STARTED)
+   (made CONNECTION_MADE)
+   (awaiting-response CONNECTION_AWAITING_RESPONSE)
+   (auth-ok CONNECTION_AUTH_OK)
+   (setenv CONNECTION_SETENV))
+
+(define-enum (pgsql-polling-status-type "PostgresPollingStatusType")
+   (polling-failed PGRES_POLLING_FAILED)
+   (polling-reading PGRES_POLLING_READING)
+   (polling-writing PGRES_POLLING_WRITING)
+   (polling-ok PGRES_POLLING_OK)
+   (polling-active PGRES_POLLING_ACTIVE))
+
+(define-enum (pgsql-exec-status-type "ExecStatusType")
+   (empty-query PGRES_EMPTY_QUERY)
+   (command-ok PGRES_COMMAND_OK)
+   (tuples-ok PGRES_TUPLES_OK)
+   (copy-out PGRES_COPY_OUT)
+   (copy-in PGRES_COPY_IN)
+   (bad-response PGRES_BAD_RESPONSE)
+   (nonfatal-error PGRES_NONFATAL_ERROR)
+   (fatal-error PGRES_FATAL_ERROR))
+
+(define (pgsql-connect::pgsql-connection #!key dbname username
+					 password hostname pgport pgoptions)
+   (let* (
+	  (host::string (string-append "host=" (or hostname "localhost")))
+	  (port::string (string-append " port=" (or pgport "5432")))
+	  (db::string   (string-append " dbname=" (or dbname "postgres")))
+	  (user::string (string-append " user=" (or username "postgres")))
+	  (pass::string (if (string? password) (string-append " password=" password) ""))
+	  (opt::string (if (string? pgoptions) (string-append " options=" pgoptions) ""))
+	  (connstr::string (string-append host port db user pass opt))
+	  (conn::pgsql-conn (pragma::pgsql-conn "PQconnectdb($1)" connstr)))
+
+     (when (pragma::bool "(NULL == $1) || (PQstatus($1) == CONNECTION_BAD)" conn)
+	   (error "pgsql-connect" "Cannot connect to database" db))
+     (instantiate::pgsql-connection (impl conn))))
+
+(rdbms-register! "pgsql" pgsql-connect)
+
+(define-method (_dismiss! self::pgsql-connection)
+  (with-access::pgsql-connection
+   self (impl)
+    (pragma "PQfinish($1)" impl))
+  #t)
+
+(define-method (_dismiss! self::pgsql-session)
+  (with-access::pgsql-session
+   self (result)
+   (when result
+	 (pragma "PQclear($1)" result)
+	 (set! result (pragma::pgsql-res "NULL"))))
+  #t)
+
+
+(define-method (_acquire::session self::pgsql-connection)
+  (instantiate::pgsql-session (connection self)))
+
+(define-method (prepare::bool self::pgsql-session sql::bstring)
+  (call-next-method)
+  (with-access::pgsql-session
+   self
+   (query desc)
+   (set! query #f)
+   (set! desc '())
+   #t))
+
+(define-method (fetch!::pair-nil self::pgsql-session)
+  (describe self)
+  (with-access::pgsql-session
+   self
+   (result field-count current-tuple tuple-count desc)
+   (unless result
+	   (error "session:fetch"
+		  "Invalid cursor state: not executed"
+		  self))
+   (if (>=fx current-tuple tuple-count)
+       '()
+       (let loop ((resultlist '())
+		  (count::int (-fx field-count 1)))
+	 (if (<fx count 0)
+	    (begin
+	      (set! current-tuple (+fx current-tuple 1))
+	      resultlist)
+	    (let ((value (pragma::string "PQgetvalue($1,$2,$3)"
+					 result current-tuple count))
+		  (type (caddr (list-ref desc count)))
+		  )
+	      (loop (cons
+		     (case type
+		       ((integer) (string->integer value)
+			)
+		       ((number) (string->number value))
+		       ((time timetz)
+			(let ((hour::uint 0)
+			     (minute::uint 0)
+			     (second::uint 0))
+			  (pragma "sscanf($1, \"%d:%d:%d\", &$2, &$3, &$4)"
+				  value hour minute second)
+			  (+fx (*fx 60 (+fx (*fx 60 hour) minute)) second)))
+		       ((date)
+			(let ((year::uint 0)
+			      (month::uint 0)
+			      (day::uint 0))
+			  (pragma "sscanf($1, \"%d-%d-%d\", &$2, &$3, &$4)" value year month day)
+			  (mktime year month day)))
+		       ((timestamp)
+			(let((year::uint 0)
+			     (month::uint 0)
+			     (day::uint 0)
+			     (hour::uint 0)
+			     (minute::uint 0)
+			     (tz::uint 0)
+			     (second::uint 0))
+			  (pragma
+			   "sscanf($1, \"%4d-%2d-%2d %2d:%2d:%2d+%2d\", &$2, &$3, &$4, &$5, &$6, &$7, &$8)"
+			   value year month day hour minute second tz)
+			  (mktime year month day hour minute second)))
+		       (else
+			(string-trim-right value))) resultlist) (-fx count 1))))))))
+
+(define-method (describe self::pgsql-session)
+  (if (not (null? (pgsql-session-desc self)))
+      (pgsql-session-desc self)
+      (with-access::pgsql-session
+       self
+       (result field-count connection desc)
+       (unless result
+	       (error "pgsql-session-describe"
+		      "Invalid cursor state: execute first"
+		      self))
+       (let loop ((resultlist '())
+		  (count::int (-fx field-count 1)))
+	 (if(<fx count 0)
+	    (begin
+	       (set! desc resultlist)
+	       resultlist)
+	    (let* ((oid (pragma::int "PQftype($1,$2)" result count))
+		   (type (pgsql-type oid connection)))
+	      (loop
+	       (cons
+		(list
+		 (pragma::string "PQfname($1,$2)" result count)  ;; name of field
+		 type
+		 (cond 
+		  ((any (lambda (x) (string=? type x))
+			'("_int2" "_int4" "_oid" "_xid" "_tid" "_int8" "_cid"
+			  "int8" "int2" "int4" "oid" "tid" "xid" "cid"))
+		   'integer)
+		  ((any (lambda (x) (string=? type x))
+			'("_float8" "_float4" "_numeric" "float4" "float8" "numeric"))
+		   'number)
+		  ((any (lambda (x) (string=? type x))
+			'("_int2vector" "_oidvector" "oidvector" "int2vector"))
+		   'intvector)
+		  ((any (lambda (x) (string=? type x))
+			'("text" "_text" "_varchar" "_bpchar" "bpchar" "varchar"))
+		   'text)
+		  ((any (lambda (x) (string=? type x))
+			'("_timestamp" "timestamp"))
+		   'timestamp)
+		  ((any (lambda (x) (string=? type x))
+			'("_date" "date"))
+		   'date)
+		  ((any (lambda (x) (string=? type x))
+			'("_time" "time"))
+		   'time)
+		  ((any (lambda (x) (string=? type x))
+			'("_timetz" "timetz"))
+		   'time)
+		  ((any (lambda (x) (string=? type x))
+			'("_interval" "interval"))
+		   'interval)
+		  ((any (lambda (x) (string=? type x))
+			'("_abstime" "abstime"))
+		   'abstime)
+		  ((any (lambda (x) (string=? type x))
+			'("_reltime" "reltime"))
+		   'reltime)
+;		       ((any (lambda (x) (string=? type x))
+;			     '("" "" "" "" "" "" "" "" "" "" "" "" "" "" )))
+		  (else 'another))
+		 (pragma::int "PQfsize($1,$2)" result count)     ;; size in bytes
+		 (pragma::int "PQfmod($1,$2)" result count)     ;; field modification data
+		 oid ;; type of field (internal oid)
+	       )
+	      resultlist)
+	     (-fx count 1))))))))
+  
+(define (pgsql-type::string pgtype::int self::pgsql-connection)
+  (with-access::pgsql-connection
+	self (impl types)
+     (if (assoc pgtype types)
+	 (cadr (assoc pgtype types))
+	 (let ((sess::pgsql-session (acquire self)))
+	    (prepare sess "select typname, typlen from pg_type where typelem=:1")
+	    (bind! sess (list pgtype))
+	    (execute sess)
+	    (with-access::pgsql-session
+		  sess (result)
+	       (unless result
+		  (error "pgsql-session-type"
+			 "Invalid cursor state: execute first"
+			 self))
+	       (let ((typename (pragma::string "PQgetvalue($1,$2,$3)" result 0 0))
+		     (typelen (pragma::string "PQgetvalue($1,$2,$3)" result 0 1))
+		     )
+		  (set! types (cons
+			       (cons pgtype
+				     (list typename (string->number typelen))) types))
+		  typename
+		  ))))))
+
+(define-method (bind! self::pgsql-session bindings::pair-nil)
+  (with-access::pgsql-session
+   self
+   (result statement query)
+   (set!
+    query
+    (string-grammar-apply
+     statement
+     (lambda(port)
+       (read/rp
+	(regular-grammar
+	 ()
+	 ((: #\: (submatch (+ digit)))
+	  (let ((bind-no(string->integer (the-submatch 1))))
+	    (check-range
+	     (when (>fx bind-no (length bindings))
+		   (error "pgsql-bind!" "bind position out of range" bind-no)))
+	    (let ((arg (list-ref bindings (-fx bind-no 1))))
+	      (cond
+	       ((eq? arg #unspecified) "NULL")
+	       ((tm? arg) 
+		(strftime arg "%Y%m%d %H%M%S"))
+	       ((or (string? arg) (symbol? arg))
+		(format "'~a'" (string->dbstring arg)))
+	       (else arg))))))
+	port))))))
+
+(define-method (execute::bool self::pgsql-session)
+  (with-access::pgsql-session
+   self
+   (connection statement result query
+	       field-count current-tuple tuple-count desc)
+   (let ((may-be-bound (or query statement)))
+     (with-access::pgsql-connection
+      connection
+      (impl)
+      (unless may-be-bound
+	      (error "pgsql-session-execute"
+		     "no statement to execute"
+		     self))
+      (let* ((r (pragma::pgsql-res "PQexec($1, $2)"
+				  impl
+				  ($bstring->string may-be-bound)))
+	     (rs (pgsql-result-status r))
+	     )
+	(when (or
+	       (eqv? rs 'fatal-error)
+	       (eqv? rs 'nonfatal-error))
+	      (error "pgsql execute" (pgsql-result-error r) may-be-bound))
+	(and r
+	     (begin
+	       (when result
+		     (pragma "PQclear($1)" result))
+	       (set! result r)
+	       (set! field-count
+		     (pragma::int "PQnfields($1)" result))
+	       (set! current-tuple 0)
+	       (set! desc '())
+	       (set! tuple-count
+		     (pragma::int "PQntuples($1)" result))
+	       (pragma::pgsql-res "PQexec($1, \"SET DateStyle TO 'ISO'\")" impl)
+	       ;; Note: we cannot deduce if result has answer set
+	       #t)))))))
+
+(define (pgsql-result-error::string res::pgsql-res)
+  (pragma::string "PQresultErrorMessage($1)" res))
+
+(define (pgsql-result-status::pgsql-exec-status-type res::pgsql-res)
+  (pragma::pgsql-exec-status-type "PQresultStatus($1)" res))
+
+(define (pgsql-error::string self::pgsql-conn)
+  (pragma::string "PQerrorMessage($1)" self))
+  
+(define-method (begin-transaction!::bool self::pgsql-connection . timeout)
+  (with-access::pgsql-connection
+   self (impl)
+    (pragma "PQexec($1,\"BEGIN\")" impl))
+  #t)
+
+(define-method (commit-transaction!::bool self::pgsql-connection)
+  (with-access::pgsql-connection
+   self (impl)
+    (pragma "PQexec($1,\"COMMIT\")" impl))
+  #t)
+
+(define-method (rollback-transaction!::bool self::pgsql-connection)
+  (with-access::pgsql-connection
+   self (impl)
+    (pragma "PQexec($1,\"ROLLBACK\")" impl))
+  #t)

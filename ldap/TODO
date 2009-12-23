@@ -1,0 +1,5 @@
+2004-11-10  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* ldap-node.scm (ldap-node): change implementation: base on tree-node
+
+make string filter parser/printer
