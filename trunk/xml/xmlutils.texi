@@ -1,0 +1,132 @@
+@section Convenience procedures
+
+@anchor{Convenience procedures}
+
+@subsection Conversion between types
+
+@c ======================================================================
+@deffn {procedure} xml-as-xpath-object ::xml-xpath-object @result{} xml-xpath-object
+@deffnx {procedure} xml-as-xpath-object ::xml-xpath-context expr::string @result{} xml-xpath-object
+@deffnx {procedure} xml-as-xpath-object ::xml-node expr::string @result{} xml-xpath-object
+
+The convenience @code{xml-as-xpath-object} procedure converts its
+arguments to an @code{xml-xpath-object}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml->string ::xml-xpath-object #!optional encoding @result{} bstring
+@deffnx {procedure} xml->string ::xml-xpath-context expr::string #!optional encoding @result{} bstring
+@deffnx {procedure} xml->string ::xml-node #!optional expr::string encoding @result{} bstring
+
+The convenience @code{xml->string} procedure converts its arguments to
+an @code{xml-xpath-object}, and then extracts the string value with
+the @code{xml-xpath-object-stringval}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-as-node-set ::xml-node @result{} xml-node-set
+@deffnx {procedure} xml-as-node-set ::xml-node expr::string @result{} xml-node-set
+@deffnx {procedure} xml-as-node-set ::xml-node-set @result{} xml-node-set
+@deffnx {procedure} xml-as-node-set ::xml-xpath-object @result{} xml-node-set
+@deffnx {procedure} xml-as-node-set ::xml-xpath-context expr::string @result{} xml-node-set
+
+The convenience @code{xml-as-node-set} procedure converts its
+arguments to an @code{xml-node-set}.
+
+This procedure raises an error the conversions is impossible.
+
+Examples: 
+
+@example
+(define doc (xml-parse-memory "<a><c/><d/><e/></a>"))
+
+;; Evaluate an XPath expression in context of the document,
+;; convert result to a nodeset, create an xml-xpath-context
+;; internally
+(xml-as-node-set doc "/")
+@result{} #<foreign:xml-node-set:9da2cd0>
+
+;; Same operation, use but xml-xpath-context explicitly
+(define ctxt (xml-xpath-new-context doc))
+(xml-as-node-set ctxt "/")
+
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-set->list self::xml-node-set  @result{} pair-nil
+@deffnx {procedure} xml->list arg #!optional arg1  @result{} pair-nil
+
+The procedure @code{xml-node-set->list} convert its argument to a
+Scheme list object.  The procedure @code{xml->list} convert its
+argument first to an @code{xml-node-set} object, and then to a Scheme
+list object.
+
+@example
+(define doc (xml-parse-memory "<a><c/><d/><e/></a>"))
+(xml->list doc "/a/*")
+@result{} (#<foreign:xml-node:8f52690> #<foreign:xml-node:8f526e0> #<foreign:xml-node:8f52748>)
+
+@end example
+@end deffn
+@c ======================================================================
+
+@subsection Iteration over nodesets
+
+This section describes convenience Scheme procedures used to treate
+@code{xml-node-set} objects like Scheme lists. These procedures have
+@strong{no} counterpart in the @code{libxml2} C API.
+
+@c ======================================================================
+@deffn {procedure} xml-node-set-for-each proc self::xml-node-set 
+@deffnx {procedure} xml-node-set-map proc self::xml-node-set 
+@deffnx {procedure} xml-node-set-filter proc self::xml-node-set 
+@deffnx {procedure} xml-node-set-filter-map proc self::xml-node-set 
+
+@var{proc}
+@var{self}
+
+The procedure @code{xml-node-set-for-each} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-for-each proc arg #!optional arg1 
+@deffnx {procedure} xml-map proc arg #!optional arg1 
+@deffnx {procedure} xml-filter proc arg #!optional arg1 
+@deffnx {procedure} xml-filter-map proc arg #!optional arg1 
+
+These procedures process their arguments as follows:
+
+@itemize
+@item
+
+Convert the @var{arg} and optional @var{arg1} arguments to an @code{xml-node-set} object
+
+@item
+
+Iterate through the set with @code{xml-node-set-for-each}
+@code{xml-node-set-map}, @code{xml-node-set-filter}, or
+@code{xml-node-set-filter-map}.
+
+@end itemize
+
+For example: 
+@example
+(define doc (xml-parse-memory "<a><c/><d/><e/></a>"))
+(xml-for-each display doc "/a/*")
+@print{} <c/><d/><e/>
+
+(xml-map xmlobj-name doc "/a/*")
+@result{} ("c" "d" "e")
+@end example
+@end deffn
+
+
+

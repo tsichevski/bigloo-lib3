@@ -1,0 +1,126 @@
+@c ======================================================================
+@subsection encoding API
+@c ======================================================================
+@anchor{encoding API}
+
+@deftp {foreign} xml-char-encoding-handler
+
+TODO
+
+@end deftp
+
+@deffn {procedure} xml-char-encoding-handler-name o::xml-char-encoding-handler  @result{} string
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-init-char-encoding-handlers 
+
+The procedure @code{xml-init-char-encoding-handlers} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-cleanup-char-encoding-handlers 
+
+The procedure @code{xml-cleanup-char-encoding-handlers} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-register-char-encoding-handler handler::xml-char-encoding-handler 
+@var{handler}
+
+The procedure @code{xml-register-char-encoding-handler} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-find-char-encoding-handler name::string  @result{} xml-char-encoding-handler or #f
+
+The procedure @code{xml-find-char-encoding-handler} looks the encoding
+handler by name. It returns either a handler or #f in not found.
+
+For example: 
+@example
+(xml-find-char-encoding-handler "koi8-r")
+@result{} #<foreign:xml-char-encoding-handler:91499b0>
+
+(xml-find-char-encoding-handler "unknown")
+@result{} #f
+
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-add-encoding-alias name::string alias::string  @result{} int
+@var{name}
+@var{alias}
+
+The procedure @code{xml-add-encoding-alias} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-del-encoding-alias alias::string  @result{} int
+@var{alias}
+
+The procedure @code{xml-del-encoding-alias} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-get-encoding-alias alias::string  @result{} string
+@var{alias}
+
+The procedure @code{xml-get-encoding-alias} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-cleanup-encoding-aliases 
+
+The procedure @code{xml-cleanup-encoding-aliases} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+

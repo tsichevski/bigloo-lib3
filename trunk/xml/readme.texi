@@ -1,0 +1,5 @@
+The @cite{bigloo-xml} is a Bigloo library to manipulate XML documents,
+and transform it using XSLT.
+
+The @cite{bigloo-xml} uses libxml2 and libxslt libraries to do the
+job.

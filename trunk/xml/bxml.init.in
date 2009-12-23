@@ -1,0 +1,13 @@
+;; -*-Scheme-*-
+(set! *include-foreign*
+      (cons* @bigloo_xml_includes@
+	     *include-foreign*))
+(set! *cc-options*(string-append
+		   "@bigloo_xml_cflags@ "
+		   *cc-options*))
+(set!
+ *ld-post-options*
+ (string-append
+  *ld-post-options*
+  " @bigloo_xml_libs@ "))
+

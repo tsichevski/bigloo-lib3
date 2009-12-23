@@ -1,0 +1,94 @@
+\input texinfo
+@documentlanguage en
+@c %**start of header
+@setfilename bigloo-xml.info
+@settitle The libxml2/libxslt bindings for Bigloo
+@c %**end of header
+@setchapternewpage off
+
+@include version.texi
+@include config.texi
+
+@ifinfo
+This file documents @cite{bigloo-xml}, The libxml2/libxslt bindings
+for Bigloo
+
+This is Edition @value{EDITION}, last updated @value{UPDATED}, of
+@cite{bigloo-xml Manual}, for @cite{bigloo-xml}, version
+@value{VERSION}.
+
+Copyright @copyright{} 2003-2004 Vladimir Tsichevski
+
+@end ifinfo
+
+@titlepage
+@sp 10
+@title{The libxml2/libxslt bindings for Bigloo}
+@subtitle{to add pleasure to Scheme developers}
+@author{Vladimir Tsichevski}
+@c The following two commands start the copyright page.
+@page
+This document describes @cite{bigloo-xml}, version @value{VERSION}.
+
+@vskip 0pt plus 1filll
+Copyright @copyright{} 2003-2004 Vladimir Tsichevski.
+@end titlepage
+ 
+@c ------------------------------------------------------------------- @c
+@c    Dir entry                                                        @c
+@c ------------------------------------------------------------------- @c
+@ifinfo
+@dircategory Bigloo
+@direntry
+* bigloo-xml: (bigloo-xml).    The libxml2/libxslt bindings for Bigloo
+@end direntry
+@end ifinfo
+
+ 
+@c ==================================================================
+@node Top, Introduction, (dir), (dir)
+
+@include readme.texi
+
+@menu
+* Introduction::                
+* Getting started::
+* Advanced topics::
+* API Reference::
+* Concept index::               
+* Type index::                  
+* Procedure index::             
+* Command-line options::        
+@end menu
+
+@include intro.texi
+@include getstarted.texi
+@include advanced.texi
+@include reference.texi
+
+@c ==================================================================
+@node Concept index, Type index, API Reference, Top
+@unnumbered Concept index
+
+@printindex cp
+
+@c ==================================================================
+@node    Type index, Procedure index, Concept index, Top
+@unnumbered Type index
+
+@printindex tp
+
+@c ==================================================================
+@node    Procedure index, Command-line options, Type index, Top
+@unnumbered Procedure index
+
+@printindex fn
+
+@c ==================================================================
+@node    Command-line options,  , Procedure index, Top
+@unnumbered Command-line options
+
+@printindex vr
+
+@contents
+@bye

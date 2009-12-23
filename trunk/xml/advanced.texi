@@ -1,0 +1,12 @@
+@c ==================================================================
+@node Advanced topics, API Reference, Getting started, Top
+@comment  node-name,  next,  previous,  up
+
+@menu
+* Using xml-buffer::            
+@end menu
+
+@c ==================================================================
+@node Using xml-buffer, , Advanced topics, Advanced topics
+@section Using xml-buffer
+

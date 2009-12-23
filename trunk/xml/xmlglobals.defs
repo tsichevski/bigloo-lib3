@@ -1,0 +1,177 @@
+;;-*-scheme-*-
+(module
+ xmlglobals
+ (library common)
+ (include "common.sch")
+ (extern
+  (include "libxml/tree.h")
+  )
+ )
+
+;;
+;; Summary: interface for all global variables of the library
+;; Description: all the global variables and thread handling for
+;;              those variables is handled by this module.
+
+(define-func xmlInitGlobals void ())
+(define-func xmlCleanupGlobals void ())
+
+;; typedef xmlParserInputBufferPtr (*xmlParserInputBufferCreateFilenameFunc) (stringURI, xmlCharEncoding enc)
+;; typedef xmlOutputBufferPtr (*xmlOutputBufferCreateFilenameFunc) (stringURI, xmlCharEncodingHandlerPtr encoder, int compression)
+;;(define-func xmlParserInputBufferCreateFilenameDefault xmlParserInputBufferCreateFilenameFunc ((xmlParserInputBufferCreateFilenameFunc func)))
+; (define-func
+;   xmlOutputBufferCreateFilenameDefault
+;   xmlOutputBufferCreateFilenameFunc ((xmlOutputBufferCreateFilenameFunc func)))
+
+;; typedef void (*xmlRegisterNodeFunc) (xmlNodePtr node)
+;; typedef void (*xmlDeregisterNodeFunc) (xmlNodePtr node)
+
+;; typedef struct _xmlGlobalState xmlGlobalState
+;; typedef xmlGlobalState *xmlGlobalStatePtr
+;; struct _xmlGlobalState 
+;; {
+;; 	stringxmlParserVersion
+
+;; 	xmlSAXLocator xmlDefaultSAXLocator
+;; 	xmlSAXHandlerV1 xmlDefaultSAXHandler
+;; 	xmlSAXHandlerV1 docbDefaultSAXHandler
+;; 	xmlSAXHandlerV1 htmlDefaultSAXHandler
+
+;; 	xmlFreeFunc xmlFree
+;; 	xmlMallocFunc xmlMalloc
+;; 	xmlStrdupFunc xmlMemStrdup
+;; 	xmlReallocFunc xmlRealloc
+
+;; 	xmlGenericErrorFunc xmlGenericError
+;; 	xmlStructuredErrorFunc xmlStructuredError
+;; 	void *xmlGenericErrorContext
+
+;; 	int oldXMLWDcompatibility
+
+;; 	xmlBufferAllocationScheme xmlBufferAllocScheme
+;; 	int xmlDefaultBufferSize
+
+;; 	int xmlSubstituteEntitiesDefaultValue
+;; 	int xmlDoValidityCheckingDefaultValue
+;; 	int xmlGetWarningsDefaultValue
+;; 	int xmlKeepBlanksDefaultValue
+;; 	int xmlLineNumbersDefaultValue
+;; 	int xmlLoadExtDtdDefaultValue
+;; 	int xmlParserDebugEntities
+;; 	int xmlPedanticParserDefaultValue
+
+;; 	int xmlSaveNoEmptyTags
+;; 	int xmlIndentTreeOutput
+;; 	stringxmlTreeIndentString
+
+;;   	xmlRegisterNodeFunc xmlRegisterNodeDefaultValue
+;;   	xmlDeregisterNodeFunc xmlDeregisterNodeDefaultValue
+
+;; 	xmlMallocFunc xmlMallocAtomic
+;; 	xmlError xmlLastError
+
+;; 	xmlParserInputBufferCreateFilenameFunc xmlParserInputBufferCreateFilenameValue
+;; 	xmlOutputBufferCreateFilenameFunc xmlOutputBufferCreateFilenameValue
+;; }
+
+; (define-func xmlInitializeGlobalState void ((xmlGlobalStatePtr gs)))
+
+; (define-func
+;   xmlThrDefSetGenericErrorFunc
+;   void ((void* ctx)(xmlGenericErrorFunc handler)))
+
+; (define-func
+;   xmlThrDefSetStructuredErrorFunc
+;   void
+;   ((void* ctx)(xmlStructuredErrorFunc handler)))
+
+; (define-func xmlRegisterNodeDefault xmlRegisterNodeFunc ((xmlRegisterNodeFunc func)))
+; (define-func xmlThrDefRegisterNodeDefault xmlRegisterNodeFunc ((xmlRegisterNodeFunc func)))
+; (define-func xmlDeregisterNodeDefault xmlDeregisterNodeFunc ((xmlDeregisterNodeFunc func)))
+; (define-func xmlThrDefDeregisterNodeDefault xmlDeregisterNodeFunc ((xmlDeregisterNodeFunc func)))
+
+; (define-func xmlThrDefOutputBufferCreateFilenameDefault xmlOutputBufferCreateFilenameFunc ((xmlOutputBufferCreateFilenameFunc func)))
+
+; (define-func xmlThrDefParserInputBufferCreateFilenameDefault xmlParserInputBufferCreateFilenameFunc ((xmlParserInputBufferCreateFilenameFunc func)))
+
+;; xmlSAXHandlerV1 htmlDefaultSAXHandler
+
+;; xmlError xmlLastError
+
+;; int oldXMLWDcompatibility
+
+;; xmlBufferAllocationScheme xmlBufferAllocScheme
+
+(define-global xmlDefaultBufferSize int)
+
+(define-func xmlThrDefDefaultBufferSize int ((int v)))
+
+;; xmlSAXHandlerV1 xmlDefaultSAXHandler
+
+;; xmlSAXLocator xmlDefaultSAXLocator
+
+;; int xmlDoValidityCheckingDefaultValue
+(define-func xmlThrDefDoValidityCheckingDefaultValue int ((int v)))
+
+;; xmlGenericErrorFunc xmlGenericError
+
+;; xmlStructuredErrorFunc xmlStructuredError
+
+;; void* xmlGenericErrorContext
+
+;; int xmlGetWarningsDefaultValue
+(define-func
+  (xml-get-warnings-default-value xmlThrDefGetWarningsDefaultValue)
+  int ((int v)))
+
+(define-global xmlIndentTreeOutput bool)
+
+(define-func xmlThrDefIndentTreeOutput int ((int v)))
+
+;; string xmlTreeIndentString
+;;(define-func xmlThrDefTreeIndentString string ((string v)))
+
+;; int xmlKeepBlanksDefaultValue
+;;(define-func xmlThrDefKeepBlanksDefaultValue int ((int v)))
+
+;; int xmlLineNumbersDefaultValue
+(define-func xmlThrDefLineNumbersDefaultValue int ((int v)))
+
+(define-flags (xml-loadsubset-context int)
+  (detect-ids XML_DETECT_IDS)
+  (complete-attrs XML_COMPLETE_ATTRS)
+  (skip-ids XML_SKIP_IDS))
+
+(define-func
+  (xml-load-ext-dtd-default-value xmlThrDefLoadExtDtdDefaultValue)
+  xml-loadsubset-context ((xml-loadsubset-context v)))
+
+;; int xmlParserDebugEntities
+(define-func xmlThrDefParserDebugEntities int ((int v)))
+
+;; string xmlParserVersion
+
+;; int xmlPedanticParserDefaultValue
+(define-func xmlThrDefPedanticParserDefaultValue int ((int v)))
+
+;; int xmlSaveNoEmptyTags
+(define-func xmlThrDefSaveNoEmptyTags int ((int v)))
+
+;;  xmlSubstituteEntitiesDefaultValue:
+;;  Global setting, indicate that the parser should not generate entity
+;;  references but replace them with the actual content of the entity
+;;  Disabled by default, this should be activated when using XPath since
+;;  the XPath data model requires entities replacement and the XPath
+;;  engine does not handle entities references transparently.
+
+(define-func
+  (xml-substitute-entities-default-value
+   xmlThrDefSubstituteEntitiesDefaultValue) bool ((bool v)))
+
+;; xmlRegisterNodeFunc xmlRegisterNodeDefaultValue
+
+;; xmlDeregisterNodeFunc xmlDeregisterNodeDefaultValue
+
+;; xmlParserInputBufferCreateFilenameFunc xmlParserInputBufferCreateFilenameValue
+
+;; xmlOutputBufferCreateFilenameFunc xmlOutputBufferCreateFilenameValue

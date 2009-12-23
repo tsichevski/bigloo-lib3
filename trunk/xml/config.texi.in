@@ -1,0 +1,7 @@
+@set HOME @prefix@
+
+@set BIGLOOXMLSITE http://code.google.com/p/bigloo-lib3
+
+@set BIGLOOLIBDIR @bigloo_lib_dir@
+
+@c this line is usually chopped by Solaris sed

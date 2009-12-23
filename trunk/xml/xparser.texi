@@ -1,0 +1,76 @@
+@c ======================================================================
+@deffn {procedure} xml-parse-memory text::bstring  @result{} xml-doc
+@var{text}
+
+The procedure @code{xml-parse-memory} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-parse-file file-name::string  @result{} xml-doc
+@var{file-name}
+
+The procedure @code{xml-parse-file} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-ctxt-reset-push ctxt::xml-parser-ctxt chunk::string size::int filename::string encoding::string  @result{} int
+@var{ctxt}
+@var{chunk}
+@var{size}
+@var{filename}
+@var{encoding}
+
+The procedure @code{xml-ctxt-reset-push} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-read-file url::string #!key encoding options::xml-parser-option  @result{} xml-doc
+
+Parse an xml file @var{url}. Optionally define the @var{encoding} and parse @var{options}.
+
+The options argument is a combination of the following tokens:
+TODO
+@table @bullet
+@item recover
+@item noent
+@item dtdload
+@item dtdattr
+@item dtdvalid
+@item noerror
+@item nowarning
+@item pedantic
+@item noblanks
+@item sax1
+@item xinclude
+@item nonet
+@item nodict
+@item nsclean
+@item nocdata
+@item noxincnode
+@end table
+
+For example: 
+@example
+(xml-read-file "test.xml" encoding: "koi8-r" options: '(nocdata))
+@result{} #<foreign:xml-doc:84c1aa0>
+@end example
+
+@end deffn

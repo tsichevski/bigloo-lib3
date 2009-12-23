@@ -1,0 +1,4 @@
+xml-node-set-content: if the content argument contains an unescaped
+ampersand character, followed by a space, followed by a long text (>
+3K characters), this procedure doesn't report the "unterminated entity
+reference" error as it should.

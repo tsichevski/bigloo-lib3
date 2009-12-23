@@ -1,0 +1,729 @@
+@c ======================================================================
+@deffn {procedure} xml-search-ns node::xml-node #!optional ns-prefix doc  @result{} xml-ns or #f
+@deffnx {procedure} xml-search-ns-by-href node::xml-node #!optional href doc  @result{} xml-ns or #f
+
+Search an XML namespace object by name or by url. If an optional
+@var{doc} argument was given, the ``xml'' string is assumed for
+@var{ns-prefix}.
+
+Return the namespece or scheme false if not found.
+
+For example: 
+@example
+(define doc
+  (xml-parse-memory "<test xmlns:myns=\"http://mynamespace.org\"/>"))
+(define rootelt (xml-doc-get-root-element doc))
+;; Search namespace by the short name
+(xml-search-ns doc rootelt "myns")
+@result{} #<foreign:xml-ns:84c4768>
+
+;; Search same namespace by the URL
+(xml-search-ns-by-href doc rootelt "http://mynamespace.org")    
+@result{} #<foreign:xml-ns:84c4768>
+@end example
+@end deffn
+
+@c ======================================================================
+@deft {foreign} xml-notation
+
+@deffn {procedure} xml-notation-name o::xml-notation  @result{} string
+@deffnx {procedure} xml-notation-public-id o::xml-notation  @result{} string
+@deffnx {procedure} xml-notation-system-id o::xml-notation  @result{} string
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-enumeration-next o::xml-enumeration  @result{} xml-enumeration
+@deffn {procedure} xml-enumeration-name o::xml-enumeration  @result{} string
+@var{o}
+
+The procedure @code{xml-enumeration-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deft {foreign} xml-attribute
+@deffn {procedure} xml-attribute-type o::xml-attribute  @result{} xml-element-type
+@deffn {procedure} xml-attribute-name o::xml-attribute  @result{} string
+@deffn {procedure} xml-attribute-children o::xml-attribute  @result{} xml-node
+@deffn {procedure} xml-attribute-last o::xml-attribute  @result{} xml-node
+@deffn {procedure} xml-attribute-parent o::xml-attribute  @result{} xml-dtd
+@deffn {procedure} xml-attribute-next o::xml-attribute  @result{} xml-node
+@deffn {procedure} xml-attribute-prev o::xml-attribute  @result{} xml-node
+@deffn {procedure} xml-attribute-doc o::xml-attribute  @result{} xml-doc
+@deffn {procedure} xml-attribute-nexth o::xml-attribute  @result{} xml-attribute
+@deffn {procedure} xml-attribute-atype o::xml-attribute  @result{} xml-attribute-type
+@deffn {procedure} xml-attribute-def o::xml-attribute  @result{} xml-attribute-default
+@deffn {procedure} xml-attribute-default-value o::xml-attribute  @result{} string
+@deffn {procedure} xml-attribute-tree o::xml-attribute  @result{} xml-enumeration
+@deffn {procedure} xml-attribute-prefix o::xml-attribute  @result{} string
+@deffn {procedure} xml-attribute-elem o::xml-attribute  @result{} string
+@var{o}
+
+The procedure @code{xml-attribute-elem} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deft {foreign} xml-element
+@deffn {procedure} xml-element-content-type o::xml-element-content  @result{} xml-element-content-type
+@deffn {procedure} xml-element-content-ocur o::xml-element-content  @result{} xml-element-content-occur
+@deffn {procedure} xml-element-content-name o::xml-element-content  @result{} string
+@deffn {procedure} xml-element-content-c1 o::xml-element-content  @result{} xml-element-content
+@deffn {procedure} xml-element-content-c2 o::xml-element-content  @result{} xml-element-content
+@deffn {procedure} xml-element-content-parent o::xml-element-content  @result{} xml-element-content
+@deffn {procedure} xml-element-content-prefix o::xml-element-content  @result{} string
+@c ======================================================================
+@deffn {procedure} xml-element-type o::xml-element  @result{} xml-element-type
+@deffn {procedure} xml-element-name o::xml-element  @result{} string
+@deffn {procedure} xml-element-children o::xml-element  @result{} xml-node
+@deffn {procedure} xml-element-last o::xml-element  @result{} xml-node
+@deffn {procedure} xml-element-parent o::xml-element  @result{} xml-dtd
+@deffn {procedure} xml-element-next o::xml-element  @result{} xml-node
+@deffn {procedure} xml-element-prev o::xml-element  @result{} xml-node
+@deffn {procedure} xml-element-doc o::xml-element  @result{} xml-doc
+@deffn {procedure} xml-element-etype o::xml-element  @result{} xml-element-type-val
+@deffn {procedure} xml-element-content o::xml-element  @result{} xml-element-content
+@deffn {procedure} xml-element-attributes o::xml-element  @result{} xml-attribute
+@deffn {procedure} xml-element-prefix o::xml-element  @result{} string
+@deffn {procedure} xml-element-cont-model o::xml-element  @result{} xml-regexp
+@var{o}
+
+The procedure @code{xml-element-cont-model} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+@c ======================================================================
+@deffn {procedure} xml-ns-next o::xml-ns  @result{} xml-ns
+@deffn {procedure} xml-ns-type o::xml-ns  @result{} xml-element-type
+@deffn {procedure} xml-ns-href o::xml-ns  @result{} string
+@deffn {procedure} xml-ns-prefix o::xml-ns  @result{} string
+@var{o}
+
+The procedure @code{xml-ns-prefix} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-dtd-type o::xml-dtd  @result{} xml-element-type
+@deffn {procedure} xml-dtd-name o::xml-dtd  @result{} string
+@deffn {procedure} xml-dtd-children o::xml-dtd  @result{} xml-node
+@deffn {procedure} xml-dtd-last o::xml-dtd  @result{} xml-node
+@deffn {procedure} xml-dtd-parent o::xml-dtd  @result{} xml-doc
+@deffn {procedure} xml-dtd-next o::xml-dtd  @result{} xml-node
+@deffn {procedure} xml-dtd-prev o::xml-dtd  @result{} xml-node
+@deffn {procedure} xml-dtd-doc o::xml-dtd  @result{} xml-doc
+@deffn {procedure} xml-dtd-external-id o::xml-dtd  @result{} string
+@deffn {procedure} xml-dtd-system-id o::xml-dtd  @result{} string
+@var{o}
+
+The procedure @code{xml-dtd-system-id} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-attr-type o::xml-attr  @result{} xml-element-type
+@deffn {procedure} xml-attr-name o::xml-attr  @result{} string
+@deffn {procedure} xml-attr-children o::xml-attr  @result{} xml-node
+@deffn {procedure} xml-attr-last o::xml-attr  @result{} xml-node
+@deffn {procedure} xml-attr-parent o::xml-attr  @result{} xml-node
+@deffn {procedure} xml-attr-next o::xml-attr  @result{} xml-attr
+@deffn {procedure} xml-attr-prev o::xml-attr  @result{} xml-attr
+@deffn {procedure} xml-attr-doc o::xml-attr  @result{} xml-doc
+@deffn {procedure} xml-attr-ns o::xml-attr  @result{} xml-ns
+@deffn {procedure} xml-attr-atype o::xml-attr  @result{} xml-attribute-type
+@var{o}
+
+The procedure @code{xml-attr-atype} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-name o::xml-node  @result{} string
+@var{o}
+
+The procedure @code{xml-node-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-doc-name o::xml-doc  @result{} string
+@deffn {procedure} xml-doc-children o::xml-doc  @result{} xml-node
+@var{o}
+
+The procedure @code{xml-doc-children} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-node doc::xml-doc ns::xml-ns name::string content::string  @result{} xml-node
+@var{doc}
+@var{ns}
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-doc-node} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-node-eat-name doc::xml-doc ns::xml-ns name::string content::string  @result{} xml-node
+@var{doc}
+@var{ns}
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-doc-node-eat-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-raw-node doc::xml-doc ns::xml-ns name::string content::string  @result{} xml-node
+@var{doc}
+@var{ns}
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-doc-raw-node} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-node-eat-name ns::xml-ns name::string  @result{} xml-node
+@var{ns}
+@var{name}
+
+The procedure @code{xml-new-node-eat-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-text-child parent::xml-node ns::xml-ns name::string content::string  @result{} xml-node
+@var{parent}
+@var{ns}
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-text-child} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-text doc::xml-doc content::string  @result{} xml-node
+@var{doc}
+@var{content}
+
+The procedure @code{xml-new-doc-text} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-text content::string  @result{} xml-node
+@var{content}
+
+The procedure @code{xml-new-text} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-pi doc::xml-doc name::string content::string  @result{} xml-node
+@var{doc}
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-doc-pi} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-pi name::string content::string  @result{} xml-node
+@var{name}
+@var{content}
+
+The procedure @code{xml-new-pi} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-text-len doc::xml-doc content::string len::int  @result{} xml-node
+@var{doc}
+@var{content}
+@var{len}
+
+The procedure @code{xml-new-doc-text-len} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-text-len content::string len::int  @result{} xml-node
+@var{content}
+@var{len}
+
+The procedure @code{xml-new-text-len} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-comment doc::xml-doc content::string  @result{} xml-node
+@var{doc}
+@var{content}
+
+The procedure @code{xml-new-doc-comment} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-comment content::string  @result{} xml-node
+@var{content}
+
+The procedure @code{xml-new-comment} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-cdata-block doc::xml-doc content::string len::int  @result{} xml-node
+@var{doc}
+@var{content}
+@var{len}
+
+The procedure @code{xml-new-cdata-block} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-char-ref doc::xml-doc name::string  @result{} xml-node
+@var{doc}
+@var{name}
+
+The procedure @code{xml-new-char-ref} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-reference doc::xml-doc name::string  @result{} xml-node
+@var{doc}
+@var{name}
+
+The procedure @code{xml-new-reference} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-copy-node node::xml-node recursive::int  @result{} xml-node
+@var{node}
+@var{recursive}
+
+The procedure @code{xml-copy-node} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-doc-copy-node node::xml-node doc::xml-doc recursive::int  @result{} xml-node
+@var{node}
+@var{doc}
+@var{recursive}
+
+The procedure @code{xml-doc-copy-node} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-doc-copy-node-list doc::xml-doc node::xml-node  @result{} xml-node
+@var{doc}
+@var{node}
+
+The procedure @code{xml-doc-copy-node-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-copy-node-list node::xml-node  @result{} xml-node
+@var{node}
+
+The procedure @code{xml-copy-node-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-doc-fragment doc::xml-doc  @result{} xml-node
+@var{doc}
+
+The procedure @code{xml-new-doc-fragment} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-get-last-child parent::xml-node  @result{} xml-node
+@var{parent}
+
+The procedure @code{xml-get-last-child} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-add-child parent::xml-node cur::xml-node  @result{} xml-node
+@var{parent}
+@var{cur}
+
+The procedure @code{xml-add-child} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-add-child-list parent::xml-node cur::xml-node  @result{} xml-node
+@var{parent}
+@var{cur}
+
+The procedure @code{xml-add-child-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-replace-node old::xml-node cur::xml-node  @result{} xml-node
+@var{old}
+@var{cur}
+
+The procedure @code{xml-replace-node} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-add-prev-sibling cur::xml-node elem::xml-node  @result{} xml-node
+@var{cur}
+@var{elem}
+
+The procedure @code{xml-add-prev-sibling} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-add-sibling cur::xml-node elem::xml-node  @result{} xml-node
+@var{cur}
+@var{elem}
+
+The procedure @code{xml-add-sibling} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-add-next-sibling cur::xml-node elem::xml-node  @result{} xml-node
+@var{cur}
+@var{elem}
+
+The procedure @code{xml-add-next-sibling} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-unlink-node cur::xml-node 
+@var{cur}
+
+The procedure @code{xml-unlink-node} unlinks a node from it's current
+context, the node is not freed. Use @code{xml-free-node} to free it.
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-free-node cur::xml-node 
+
+The procedure @code{xml-free-node} frees a node, this is a recursive
+behaviour, all the children are freed too.  This doesn't unlink the
+child from the list, use @code{xml-unlink-node} first.
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-text-merge first::xml-node second::xml-node  @result{} xml-node
+@var{first}
+@var{second}
+
+The procedure @code{xml-text-merge} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-string-get-node-list doc::xml-doc value::string  @result{} xml-node
+@var{doc}
+@var{value}
+
+The procedure @code{xml-string-get-node-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-string-len-get-node-list doc::xml-doc value::string len::int  @result{} xml-node
+@var{doc}
+@var{value}
+@var{len}
+
+The procedure @code{xml-string-len-get-node-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-get-doc-compress-mode doc::xml-doc  @result{} int
+@var{doc}
+
+The procedure @code{xml-get-doc-compress-mode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-set-doc-compress-mode doc::xml-doc mode::int 
+@var{doc}
+@var{mode}
+
+The procedure @code{xml-set-doc-compress-mode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-get-compress-mode  @result{} int
+
+The procedure @code{xml-get-compress-mode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-set-compress-mode mode::int 
+@var{mode}
+
+The procedure @code{xml-set-compress-mode} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-node-buf-get-content buffer::xml-buffer cur::xml-node  @result{} int
+
+Read the value of a node @var{cur}, this can be either the text
+carried directly by this node if it's a TEXT node or the aggregate
+string of the values carried by this node child's (TEXT and
+ENTITY_REF).  Entity references are substituted.  Fills up the buffer
+@var{buffer} with this value.
+
+Returns 0 in case of success and -1 in case of error.
+@end deffn
+

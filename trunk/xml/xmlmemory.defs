@@ -1,0 +1,28 @@
+;;-*-scheme-*-
+(module
+ xmlmemory
+ (extern
+  (include "libxml/xmlmemory.h")
+  (export dummy-gc-free "bigloo_xml_gc_free")
+  (export gc-strdup "bigloo_xml_gc_strdup")
+  )
+ )
+
+(define-export (dummy-gc-free o)
+  #unspecified
+  )
+
+(define-export (gc-strdup::string s::string)
+  (let((result::string (pragma::string "(char*)GC_malloc_atomic(strlen($1) + 1)" s)))
+    (pragma "strcpy($1, $2)"result s)
+    result))
+
+(define-export (xml-gc-mem-setup)
+  ;;(pragma "extern void* GC_realloc(void* old_object, size_t new_size_in_bytes)")
+
+  (pragma::bool "xmlGcMemSetup((xmlFreeFunc) bigloo_xml_gc_free,
+                               (xmlMallocFunc)GC_malloc,
+                               (xmlMallocFunc)GC_malloc_atomic,
+                               (xmlReallocFunc) GC_realloc,
+                               (xmlStrdupFunc) bigloo_xml_gc_strdup)"))
+

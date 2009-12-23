@@ -1,0 +1,937 @@
+;;-*-scheme-*-
+(module
+ xpath
+ (import xmlregexp xtree xmlio encoding)
+ (library common)
+ (include "common.sch")
+ (extern
+  (include "libxml/xpath.h")
+  (include "libxml/tree.h")
+  (include "libxml/xpathInternals.h")
+  )
+ )
+
+(define-object xmlXPathContext ()
+  ;; Expression evaluation occurs with respect to a context.
+  ;; he context consists of:
+  ;;    - a node (the context node) 
+  ;;    - a node list (the context node list) 
+  ;;    - a set of variable bindings 
+  ;;    - a function library 
+  ;;    - the set of namespace declarations in scope for the expression 
+  ;; Following the switch to hash tables, this need to be trimmed up at
+  ;; the next binary incompatible release.
+  (fields
+   ;;     xmlDoc doc;			;; The current document
+   (xmlNode node (setter xml-xpath-context-set-node))              ;; The current node
+
+;     int nb_variables_unused;		;; unused (hash table)
+;     int max_variables_unused;		;; unused (hash table)
+;     xmlHashTable varHash;		;; Hash table of defined variables
+
+;     int nb_types;			;; number of defined types
+;     int max_types;			;; max number of types
+;     xmlXPathType types;		;; Array of defined types
+
+;     int nb_funcs_unused;		;; unused (hash table)
+;     int max_funcs_unused;		;; unused (hash table)
+;     xmlHashTable funcHash;		;; Hash table of defined funcs
+
+;     int nb_axis;			;; number of defined axis
+;     int max_axis;			;; max number of axis
+;     xmlXPathAxis axis;		;; Array of defined axis
+
+;     ;; the namespace nodes of the context node
+;     xmlNs *namespaces;		;; Array of namespaces
+;     int nsNr;				;; number of namespace in scope
+;     void *user;				;; function to free
+
+;     ;; extra variables
+;     int contextSize;			;; the context size
+;     int proximityPosition;		;; the proximity position
+
+;     ;; extra stuff for XPointer
+;     int xptr;				;; it this an XPointer context
+   (xmlNode here)                       ;; for here()
+   (xmlNode origin)                     ;; for origin()
+
+;     ;; the set of namespace declarations in scope for the expression
+;     xmlHashTable nsHash;		;; The namespaces hash table
+;     xmlXPathVariableLookupFunc varLookupFunc;;; variable lookup func
+;     void *varLookupData;		;; variable lookup data
+
+;     ;; Possibility to link in an extra item
+;     void *extra;                        ;; needed for XSLT
+
+;     ;; The function name and URI when calling a function
+   (string function "char*")
+   (string functionURI "char*")
+
+;     ;; function lookup function and data
+;     xmlXPathFuncLookupFunc funcLookupFunc;;; function lookup func
+;     void *funcLookupData;		;; function lookup data
+
+;     ;; temporary namespace lists kept for walking the namespace axis
+;     xmlNs *tmpNsList;		;; Array of namespaces
+;     int tmpNsNr;			;; number of namespace in scope
+
+;     ;; error reporting mechanism
+;     void *userData;                     ;; user specific data block
+;     xmlStructuredErrorFunc error;       ;; the callback in case of errors
+;     xmlError lastError;			;; the last error
+;     xmlNode debugNode;		;; the source node XSLT
+
+;     ;; dictionnary
+;     xmlDict dict;			;; dictionnary if any
+   ))
+
+(define-object xmlXPathParserContext ()
+  (fields
+   ;;(string cur)                 ;; the current char being parsed
+   ;;(string base)                ;; the full expression
+   (int error)                  ;; error code
+
+   (xmlXPathContext context)    ;; the evaluation context
+   (xmlXPathObject value)       ;; the current value
+   (int valueNr)                ;; number of values stacked
+   (int valueMax)               ;; max number of values stacked
+   ;;(xmlXPathObject *valueTab) ;; stack of values
+
+   ;;(xmlXPathCompExpr comp)    ;; the precompiled expression
+   (int xptr)                   ;; it this an XPointer expression
+   (xmlNode ancestor)           ;; used for walking preceding axis
+   ))
+
+; The set of XPath error codes.
+
+; typedef enum {
+;     XPATH_EXPRESSION_OK = 0,
+;     XPATH_NUMBER_ERROR,
+;     XPATH_UNFINISHED_LITERAL_ERROR,
+;     XPATH_START_LITERAL_ERROR,
+;     XPATH_VARIABLE_REF_ERROR,
+;     XPATH_UNDEF_VARIABLE_ERROR,
+;     XPATH_INVALID_PREDICATE_ERROR,
+;     XPATH_EXPR_ERROR,
+;     XPATH_UNCLOSED_ERROR,
+;     XPATH_UNKNOWN_FUNC_ERROR,
+;     XPATH_INVALID_OPERAND,
+;     XPATH_INVALID_TYPE,
+;     XPATH_INVALID_ARITY,
+;     XPATH_INVALID_CTXT_SIZE,
+;     XPATH_INVALID_CTXT_POSITION,
+;     XPATH_MEMORY_ERROR,
+;     XPTR_SYNTAX_ERROR,
+;     XPTR_RESOURCE_ERROR,
+;     XPTR_SUB_RESOURCE_ERROR,
+;     XPATH_UNDEF_PREFIX_ERROR,
+;     XPATH_ENCODING_ERROR,
+;     XPATH_INVALID_CHAR_ERROR,
+;     XPATH_INVALID_CTXT
+; } xmlXPathError
+
+; A node-set (an unordered collection of nodes without duplicates).
+
+(define-object xmlNodeSet ()
+  (fields
+   (int (length nodeNr)) ;; number of nodes in the set
+   ;; int nodeMax;	 ;; size of the array as allocated
+
+   ;;(xmlNode nodeTab)   ;; array of nodes in no particular order @@
+		       ;; with_ns to check wether namespace nodes
+		       ;; should be looked at @@
+   ))
+
+(define-export (xml-node-set-ref::xml-node ns::xml-node-set index::int)
+  (check-range
+   (unless (and (>=fx index 0)
+		(<=fx index (xml-node-set-length ns)))
+	   [error "xml-node-set-ref" "index out of range" index]))
+  (pragma::xml-node "$1->nodeTab[$2]" ns index))
+
+; An expression is evaluated to yield an object, which
+; has one of the following four basic types:
+;   - node-set
+;   - boolean
+;   - number
+;   - string
+;
+; @@ XPointer will add more types !
+; 
+
+(define-enum xmlXPathObjectType
+  (undefined XPATH_UNDEFINED)
+  (nodeset XPATH_NODESET)
+  (boolean XPATH_BOOLEAN)
+  (number XPATH_NUMBER)
+  (string XPATH_STRING)
+  (point XPATH_POINT)
+  (range XPATH_RANGE)
+  (locationset XPATH_LOCATIONSET)
+  (users XPATH_USERS)
+  (xslt-tree XPATH_XSLT_TREE))
+
+(define-object xmlXPathObject ()
+  (fields
+   (xmlXPathObjectType type)
+   (xmlNodeSet nodesetval (false))
+   (bool boolval)
+   (double floatval)
+   (string stringval)
+					;     void *user
+					;     int index
+					;     void *user2
+					;     int index2
+   ))
+
+
+; xmlXPathConvertFunc:
+; @obj:  an XPath object
+; @type:  the number of the target type
+;
+; A conversion function is associated to a type and used to cast
+; the new type to primitive values.
+;
+; Returns -1 in case of error, 0 otherwise
+; 
+; typedef int (*xmlXPathConvertFunc) (xmlXPathObject obj, int type)
+
+; Extra type: a name and a conversion function.
+
+(define-object xmlXPathType ()
+  (fields
+   (string name "char*")      ;; the type name
+   ;;(xmlXPathConvertFunc func) ;; the conversion function
+   ))
+
+; Extra variable: a name and a value.
+
+(define-object xmlXPathVariable ()
+  (fields
+   (string name "char*")       ;; the variable name
+   (xmlXPathObject value)      ;; the value
+   ))
+
+; xmlXPathEvalFunc:
+; @ctxt: an XPath parser context
+; @nargs: the number of arguments passed to the function
+;
+; An XPath evaluation function, the parameters are on the XPath context stack.
+; 
+
+; typedef void (*xmlXPathEvalFunc)(xmlXPathParserContext ctxt,
+; 	                         int nargs)
+
+; Extra function: a name and a evaluation function.
+
+(define-object xmlXPathFunct ()
+  (fields
+   (string name "char*")       ;; the function name
+   ;;(xmlXPathEvalFunc func)     ;; the evaluation function
+   ))
+
+; xmlXPathAxisFunc:
+; @ctxt:  the XPath interpreter context
+; @cur:  the previous node being explored on that axis
+;
+; An axis traversal function. To traverse an axis, the engine calls
+; the first time with cur == NULL and repeat until the function returns
+; NULL indicating the end of the axis traversal.
+;
+; Returns the next node in that axis or NULL if at the end of the axis.
+; 
+
+; typedef xmlXPathObject (*xmlXPathAxisFunc) (xmlXPathParserContext ctxt,
+; 				 xmlXPathObject cur)
+
+; Extra axis: a name and an axis function.
+; 
+
+; typedef struct _xmlXPathAxis xmlXPathAxis
+; typedef xmlXPathAxis *xmlXPathAxisPtr
+; struct _xmlXPathAxis {
+;     const xmlChar      *name;		;; the axis name
+;     xmlXPathAxisFunc func;		;; the search function
+; }
+
+
+; xmlXPathFunction:
+; @ctxt:  the XPath interprestation context
+; @nargs:  the number of arguments
+;
+; An XPath function.
+; The arguments (if any) are popped out from the context stack
+; and the result is pushed on the stack.
+; 
+
+; typedef void (*xmlXPathFunction) (xmlXPathParserContext ctxt, int nargs)
+
+; Function and Variable Lookup.
+; 
+
+
+; xmlXPathVariableLookupFunc:
+; @ctxt:  an XPath context
+; @name:  name of the variable
+; @ns_uri:  the namespace name hosting this variable
+;
+; Prototype for callbacks used to plug variable lookup in the XPath
+; engine.
+;
+; Returns the XPath object value or NULL if not found.
+; 
+; typedef xmlXPathObject (*xmlXPathVariableLookupFunc) (void *ctxt,
+;                                          string name "char*",
+;                                          string ns "char*"_uri)
+
+; xmlXPathFuncLookupFunc:
+; @ctxt:  an XPath context
+; @name:  name of the function
+; @ns_uri:  the namespace name hosting this function
+;
+; Prototype for callbacks used to plug function lookup in the XPath
+; engine.
+;
+; Returns the XPath function or NULL if not found.
+; 
+; typedef xmlXPathFunction (*xmlXPathFuncLookupFunc) (void *ctxt,
+; 					 string name "char*",
+; 					 string ns "char*"_uri)
+
+
+; The structure of a compiled expression form is not public.
+
+(define-object xmlXPathCompExpr ())
+
+;;									*
+;;			Public API					*
+;;									*
+;;*********************************************************************
+
+
+; Objects and Nodesets handling
+
+; XMLPUBVAR double xmlXPathNAN
+; XMLPUBVAR double xmlXPathPINF
+; XMLPUBVAR double xmlXPathNINF
+
+; int
+; 		xmlXPathIsNaN	(double val)
+; int
+; 		xmlXPathIsInf	(double val)
+
+; ;; These macros may later turn into functions
+
+; xmlXPathNodeSetGetLength:
+; @ns:  a node-set
+; Implement a functionality similar to the DOM NodeList.length.
+;
+; Returns the number of nodes in the node-set.
+; 
+
+; xmlXPathNodeSetItem:
+; @ns:  a node-set
+; @index:  index of a node in the set
+
+; Implements a functionality similar to the DOM NodeList.item().
+
+; Returns the xmlNode at the given @index in @ns or NULL if
+;         @index is out of range (0 to length-1)
+; 
+; #define xmlXPathNodeSetItem(ns, index)				\
+; 		((((ns) != NULL) && 				\
+; 		  ((index) >= 0) && ((index) < (ns)->nodeNr)) ?	\
+; 		 (ns)->nodeTab[(index)]				\
+; 		 : NULL)
+
+; xmlXPathNodeSetIsEmpty:
+; @ns: a node-set
+
+; Checks whether @ns is empty or not.
+
+; Returns #t if @ns is an empty node-set.
+; 
+
+(define-func xmlXPathNodeSetIsEmpty bool ((xmlNodeSet ns)))
+
+(define-func xmlXPathFreeObject void ((xmlXPathObject obj)))
+(define-func xmlXPathNodeSetCreate xmlNodeSet ((xmlNode val (= "NULL"))))
+(define-func xmlXPathFreeNodeSetList void ((xmlXPathObject obj)))
+(define-func xmlXPathFreeNodeSet void ((xmlNodeSet obj)))
+(define-func xmlXPathObjectCopy xmlXPathObject ((xmlXPathObject val)))
+(define-func xmlXPathCmpNodes int ((xmlNode node1)(xmlNode node2)))
+
+;; Conversion functions to basic types.
+
+(define-func xmlXPathCastNumberToBoolean bool ((double val)))
+(define-func xmlXPathCastStringToBoolean bool ((string val "char*")))
+(define-func xmlXPathCastNodeSetToBoolean int ((xmlNodeSet ns)))
+(define-func xmlXPathCastToBoolean bool ((xmlXPathObject val)))
+
+(define-func xmlXPathCastBooleanToNumber double ((int val)))
+(define-func xmlXPathCastStringToNumber double ((string  val "char*")))
+(define-func xmlXPathCastNodeToNumber double ((xmlNode node)))
+(define-func xmlXPathCastNodeSetToNumber double ((xmlNodeSet ns)))
+(define-func xmlXPathCastToNumber double ((xmlXPathObject val)))
+
+(define-func xmlXPathCastBooleanToString string	((int val)))
+(define-func xmlXPathCastNumberToString string	((double val)))
+(define-func xmlXPathCastNodeToString string	((xmlNode node)))
+(define-func xmlXPathCastNodeSetToString string	((xmlNodeSet ns)))
+(define-func xmlXPathCastToString string	((xmlXPathObject val)))
+
+(define-func xmlXPathConvertBoolean xmlXPathObject	((xmlXPathObject val)))
+(define-func xmlXPathConvertNumber xmlXPathObject	((xmlXPathObject val)))
+(define-func xmlXPathConvertString xmlXPathObject	((xmlXPathObject val)))
+
+;; Context handling.
+
+(define-func xmlXPathInit void ())
+
+; Returns the xmlXPathContext just allocated. The caller will need to free it.
+
+(define-export (xml-xpath-new-context::xml-xpath-context
+		node::xmlobj
+		#!optional
+		doc)
+  (let* ((doc::xml-doc (or doc (xmlobj-doc node)))
+	 (ctxt::xml-xpath-context
+	  (pragma::xml-xpath-context
+	   "xmlXPathNewContext($1)"
+	   doc)))
+    (when (pragma::bool "$1 == NULL" ctxt)
+	[error "xml-xpath-new-context" "cannot allocale" doc])
+
+    (when (xml-node? node)
+	  (xml-xpath-context-set-node ctxt node))
+    ctxt))
+
+(define-func xmlXPathFreeContext void ((xmlXPathContext ctxt)))
+
+; Evaluation functions.
+; 
+(define-func xmlXPathOrderDocElems long	((xmlDoc doc)))
+
+(define-export (xml-xpath-eval str::string ctx::xml-xpath-context)
+  (let* ((str::string str)
+	 (ctx::xml-xpath-context ctx)
+	 (res (pragma::xml-xpath-object
+	       "xmlXPathEval((char*)$1, $2)"
+	       str ctx)))
+    (and (pragma::bool "$1 != NULL" res) res)))
+
+;; Convenience
+(define-export (xml-xpath-test::bool str::string ctx::xml-xpath-context)
+  (let*((test::xml-xpath-object (xml-xpath-eval str ctx))
+	(result::bool
+	 (xml-xpath-cast-to-boolean test)))
+    (xml-xpath-free-object test)
+    result))
+
+(define-func xmlXPathEvalExpression xmlXPathObject
+  ((string str "char*")
+   (xmlXPathContext ctxt)))
+
+(define-func xmlXPathEvalPredicate int ((xmlXPathContext ctxt)
+					(xmlXPathObject res)))
+
+;; Separate compilation/evaluation entry points.
+
+(define-func xmlXPathCompile xmlXPathCompExpr ((string str "char*")))
+(define-func xmlXPathCtxtCompile xmlXPathCompExpr ((xmlXPathContext ctxt)
+						   (string str "char*")))
+(define-func xmlXPathCompiledEval xmlXPathObject ((xmlXPathCompExpr comp)
+						  (xmlXPathContext ctx)))
+(define-func xmlXPathFreeCompExpr void ((xmlXPathCompExpr comp)))
+
+
+;;;;;;;;;;;;;;;; Internals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 			Helpers
+
+
+; Many of these macros may later turn into functions. They
+; shouldn't be used in #ifdef's preprocessor instructions.
+; xmlXPathSetError:
+; @ctxt:  an XPath parser context
+; @err:  an xmlXPathError code
+
+; Raises an error.
+; #define xmlXPathSetError(ctxt, err)					\
+;     { xmlXPatherror((ctxt), __FILE__, __LINE__, (err))			\
+;       if ((ctxt) != NULL) (ctxt)->error = (err) }
+
+; xmlXPathSetArityError:
+; @ctxt:  an XPath parser context
+
+; Raises an XPATH_INVALID_ARITY error.
+; #define xmlXPathSetArityError(ctxt)					\
+;     xmlXPathSetError((ctxt), XPATH_INVALID_ARITY)
+
+; xmlXPathSetTypeError:
+; @ctxt:  an XPath parser context
+
+; Raises an XPATH_INVALID_TYPE error.
+; #define xmlXPathSetTypeError(ctxt)					\
+;     xmlXPathSetError((ctxt), XPATH_INVALID_TYPE)
+
+; xmlXPathGetError:
+; @ctxt:  an XPath parser context
+
+; Get the error code of an XPath context.
+
+; Returns the context error.
+; #define xmlXPathGetError(ctxt)	  ((ctxt)->error)
+
+; xmlXPathCheckError:
+; @ctxt:  an XPath parser context
+
+; Check if an XPath error was raised.
+
+; Returns true if an error has been raised, false otherwise.
+; #define xmlXPathCheckError(ctxt)  ((ctxt)->error != XPATH_EXPRESSION_OK)
+
+; xmlXPathGetDocument:
+; @ctxt:  an XPath parser context
+
+; Get the document of an XPath context.
+
+; Returns the context document.
+; #define xmlXPathGetDocument(ctxt)	((ctxt)->context->doc)
+
+; xmlXPathGetContextNode:
+; @ctxt: an XPath parser context
+
+; Get the context node of an XPath context.
+
+; Returns the context node.
+; #define xmlXPathGetContextNode(ctxt)	((ctxt)->context->node)
+
+;int		
+; 		xmlXPathPopBoolean	(xmlXPathParserContext ctxt)
+;double		
+;     		xmlXPathPopNumber	(xmlXPathParserContext ctxt)
+;string 	
+;     		xmlXPathPopString	(xmlXPathParserContext ctxt)
+;xmlNodeSet	
+;     		xmlXPathPopNodeSet	(xmlXPathParserContext ctxt)
+;void *		
+;     		xmlXPathPopExternal	(xmlXPathParserContext ctxt)
+
+; xmlXPathReturnBoolean:
+; @ctxt:  an XPath parser context
+; @val:  a boolean
+
+; Pushes the boolean @val on the context stack.
+; #define xmlXPathReturnBoolean(ctxt, val)				\
+;     valuePush((ctxt), xmlXPathNewBoolean(val))
+
+; xmlXPathReturnTrue:
+; @ctxt:  an XPath parser context
+
+; Pushes true on the context stack.
+; #define xmlXPathReturnTrue(ctxt)   xmlXPathReturnBoolean((ctxt), 1)
+
+; xmlXPathReturnFalse:
+; @ctxt:  an XPath parser context
+
+; Pushes false on the context stack.
+; #define xmlXPathReturnFalse(ctxt)  xmlXPathReturnBoolean((ctxt), 0)
+
+; xmlXPathReturnNumber:
+; @ctxt:  an XPath parser context
+; @val:  a double
+
+; Pushes the double @val on the context stack.
+; #define xmlXPathReturnNumber(ctxt, val)					\
+;     valuePush((ctxt), xmlXPathNewFloat(val))
+
+; xmlXPathReturnString:
+; @ctxt:  an XPath parser context
+; @str:  a string
+
+; Pushes the string @str on the context stack.
+; #define xmlXPathReturnString(ctxt, str)					\
+;     valuePush((ctxt), xmlXPathWrapString(str))
+
+; xmlXPathReturnEmptyString:
+; @ctxt:  an XPath parser context
+
+; Pushes an empty string on the stack.
+; #define xmlXPathReturnEmptyString(ctxt)					\
+;     valuePush((ctxt), xmlXPathNewCString(""))
+
+; xmlXPathReturnNodeSet:
+; @ctxt:  an XPath parser context
+; @ns:  a node-set
+
+; Pushes the node-set @ns on the context stack.
+; #define xmlXPathReturnNodeSet(ctxt, ns)					\
+;     valuePush((ctxt), xmlXPathWrapNodeSet(ns))
+
+; xmlXPathReturnEmptyNodeSet:
+; @ctxt:  an XPath parser context
+
+; Pushes an empty node-set on the context stack.
+; #define xmlXPathReturnEmptyNodeSet(ctxt)				\
+;     valuePush((ctxt), xmlXPathNewNodeSet(NULL))
+
+; xmlXPathReturnExternal:
+; @ctxt:  an XPath parser context
+; @val:  user data
+
+; Pushes user data on the context stack.
+; #define xmlXPathReturnExternal(ctxt, val)				\
+;     valuePush((ctxt), xmlXPathWrapExternal(val))
+
+; xmlXPathStackIsNodeSet:
+; @ctxt: an XPath parser context
+
+; Check if the current value on the XPath stack is a node set or
+; an XSLT value tree.
+
+; Returns true if the current object on the stack is a node-set.
+; #define xmlXPathStackIsNodeSet(ctxt)					\
+;     (((ctxt)->value != NULL)						\
+;      && (((ctxt)->value->type == XPATH_NODESET)				\
+;          || ((ctxt)->value->type == XPATH_XSLT_TREE)))
+
+; xmlXPathStackIsExternal:
+; @ctxt: an XPath parser context
+
+; Checks if the current value on the XPath stack is an external
+; object.
+
+; Returns true if the current object on the stack is an external
+; object.
+; #define xmlXPathStackIsExternal(ctxt)					\
+; 	((ctxt->value != NULL) && (ctxt->value->type == XPATH_USERS))
+
+; xmlXPathEmptyNodeSet:
+; @ns:  a node-set
+
+; Empties a node-set.
+; #define xmlXPathEmptyNodeSet(ns)					\
+;     { while ((ns)->nodeNr > 0) (ns)->nodeTab[(ns)->nodeNr--] = NULL; }
+
+; CHECK_ERROR:
+
+; Macro to return from the function if an XPath error was detected.
+; #define CHECK_ERROR							\
+;     if (ctxt->error != XPATH_EXPRESSION_OK) return
+
+; CHECK_ERROR0:
+
+; Macro to return 0 from the function if an XPath error was detected.
+; #define CHECK_ERROR0							\
+;     if (ctxt->error != XPATH_EXPRESSION_OK) return(0)
+
+; XP_ERROR:
+; @X:  the error code
+
+; Macro to raise an XPath error and return.
+; #define XP_ERROR(X)							\
+;     { xmlXPathErr(ctxt, X) return; }
+
+; XP_ERROR0:
+; @X:  the error code
+
+; Macro to raise an XPath error and return 0.
+; #define XP_ERROR0(X)							\
+;     { xmlXPathErr(ctxt, X) return(0) }
+
+; CHECK_TYPE:
+; @typeval:  the XPath type
+
+; Macro to check that the value on top of the XPath stack is of a given
+; type.
+; #define CHECK_TYPE(typeval)						\
+;     if ((ctxt->value == NULL) || (ctxt->value->type != typeval))	\
+;         XP_ERROR(XPATH_INVALID_TYPE)
+
+; CHECK_TYPE0:
+; @typeval:  the XPath type
+
+; Macro to check that the value on top of the XPath stack is of a given
+; type. Return(0) in case of failure
+; #define CHECK_TYPE0(typeval)						\
+;     if ((ctxt->value == NULL) || (ctxt->value->type != typeval))	\
+;         XP_ERROR0(XPATH_INVALID_TYPE)
+
+; CHECK_ARITY:
+; @x:  the number of expected args
+
+; Macro to check that the number of args passed to an XPath function matches.
+; #define CHECK_ARITY(x)							\
+;     if (ctxt == NULL) return;						\
+;     if (nargs != (x))							\
+;         XP_ERROR(XPATH_INVALID_ARITY)
+
+; CAST_TO_STRING:
+
+; Macro to try to cast the value on the top of the XPath stack to a string.
+; #define CAST_TO_STRING							\
+;     if ((ctxt->value != NULL) && (ctxt->value->type != XPATH_STRING))	\
+;         xmlXPathStringFunction(ctxt, 1)
+
+; CAST_TO_NUMBER:
+
+; Macro to try to cast the value on the top of the XPath stack to a number.
+; #define CAST_TO_NUMBER							\
+;     if ((ctxt->value != NULL) && (ctxt->value->type != XPATH_NUMBER))	\
+;         xmlXPathNumberFunction(ctxt, 1)
+
+; CAST_TO_BOOLEAN:
+
+; Macro to try to cast the value on the top of the XPath stack to a boolean.
+; #define CAST_TO_BOOLEAN							\
+;     if ((ctxt->value != NULL) && (ctxt->value->type != XPATH_BOOLEAN))	\
+;         xmlXPathBooleanFunction(ctxt, 1)
+
+; Variable Lookup forwarding.
+
+;;(define-func xmlXPathRegisterVariableLookup void ((xmlXPathContext ctxt)(xmlXPathVariableLookupFunc f)(void *data)))
+
+; Function Lookup forwarding.
+
+;;(define-func xmlXPathRegisterFuncLookup void ((xmlXPathContext ctxt)(xmlXPathFuncLookupFunc f)(void *funcCtxt)))
+
+; Error reporting.
+(define-func xmlXPatherror void
+  ((xmlXPathParserContext ctxt)
+   (string file "char*")
+   (int line)
+   (int no)))
+
+(define-func xmlXPathErr void ((xmlXPathParserContext ctxt)(int error)))
+
+; #ifdef LIBXML_DEBUG_ENABLED
+(define-func xmlXPathDebugDumpObject void ((FILE *output)(xmlXPathObject cur)(int depth)))
+(define-func xmlXPathDebugDumpCompExpr void ((FILE *output)(xmlXPathCompExpr comp)(int depth)))
+; #endif
+
+; NodeSet handling.
+(define-func xmlXPathNodeSetContains int ((xmlNodeSet cur)(xmlNode val)))
+(define-func xmlXPathDifference xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathIntersection xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathDistinctSorted xmlNodeSet ((xmlNodeSet nodes)))
+(define-func xmlXPathDistinct xmlNodeSet ((xmlNodeSet nodes)))
+(define-func xmlXPathHasSameNodes int ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathNodeLeadingSorted xmlNodeSet ((xmlNodeSet nodes)(xmlNode node)))
+(define-func xmlXPathLeadingSorted xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathNodeLeading xmlNodeSet ((xmlNodeSet nodes)(xmlNode node)))
+(define-func xmlXPathLeading xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathNodeTrailingSorted xmlNodeSet ((xmlNodeSet nodes)(xmlNode node)))
+(define-func xmlXPathTrailingSorted xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+(define-func xmlXPathNodeTrailing xmlNodeSet ((xmlNodeSet nodes)(xmlNode node)))
+(define-func xmlXPathTrailing xmlNodeSet ((xmlNodeSet nodes1)(xmlNodeSet nodes2)))
+
+; Extending a context.
+
+(define-func xmlXPathRegisterNs int
+  ((xmlXPathContext ctxt)
+   (string prefix "char*")
+   (string ns_uri "char*")))
+
+(define-export (xml-xpath-ns-lookup::string
+		ctxt::xml-xpath-context
+		prefix::string)
+  (let ((ctxt::xml-xpath-context ctxt)
+        (prefix::string prefix))
+    (pragma::string
+     "(char*)xmlXPathNsLookup($1, (char*)$2)"
+     ctxt
+     prefix)))
+
+(define-func xmlXPathRegisteredNsCleanup void ((xmlXPathContext ctxt)))
+
+; (define-func xmlXPathRegisterFunc int
+;   ((xmlXPathContext ctxt)
+;    (string name "char*")
+;    (xmlXPathFunction f)))
+
+; (define-func xmlXPathRegisterFuncNS int
+;   ((xmlXPathContext ctxt)
+;    (string name "char*")
+;    (string ns_uri "char*")
+;    (xmlXPathFunction f)))
+
+(define-export (xml-xpath-register-variable
+		ctxt::xml-xpath-context
+		name::string
+		value::obj)
+  (let ((ctxt::xml-xpath-context ctxt)
+        (name::string name)
+        (value::xml-xpath-object
+	 (if (xml-xpath-object? value)
+	     value
+	     (xml-xpath-new-object value))))
+    (when (pragma::bool
+	   "xmlXPathRegisterVariable($1, (char*)$2, $3)"
+	   ctxt
+	   name
+	   value)
+	  [error "xml-xpath-register-variable"
+		 "cannot register variable"
+		 (cons name value)])))
+
+(define-func xmlXPathRegisterVariableNS int
+  ((xmlXPathContext ctxt)
+   (string name "char*")
+   (string ns_uri "char*")
+   (xmlXPathObject value)))
+
+; (define-func xmlXPathFunctionLookup xmlXPathFunction
+;   ((xmlXPathContext ctxt)(string name "char*")))
+
+; (define-func xmlXPathFunctionLookupNS xmlXPathFunction
+;   ((xmlXPathContext ctxt)
+;    (string name "char*")
+;    (string ns_uri "char*")))
+
+(define-func xmlXPathRegisteredFuncsCleanup void ((xmlXPathContext ctxt)))
+
+(define-func xmlXPathVariableLookup xmlXPathObject
+  ((xmlXPathContext ctxt)(string name "char*")))
+
+(define-func xmlXPathVariableLookupNS xmlXPathObject
+  ((xmlXPathContext ctxt)
+   (string name "char*")
+   (string ns_uri "char*")))
+
+(define-func xmlXPathRegisteredVariablesCleanup void ((xmlXPathContext ctxt)))
+
+;; Utilities to extend XPath.
+(define-func xmlXPathNewParserContext xmlXPathParserContext
+  ((string str "char*")
+   (xmlXPathContext ctxt)))
+
+(define-func xmlXPathFreeParserContext void ((xmlXPathParserContext ctxt)))
+
+(define-func valuePop xmlXPathObject ((xmlXPathParserContext ctxt)))
+(define-func valuePush int ((xmlXPathParserContext ctxt)
+			    (xmlXPathObject value)))
+
+;; Convert any compatible scheme object to xpath-object
+(define-export (xml-xpath-new-object::xml-xpath-object val::obj)
+  (cond ((string? val)
+	 (let ((val::string val))
+	   (pragma::xml-xpath-object
+	    "xmlXPathNewString((char*)$1)"
+	    val)))
+	((inexact? val)
+	 (let ((val::double val))
+	   (pragma::xml-xpath-object
+	    "xmlXPathNewFloat($1)"
+	    val)))
+	((boolean? val)
+	 (let ((val::bool val))
+	   (pragma::xml-xpath-object
+	    "xmlXPathNewBoolean($1)"
+	    val)))
+	((xml-node? val)
+	 (let ((val::xml-node val))
+	   (pragma::xml-xpath-object
+	    "xmlXPathNewNodeSet($1)"
+	    val)))
+	(else
+	 [error "xml-xpath-new" "invalid argument" val])))
+
+; (define-func xmlXPathNewFloat xmlXPathObject ((double val)))
+; (define-func xmlXPathNewBoolean xmlXPathObject ((int val)))
+
+(define-func xmlXPathNewNodeSet xmlXPathObject ((xmlNode val (= "NULL"))))
+
+(define-func xmlXPathNewValueTree xmlXPathObject ((xmlNode val)))
+
+(define-func xmlXPathNodeSetAdd void ((xmlNodeSet cur)(xmlNode val)))
+(define-func xmlXPathNodeSetAddUnique void ((xmlNodeSet cur)(xmlNode val)))
+(define-func xmlXPathNodeSetAddNs void ((xmlNodeSet cur)(xmlNode node)
+					(xmlNs ns)))
+
+(define-func xmlXPathNodeSetSort void ((xmlNodeSet set)))
+(define-func xmlXPathRoot void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathEvalExpr void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathParseName string ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathParseNCName string ((xmlXPathParserContext ctxt)))
+
+; Existing functions.
+(define-func xmlXPathStringEvalNumber double ((string str "char*")))
+
+(define-func xmlXPathEvaluatePredicateResult int
+  ((xmlXPathParserContext ctxt)
+   (xmlXPathObject res)))
+
+(define-func xmlXPathRegisterAllFunctions void ((xmlXPathContext ctxt)))
+
+(define-func xmlXPathNodeSetMerge xmlNodeSet
+  ((xmlNodeSet val1)
+   (xmlNodeSet val2)))
+
+(define-func xmlXPathNodeSetDel void ((xmlNodeSet cur)
+				      (xmlNode val)))
+
+(define-func xmlXPathNodeSetRemove void (( xmlNodeSet cur)(int val)))
+(define-func xmlXPathNewNodeSetList xmlXPathObject ((xmlNodeSet val)))
+(define-func xmlXPathWrapNodeSet xmlXPathObject ((xmlNodeSet val)))
+(define-func xmlXPathNewCString xmlXPathObject ((string val "char*")))
+
+; (define-func xmlXPathWrapExternal xmlXPathObject ((void *val)))
+
+(define-func xmlXPathEqualValues int ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathNotEqualValues int ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathCompareValues int ((xmlXPathParserContext ctxt)
+					(int inf)(int strict)))
+(define-func xmlXPathValueFlipSign void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathAddValues void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathSubValues void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathMultValues void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathDivValues void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathModValues void ((xmlXPathParserContext ctxt)))
+(define-func xmlXPathIsNodeType bool ((string name "char*")))
+
+;; Some of the axis navigation routines.
+(define-func xmlXPathNextSelf xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextChild xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextDescendant xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextDescendantOrSelf xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextParent xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextAncestorOrSelf xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextFollowingSibling xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextFollowing xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextNamespace xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextAttribute xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextPreceding xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextAncestor xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+(define-func xmlXPathNextPrecedingSibling xmlNode ((xmlXPathParserContext ctxt)(xmlNode cur)))
+
+;;The official core of XPath functions.
+(define-func xmlXPathLastFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathPositionFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathCountFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathIdFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathLocalNameFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathNamespaceURIFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathStringFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathStringLengthFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathConcatFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathContainsFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathStartsWithFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathSubstringFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathSubstringBeforeFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathSubstringAfterFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathNormalizeFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathTranslateFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathNotFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathTrueFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathFalseFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathLangFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathNumberFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathSumFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathFloorFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathCeilingFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathRoundFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+(define-func xmlXPathBooleanFunction void ((xmlXPathParserContext ctxt)(int nargs)))
+
+; ; Really internal functions
+
+;;void xmlXPathNodeSetFreeNs(xmlNs ns)

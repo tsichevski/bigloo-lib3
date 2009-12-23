@@ -1,0 +1,87 @@
+@node Introduction, Getting started, Top, Top
+@comment  node-name,  next,  previous,  up
+
+@menu
+* Getting started::
+@end menu
+
+
+@unnumbered Introduction
+
+@c ==================================================================
+@subsection Project Home page
+
+Currently the project home page is @url{@value{BIGLOOXMLSITE}}.
+
+@c ==================================================================
+@subsection Project Authors
+
+@include authors.texi
+
+@c ==================================================================
+@subsection Documentation
+
+The @cite{bigloo-xml} is supplemented by a short @cite{Manual} (this
+document).
+
+The manual comes in the @cite{info} format, it is usually installed to
+@value{HOME}/info. Optionally, this document may be compiled in
+the @cite{HTML}, @code{DVI} and @cite{PDF} formats.
+
+@c ==================================================================
+@subsection System requirements
+
+The @cite{bigloo-xml} was developed and most thoroughly tested on
+@cite{RedHat Linux 9.0} and @cite{SPARC Solaris}. To build it from
+sources, assure the following packages are installed on your system:
+
+@itemize @bullet
+
+@item libxml2:
+XML toolkit from the GNOME project, at least of 2.6.16 version
+@url{http://xmlsoft.org/}
+
+@item libxslt:
+XSLT support for libxml2 at least of 1.1.9 version
+@url{http://xmlsoft.org/}
+
+@item Bigloo:
+A compiler for Scheme programming language
+@url{http://www-sop.inria.fr/mimosa/fp/Bigloo}
+
+@item bigloo-lib:
+Additional libraries for Bigloo
+@url{http://bigloo-lib.sourceforge.net}, only the @code{common} module
+is required to build the @code{bigloo-xml}
+
+@end itemize
+
+@c ==================================================================
+@subsection State of development
+
+The current development state is @cite{alpha}.
+
+@c ==================================================================
+@subsection Install from sources
+
+Follow the usual unpack/build/install procedure:
+
+@example
+@kbd{gunzip < bifloo-xml-@value{VERSION}.tar.gz | tar xvf - }
+@kbd{cd bifloo-xml-@value{VERSION}}
+@kbd{./configure}
+@kbd{make}
+@kbd{make install}
+@end example
+
+@c ==================================================================
+@subsection Install binaries
+
+The @cite{bigloo-xml} usually comes to you in the form of @cite{RedHat
+RPM}. To install it, with OS root privileges type:
+
+@example
+@kbd{rpm -i @var{path to bigloo-xml RPM file}}
+@end example
+
+

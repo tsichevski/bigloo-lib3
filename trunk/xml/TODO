@@ -1,0 +1,22 @@
+2005-05-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* завершить документацию по xml-read-file
+
+2004-12-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* выяснить, как вызывать именованный шаблон программно. void
+xsltCallTemplate(xsltTransformContextPtr ctxt, xmlNodePtr node,
+	           xmlNodePtr inst, xsltStylePreCompPtr comp);
+
+
+	* выяснить, можно ли добавлять в скомпилированный xslt стиль новые
+	шаблоны.
+
+2004-12-02  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Продумать возможность реализации: шаблон, который отлавливает не
+	отдельный элемент, а определенную последовательность элементов
+	и/или текста. Применение: преобразование документов,
+	преобразованных из PDF. Выделение заголовков. Посмотреть
+	возможности xpath на этот счет.
+

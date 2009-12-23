@@ -1,0 +1,1069 @@
+;;-*-scheme-*-
+(module
+ xtree
+ (import xmlregexp xmlio encoding)
+ (library common)
+ (include "common.sch")
+ (extern
+  (include "libxml/tree.h")
+  )
+ )
+
+(define-object (xmlobj xmlNodePtr) ()
+  (fields
+   ;; void *_private; application data
+   (xmlElementType type)  ; type number, must be second !
+   (string name "char*" (false))  ; the name of the node, or the entity
+   (xmlNode children (false))     ; parent->childs link
+   (xmlNode last     (false))         ; last child link
+   (xmlNode parent   (false))       ; child->parent link
+   (xmlNode next     (false))         ; next sibling link
+   (xmlNode prev     (false))         ; previous sibling link
+   (xmlDoc doc)           ; the containing document
+   )
+
+  (predicate
+   (or (xml-node? o)
+       (and (foreign? o)
+	    (case (foreign-id o)
+	      ((xml-attribute xml-attr-decl xml-element-decl
+			      xml-dtd)
+	       #t)
+	      (else #f))))))
+
+;; xmlAttr: An attribute on an XML node.
+(define-object (xml-attribute xmlAttrPtr) ((xmlobj xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-attribute) #t)
+	  ((xml-node)
+	   (pragma::bool
+	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_NODE"
+	    o))
+	  (else #f))))
+  (fields
+   (xmlNs ns (false))             ; pointer to the associated namespace
+   (xmlAttributeType atype) ; the attribute type if validating
+   ;; void *psvi; for type/PSVI informations
+   ))
+
+;; xmlNode: A node in an XML tree.
+(define-object xmlNode ((xmlobj xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-node xml-element xml-text xml-cdata-section
+		     xml-entity-ref xml-entity xml-pi
+		     xml-comment xml-document-frag xml-notation
+		     xml-doc)
+	   #t)
+	  (else #f))))
+
+  (fields
+   (xmlNs ns (false))               ; pointer to the associated namespace
+
+   ;; The content field has getter/setter functions in libxml
+   ;;(string content "char*") ; the content
+   ((xml-attribute xmlAttrPtr) properties (false))     ; properties list
+   ;;(xmlNs nsDef (setter xml-set-ns-def))         ; namespace definitions on this node
+   ;; void *psvi; for type/PSVI informations
+   ;;(ushort line)            ; line number
+   ;; (ushort extra)           ; extra data for XPath/XSLT
+   ))
+
+(define-export (xml-ns-def o::xml-node)
+  (let ((result (pragma::xml-ns "$1->nsDef" o)))
+    (and (pragma::bool "$1 != NULL" result) result)))
+
+
+(define-export (xml-set-ns-def o::xml-node #!optional v)
+  (let ((v::xml-ns (or v (pragma::xml-ns "NULL"))))
+    (pragma "$1->nsDef = $2" o v)
+    #unspecified))
+
+
+(define-object (xml-element xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-element)
+	   #t)
+	  ((xml-node)
+	   (pragma::bool 
+	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_NODE"
+	    o))
+	  (else #f)))))
+
+(define-export (xml-node->string::bstring nd::xmlobj)
+  (let((buf (xml-buffer-create)))
+    (xml-node-dump buf nd)
+    (let((result::bstring (xml-buffer-content buf)))
+      (xml-buffer-free buf)
+      result)))
+
+;; (add-printer xmlobj?
+;;   (lambda (display node port)
+;;     (display (xml-node->string node) port)))
+
+(define-object (xml-text xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-text) #t)
+           ((xml-node)
+            (pragma::bool
+              "xmlNodeIsText((xmlNodePtr)FOREIGN_TO_COBJ($1))"
+              o))
+	   (else #f)))))
+
+(define-object (xml-cdata-section xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-cdata-section) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_CDATA_SECTION_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-entity-ref xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-entity-ref) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ENTITY_REF_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-entity xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-entity) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ENTITY_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-pi xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-pi) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_PI_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-comment xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-comment) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_COMMENT_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-document-frag xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-document-frag) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_DOCUMENT_FRAG_NODE"
+              o))
+	   (else #f)))))
+
+(define-object (xml-notation xmlNodePtr) ((xml-node xmlNodePtr))
+  (predicate
+    (and (foreign? o)
+         (case (foreign-id o)
+           ((xml-notation) #t)
+           ((xml-node)
+            (pragma::bool
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_NOTATION_NODE"
+              o))
+	   (else #f)))))
+
+;; An Attribute declaration in a DTD.
+(define-object (xml-attr-decl xmlAttributePtr) ((xmlobj xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-attr-decl) #t)
+	  ((xml-node)
+	   (pragma::bool
+	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_DECL"
+	    o))
+	  (else #f))))
+  (fields
+   ((xml-attr-decl xmlAttributePtr) nexth)
+   (xmlAttributeType atype)    ; The attribute type
+   (xmlAttributeDefault def)   ; the default
+   (string defaultValue "char*") ; or the default value
+   (xmlEnumeration tree)       ; or the enumeration tree if any
+   (string prefix "char*")     ; the namespace prefix if any
+   (string elem "char*")       ; Element holding the attribute
+   ))
+
+;; xmlElement:
+;; An XML Element declaration from a DTD.
+
+(define-object (xml-element-decl xmlElementPtr) ((xmlobj xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-element) #t)
+	  ((xml-node)
+	   (pragma::bool
+	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_DECL"
+	    o))
+	  (else #f))))
+  (fields
+   (xmlElementTypeVal etype) ; The type
+   (xmlElementContent content) ; the allowed element content
+   ((xml-attr-decl xmlAttributePtr) attributes)  ; List of the declared attributes
+   (string prefix "char*")   ; the namespace prefix if any
+   (xmlRegexp contModel)     ; the validating regexp
+   ))
+
+;; xmlDtd: An XML DTD, as defined by <!DOCTYPE ... There is actually
+;; one for the internal subset and for the external subset.
+
+(define-object xmlDtd ((xmlobj xmlNodePtr))
+  (predicate
+   (and (foreign? o)
+	(case (foreign-id o)
+	  ((xml-dtd) #t)
+	  ((xml-node)
+	   (pragma::bool
+	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_DTD_NODE"
+	    o))
+	  (else #f))))
+  (fields
+   ;; End of common part
+   ;; void *notations; Hash table for notations if any
+   ;; void *elements; Hash table for elements if any
+   ;; void *attributes; Hash table for attributes if any
+   ;; void *entities; Hash table for entities if any
+   (string ExternalID "char*"(false)) ; External identifier for PUBLIC DTD
+   (string SystemID   "char*"(false))   ; URI for a SYSTEM or PUBLIC DTD
+   ;; void *pentities; Hash table for param entities if any
+   ))
+
+(define-object xmlDoc ((xmlobj xmlNodePtr))
+  (fields
+;; End of common part
+;; int compression; level of zlib compression
+;; int standalone; standalone document (no external refs)
+;; struct _xmlDtd *intSubset; the document internal subset
+;; struct _xmlDtd *extSubset; the document external subset
+;; struct _xmlNs *oldNs; Global namespace, the old way
+;; string version "char*"; the XML version string
+   (string encoding "char*" (setter)) ;; external initial encoding, if any
+;; void *ids; Hash table for ID attributes if any
+;; void *refs; Hash table for IDREFs attributes if any
+;; string URL "char*"; The URI for that document
+;; int charset; encoding of the in-memory content actually an xmlCharEncoding
+;; struct _xmlDict *dict; dict used to allocate names or NULL
+;; void *psvi; for type/PSVI informations
+   ))
+
+;; NOTE: This is synchronized with DOM Level1 values
+;; See http://www.w3.org/TR/REC-DOM-Level-1/
+;; Actually this had diverged a bit, and now XML_DOCUMENT_TYPE_NODE should
+;; be deprecated to use an XML_DTD_NODE.
+;;
+
+(define-enum xmlElementType
+  (element-node XML_ELEMENT_NODE)
+  (attribute-node XML_ATTRIBUTE_NODE)
+  (text-node XML_TEXT_NODE)
+  (cdata-section-node XML_CDATA_SECTION_NODE)
+  (entity-ref-node XML_ENTITY_REF_NODE)
+  (entity-node XML_ENTITY_NODE)
+  (pi-node XML_PI_NODE)
+  (comment-node XML_COMMENT_NODE)
+  (document-node XML_DOCUMENT_NODE)
+  (document-frag-node XML_DOCUMENT_FRAG_NODE)
+  (notation-node XML_NOTATION_NODE)
+  (html-document-node XML_HTML_DOCUMENT_NODE)
+  (dtd-node XML_DTD_NODE)
+  (element-decl XML_ELEMENT_DECL)
+  (attribute-decl XML_ATTRIBUTE_DECL)
+  (entity-decl XML_ENTITY_DECL)
+  (namespace-decl XML_NAMESPACE_DECL)
+  (xinclude-start XML_XINCLUDE_START)
+  (xinclude-end XML_XINCLUDE_END)
+  (docb-document-node XML_DOCB_DOCUMENT_NODE)
+  )
+
+(define-object (xml-notation-decl xmlNotationPtr) ()
+  (fields
+   (string name "char*")
+   (string PublicID "char*")
+   (string SystemID "char*") ; System identifier, if any
+   ))
+
+(define-enum xmlAttributeType
+  (attribute-cdata XML_ATTRIBUTE_CDATA)
+  (id XML_ATTRIBUTE_ID)
+  (idref XML_ATTRIBUTE_IDREF )
+  (idrefs XML_ATTRIBUTE_IDREFS)
+  (entity XML_ATTRIBUTE_ENTITY)
+  (entities XML_ATTRIBUTE_ENTITIES)
+  (nmtoken XML_ATTRIBUTE_NMTOKEN)
+  (nmtokens XML_ATTRIBUTE_NMTOKENS)
+  (enumeration XML_ATTRIBUTE_ENUMERATION)
+  (notation XML_ATTRIBUTE_NOTATION)
+  )
+
+;; xmlAttributeDefault:
+;; A DTD Attribute default definition.
+
+(define-enum xmlAttributeDefault
+  (none XML_ATTRIBUTE_NONE)
+  (required XML_ATTRIBUTE_REQUIRED)
+  (implied XML_ATTRIBUTE_IMPLIED)
+  (fixed XML_ATTRIBUTE_FIXED))
+
+;; xmlEnumeration:
+
+;; List structure used when there is an enumeration in DTDs.
+(define-object xmlEnumeration ()
+  (fields
+   (xmlEnumeration next)
+   (string name "char*")))
+
+
+;; xmlElementContentType:
+;; Possible definitions of element content types.
+(define-enum xmlElementContentType
+  (pcdata XML_ELEMENT_CONTENT_PCDATA)
+  (element XML_ELEMENT_CONTENT_ELEMENT)
+  (seq XML_ELEMENT_CONTENT_SEQ)
+  (or XML_ELEMENT_CONTENT_OR))
+
+;; xmlElementContentOccur:
+;; Possible definitions of element content occurrences.
+(define-enum xmlElementContentOccur
+  (once XML_ELEMENT_CONTENT_ONCE)
+  (opt XML_ELEMENT_CONTENT_OPT)
+  (mult XML_ELEMENT_CONTENT_MULT)
+  (plus XML_ELEMENT_CONTENT_PLUS))
+
+;; xmlElementContent:
+;; An XML Element content as stored after parsing an element definition
+;; in a DTD.
+(define-object xmlElementContent ()
+  (fields
+   (xmlElementContentType type)      ; PCDATA, ELEMENT, SEQ or OR
+   (xmlElementContentOccur ocur)     ; ONCE, OPT, MULT or PLUS
+   (string name "char*")             ; Element name
+   (xmlElementContent c1)            ; first child
+   (xmlElementContent c2)            ; second child
+   (xmlElementContent parent)        ; parent
+   (string prefix "char*")           ; Namespace prefix
+   ))
+
+;; xmlElementTypeVal:
+;; The different possibilities for an element content type.
+
+(define-enum xmlElementTypeVal
+  (undefined XML_ELEMENT_TYPE_UNDEFINED)
+  (empty XML_ELEMENT_TYPE_EMPTY)
+  (any XML_ELEMENT_TYPE_ANY)
+  (mixed XML_ELEMENT_TYPE_MIXED)
+  (element XML_ELEMENT_TYPE_ELEMENT))
+
+
+;; xmlNs:
+
+;; An XML namespace.  Note that prefix == NULL is valid, it defines
+;; the default namespace within the subtree (until overridden).
+;; xmlNsType is unified with xmlElementType.
+
+(define-object xmlNs ()
+  (fields
+   (xmlNs next (false))           ; next Ns link for this node
+   (xmlElementType type)  ; global or local
+   (string href "char*")  ; URL for the namespace
+   (string prefix "char*") ; prefix for the namespace
+   ;; void *_private; application data
+   ))
+
+;; xmlID: An XML ID instance.
+
+(define-object xmlID ()
+  (fields
+   (xmlID next)             ; next ID
+   (string value "char*")   ; The ID name
+   ((xml-attribute xmlAttrPtr) attr)           ; The attribute holding it
+   (string name "char*")    ; The attribute if attr is not available
+   (int lineno)             ; The line number if attr is not available
+   (xmlDoc doc)             ; The document holding the ID
+   ))
+
+;; xmlRef: An XML IDREF instance.
+
+(define-object xmlRef ()
+  (fields
+   (xmlRef next)          ; next Ref
+   (string value "char*") ; The Ref name
+   ((xml-attribute xmlAttrPtr) attr)         ; The attribute holding it
+   (string name "char*")  ; The attribute if attr is not available
+   (int lineno)           ; The line number if attr is not available
+   ))
+
+;; xmlBufferAllocationScheme: A buffer allocation scheme can be
+;; defined to either match exactly the need or double it's allocated
+;; size each time it is found too small.
+
+(define-enum xmlBufferAllocationScheme
+  (doubleit XML_BUFFER_ALLOC_DOUBLEIT)
+  (exact XML_BUFFER_ALLOC_EXACT)
+  (immutable XML_BUFFER_ALLOC_IMMUTABLE))
+
+;; xmlBuffer: A buffer structure.
+
+(define-object xmlBuffer () 
+  (fields
+   ;;(string content "char*") ; The buffer content UTF8. Use
+			    ; xmlBufferContent() instead of refering
+			    ; this slot directly
+   ;; (uint use)                        ; The buffer size used
+   (uint size)                       ; The buffer size
+   (xmlBufferAllocationScheme alloc) ; The realloc method
+   ))
+
+;; XML_GET_CONTENT:
+;; Macro to extract the content pointer of a node.
+;;
+;; #define XML_GET_CONTENT(n) \
+;; ((n)->type == XML_ELEMENT_NODE ? NULL : (n)->content)
+
+;; XML_GET_LINE: Macro to extract the line number of an element node.
+;;
+;; #define XML_GET_LINE(n) \
+;; (xmlGetLineNo(n))
+
+
+;; 
+;; Some helper functions
+;;
+(define-func xmlValidateNCName int ((string value "char*")(int space)))
+(define-func xmlValidateQName int ((string value "char*")(int space)))
+(define-func xmlValidateName int ((string value "char*")(int space)))
+(define-func xmlValidateNMToken int ((string value "char*")(int space)))
+(define-func xmlBuildQName string ((string ncname "char*")
+				   (string prefix "char*")
+				   (string memory "char*")
+				   (int len)))
+;;(define-func xmlSplitQName2 string ((string name "char*")(string *prefix)))
+;;(define-func xmlSplitQName3 string ((string name)(int *len)))
+
+;;=========================================================================
+;; Handling Buffers 
+;;=========================================================================
+(define-func xmlSetBufferAllocationScheme void
+  ((xmlBufferAllocationScheme scheme)))
+
+(define-func xmlGetBufferAllocationScheme xmlBufferAllocationScheme ())
+
+(define-export (xml-buffer-create::xml-buffer #!optional size)
+  (let ((size::int (or size (pragma::int "xmlDefaultBufferSize"))))
+    (pragma::xml-buffer
+     "xmlBufferCreateSize($1)"size)))
+
+;;(define-func xmlBufferCreateStatic xmlBuffer ((void *mem)(int size)))
+(define-func xmlBufferResize bool ((xmlBuffer buf)(uint size)))
+(define-func xmlBufferFree void ((xmlBuffer buf)))
+
+#|
+This is not working since output_port_t.file does not exist
+(define-export (xml-buffer-dump::int buf::xml-buffer output)
+  (define (file? o)
+    (and (foreign? o)(eq? 'file(foreign-id o))))
+  (let ((file::file
+	 (cond
+	  ;;((file? output) output)
+	  ((output-port? output)
+	   (pragma::file "$1->output_port_t.file" output))
+	  ((string? output)
+	   (open-output-file output))
+	  (else
+	   [error "xml-buffer-dump"
+		  "Invalid argument: must be either output-port or filename"
+		  output])))
+	(buf::xml-buffer buf))
+    (begin0
+     (pragma::int "xmlBufferDump($1, $2)" file buf)
+     (fclose file))))
+|#
+
+(define-export (xml-buffer-add
+		buf::xml-buffer
+		str::string)
+  (let ((buf::xml-buffer buf)
+        (str::string str)
+        (len::int (string-length str)))
+    (let((result::int
+	  (pragma::int
+	   "xmlBufferAdd($1, $2, $3)"
+	   buf
+	   str
+	   len)))
+      (unless (=fx result 0)
+	      [error "xml-buffer-add"
+		     "Internal error"
+		     result]))))
+
+(define-export (xml-buffer-add-head
+		buf::xml-buffer
+		str::string)
+  (let ((buf::xml-buffer buf)
+        (str::string str)
+        (len::int (string-length str)))
+    (let((result::int
+	  (pragma::int
+	   "xmlBufferAddHead($1, $2, $3)"
+	   buf
+	   str
+	   len)))
+      (unless (=fx result 0)
+	      [error "xml-buffer-add"
+		     "Internal error"
+		     result]))))
+
+;; Superceded by the xml-buffer-add
+;;(define-func xmlBufferCat int ((xmlBuffer buf)(string str)))
+
+;; Same as xmlBufferCat ???
+;;(define-func xmlBufferCCat int ((xmlBuffer buf)(string str)))
+
+(define-func xmlBufferShrink int ((xmlBuffer buf)(uint len)))
+(define-func xmlBufferGrow int ((xmlBuffer buf)(uint len)))
+(define-func xmlBufferEmpty void ((xmlBuffer buf)))
+
+(define-export (xml-buffer-content::string buf::xml-buffer)
+  (let ((buf::xml-buffer buf))
+    (pragma::string
+      "(char*)xmlBufferContent((xmlBufferPtr)$1)"
+      buf)))
+
+(define-func xmlBufferSetAllocationScheme void
+  ((xmlBuffer buf)
+   (xmlBufferAllocationScheme scheme)))
+
+(define-func xmlBufferLength int ((xmlBuffer buf "xmlBufferPtr")))
+
+;; Creating/freeing new structures 
+
+(define-export (xml-create-int-subset::xml-dtd
+		doc::xml-doc
+		name::string
+		#!key external-id system-id)
+  (let ((doc::xml-doc doc)
+        (name::string name)
+        (external-id::string (or external-id (pragma::string "NULL")))
+	(system-id::string  (or system-id (pragma::string "NULL"))))
+    (pragma::xml-dtd
+     "xmlCreateIntSubset($1, $2, $3, $4)"
+     doc name external-id system-id)))
+
+(define-func xmlNewDtd xmlDtd ((xmlDoc doc)
+			       (string name)
+			       (string ExternalID)
+			       (string SystemID)))
+
+(define-export (xml-get-int-subset doc::xml-doc)
+  (let* ((doc::xml-doc doc)
+	 (result::xml-dtd (pragma::xml-dtd #"xmlGetIntSubset($1)" doc)))
+    (and (pragma::bool "$1 != NULL" result)
+	 result)))
+
+(define-func xmlFreeDtd void ((xmlDtd cur)))
+
+(define-export (xml-new-ns::xml-ns
+		prefix::string
+		#!optional
+		node
+		href
+		)
+  (let* ((cnode::xml-element (or node (pragma::xml-node "NULL")))
+	 (chref::string (or href (pragma::string "NULL")))
+	 (cprefix::string prefix)
+	 (ns::xml-ns
+	  (pragma::xml-ns
+	   "xmlNewNs($1, $2, $3)"
+	   cnode chref cprefix)))
+    (if (pragma::bool "$1 == NULL" ns)
+	[error "xml-new-ns" "Illegal arguments" (list prefix node href)]
+	ns)))
+
+(define-func xmlFreeNs void ((xmlNs cur)))
+(define-func xmlFreeNsList void ((xmlNs cur)))
+(define-func xmlNewDoc xmlDoc ((string version (= "NULL"))))
+(define-func xmlFreeDoc void ((xmlDoc cur)))
+
+(define-func xmlNewDocProp (xml-attribute xmlAttrPtr) ((xmlDoc doc)
+				    (string name)
+				    (string value)))
+
+(define-export (xml-new-prop::xml-attribute
+		node::xml-node
+		name::string
+		value::string
+		#!optional
+		ns
+		)
+  (let ((node::xml-node node)
+        (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+        (name::string name)
+        (value::string value))
+    (pragma::xml-attribute
+     "xmlNewNsProp($1, $2, $3, $4)"
+     node
+     ns
+     name
+     value)))
+
+;; Note!!! All xxxEatName variants do not copy the name argument
+;; strings, this is unappropriate for Bigloo
+
+; (define-func xmlNewNsPropEatName (xml-attribute xmlAttrPtr) ((xmlNode node)
+; 							     (xmlNs ns)
+; 							     (string name)
+; 							     (string value)))
+
+(define-func xmlFreePropList void (((xml-attribute xmlAttrPtr) cur)))
+(define-func xmlFreeProp void (((xml-attribute xmlAttrPtr) cur)))
+(define-func xmlCopyProp (xml-attribute xmlAttrPtr) ((xmlNode target)((xml-attribute xmlAttrPtr) cur)))
+(define-func xmlCopyPropList (xml-attribute xmlAttrPtr) ((xmlNode target)((xml-attribute xmlAttrPtr) cur)))
+
+(define-func xmlCopyDtd xmlDtd ((xmlDtd dtd)))
+(define-func xmlCopyDoc xmlDoc ((xmlDoc doc)(int recursive)))
+
+;; Creating new nodes.
+(define-func xmlNewDocNode xmlNode ((xmlDoc doc)
+				    (xmlNs ns)
+				    (string name)
+				    (string content)))
+
+; (define-func xmlNewDocNodeEatName xmlNode ((xmlDoc doc)
+; 					   (xmlNs ns)
+; 					   (string name)
+; 					   (string content)))
+(define-func xmlNewDocRawNode xmlNode ((xmlDoc doc)
+				       (xmlNs ns)
+				       (string name)
+				       (string content)))
+
+(define-export (xml-new-node::xml-node name::string #!optional ns)
+  (let ((ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+        (name::string name))
+    (pragma::xml-node "xmlNewNode($1, $2)" ns name)))
+
+;;(define-func xmlNewNodeEatName xmlNode ((xmlNs ns)(string name)))
+
+
+(define-export (xml-new-child::xml-node
+		parent::xml-node
+		name::string
+		#!optional
+		content
+		ns
+		)
+  (let* ((cparent::xml-node parent)
+	 (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+	 (cname::string name)
+	 (content::string (or content (pragma::string "NULL")))
+	 (result::xml-node
+	  (pragma::xml-node
+	   "xmlNewChild($1, $2, $3, $4)"
+	   cparent
+	   ns
+	   cname
+	   content)))
+    (if (pragma::bool "$1 == NULL" result)
+	[error "xml-new-child" "Illegal argument" (cons name parent)]
+	result)))
+
+(define-func xmlNewTextChild xmlNode ((xmlNode parent)
+				      (xmlNs ns)
+				      (string name)
+				      (string content)))
+(define-func xmlNewDocText xmlNode ((xmlDoc doc)(string content)))
+;;(define-func xmlNewText xmlNode ((string content)))
+(define-func xmlNewDocPI xmlNode ((xmlDoc doc)(string name)(string content)))
+(define-func xmlNewPI xmlNode ((string name)(string content)))
+(define-func xmlNewDocTextLen xmlNode ((xmlDoc doc)(string content)(int len)))
+
+;; Create a new text node
+(define-export (xml-new-text::xml-node content::bstring)
+  (let ((content::string content)
+	(len::int (string-length content)))
+    (pragma::xml-node
+     "xmlNewTextLen($1, $2)"
+     content
+     len)))
+
+(define-func xmlNewDocComment xmlNode ((xmlDoc doc)(string content)))
+(define-func xmlNewComment xmlNode ((string content)))
+
+
+(define-export (xml-new-cdata-block::xml-cdata-section
+		doc::xml-doc
+		content::bstring)
+  (let ((doc::xml-doc doc)
+        (content::string content)
+        (len::int (string-length content)))
+    (pragma::xml-node
+     "xmlNewCDataBlock($1, $2, $3)"
+     doc
+     content
+     len)))
+
+(define-export (xml-new-cdata-child::xml-cdata-section
+		self::xml-element
+		content::bstring)
+  (let((cdata (xml-new-cdata-block (xmlobj-doc self) content)))
+    (xml-add-child self cdata)
+    cdata))
+
+;;(define-func xmlNewCDataBlock xmlNode ((xmlDoc doc)(string content)(int len)))
+(define-func xmlNewCharRef xmlNode ((xmlDoc doc)(string name)))
+(define-func xmlNewReference xmlNode ((xmlDoc doc)(string name)))
+(define-func xmlCopyNode xmlNode ((xmlNode node)(int recursive)))
+(define-func xmlDocCopyNode xmlNode ((xmlNode node)
+				     (xmlDoc doc)
+				     (int recursive)))
+(define-func xmlDocCopyNodeList xmlNode ((xmlDoc doc)(xmlNode node)))
+(define-func xmlCopyNodeList xmlNode ((xmlNode node)))
+(define-func xmlNewDocFragment xmlNode ((xmlDoc doc)))
+
+;; Navigating.
+;;
+(define-func xmlGetLineNo long ((xmlNode node)))
+(define-func xmlGetNodePath string ((xmlNode node)))
+
+; Get the root element of the document (doc->children is a list
+; containing possibly comments, PIs, etc ...).  Returns the
+; #xmlNode for the root or NULL
+
+(define-export (xml-doc-get-root-element doc::xml-doc)
+  (let* ((doc::xml-doc doc)
+	 (root::xml-node
+	  (pragma::xml-node "xmlDocGetRootElement($1)" doc)))
+    (and (pragma::bool "$1 != NULL" root) root)))
+
+(define-func xmlGetLastChild xmlNode ((xmlNode parent)))
+
+;;(define-func xmlNodeIsText int ((xmlNode node)))
+(define-func xmlIsBlankNode int ((xmlNode node)))
+
+;; Changing the structure.
+(define-export (xml-doc-set-root-element
+		doc::xml-doc
+		root::xml-node)
+  (let* ((doc::xml-doc doc)
+	 (root::xml-node root)
+	 (old-root::xml-node
+	  (pragma::xml-node
+	   "xmlDocSetRootElement($1, $2)" doc root)))
+    (and (pragma::bool "$1 != NULL" old-root) old-root)))
+
+(define-func (xmlobj-set-name xmlNodeSetName) void
+  ((xmlobj cur)
+   (string name)))
+
+(define-func xmlAddChild xmlNode ((xmlNode parent)(xmlNode cur)))
+
+(define-func xmlAddChildList xmlNode ((xmlNode parent)(xmlNode cur)))
+(define-func xmlReplaceNode xmlNode ((xmlNode old)(xmlNode cur)))
+(define-func xmlAddPrevSibling xmlNode ((xmlNode cur)(xmlNode elem)))
+(define-func xmlAddSibling xmlNode ((xmlNode cur)(xmlNode elem)))
+(define-func xmlAddNextSibling xmlNode ((xmlNode cur)(xmlNode elem)))
+(define-func xmlUnlinkNode void ((xmlNode cur)))
+(define-func xmlTextMerge xmlNode ((xmlNode first)(xmlNode second)))
+
+(define-func xmlTextConcat int ((xmlNode node)(string content)(int len)))
+(define-func xmlFreeNodeList void ((xmlNode cur)))
+(define-func xmlFreeNode void ((xmlNode cur)))
+(define-func xmlSetTreeDoc void ((xmlNode tree)(xmlDoc doc)))
+(define-func xmlSetListDoc void ((xmlNode list)(xmlDoc doc)))
+
+;; Namespaces.
+
+(define-export (xml-search-ns
+		node::xml-node
+		#!optional
+		ns-prefix
+		doc)
+  (let* ((doc::xml-doc (or doc (pragma::xml-doc "NULL")))
+	 (node::xml-node node)
+	 (cns-prefix::string (or ns-prefix (pragma::string "NULL")))
+	 (doc::xml-doc doc)
+	 (cns-prefix::string cns-prefix)
+	 (ns (pragma::xml-ns
+	      "xmlSearchNs($1, $2, $3)"
+	      doc
+	      node
+	      cns-prefix)))
+    (and (pragma::bool "$1 != NULL"ns) ns)))
+
+(define-export (xml-search-ns-by-href::xml-ns
+		node::xml-node
+		#!optional
+		href
+		doc)
+  (let* ((doc::xml-doc (or doc (pragma::xml-doc "NULL")))
+	 (node::xml-node node)
+	 (chref::string (or href (pragma::string "NULL")))
+	 (doc::xml-doc doc)
+	 (chref::string chref)
+	 (ns (pragma::xml-ns
+	      "xmlSearchNsByHref($1, $2, $3)"
+	      doc
+	      node
+	      chref)))
+    (if (pragma::bool "$1 == NULL"ns)
+	[error "xml-search-ns-by-href" "unknown namespace" href]
+	ns)))
+
+
+;; xmlNs * 
+;; xmlGetNsList (xmlDoc doc)(xmlNode node)))
+
+(define-func xmlSetNs void ((xmlNode node)(xmlNs ns (= "NULL"))))
+(define-func xmlCopyNamespace xmlNs ((xmlNs cur)))
+(define-func xmlCopyNamespaceList xmlNs ((xmlNs cur)))
+
+;; Changing the content.
+;;
+(define-export
+  (xml-set-prop::xml-attribute
+   node::xml-node
+   name::string
+   value::string
+   #!optional
+   ns)
+  (let ((node::xml-node node)
+        (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+        (name::string name)
+        (value::string value))
+    (pragma::xml-attribute
+     "xmlSetNsProp($1, $2, $3, $4)"
+     node
+     ns
+     name
+     value)))
+
+;; xmlGetProp:
+;; @node:  the node
+;; @name:  the attribute name
+
+;; Search and get the value of an attribute associated to a node
+;; This does the entity substitution.
+;; This function looks in DTD attribute declaration for #FIXED or
+;; default declaration values unless DTD use has been turned off.
+;; NOTE: this function acts independently of namespaces associated
+;;       to the attribute. Use xmlGetNsProp() or xmlGetNoNsProp()
+;;       for namespace aware processing.
+
+;; Returns the attribute value or #f if not found.
+
+(define-export (xml-get-prop node::xml-node
+			     name::string
+			     #!optional
+			     ns-uri)
+  (let* ((node::xml-node node)
+	 (name::string name)
+	 (ns-uri::string (or ns-uri (pragma::string "NULL")))
+	 (result (pragma::string "xmlGetNsProp($1, $2, $3)"
+				 node name ns-uri)))
+    (and (pragma::bool "$1 != NULL" result)
+	 (let((bresult::bstring result))
+	   (pragma "xmlFree($1)" result)
+	   bresult))))
+
+(define-func xmlHasProp (xml-attribute xmlAttrPtr) ((xmlNode node)(string name)))
+(define-func xmlHasNsProp (xml-attribute xmlAttrPtr) ((xmlNode node)(string name)(string nameSpace)))
+
+(define-func xmlStringGetNodeList xmlNode ((xmlDoc doc)(string value)))
+(define-func xmlStringLenGetNodeList xmlNode ((xmlDoc doc)(string value)(int len)))
+(define-func xmlNodeListGetString string ((xmlDoc doc)(xmlNode list)(int inLine)))
+(define-func xmlNodeListGetRawString string ((xmlDoc doc)(xmlNode list)(int inLine)))
+
+(define-export (xml-node-set-content
+		cur::xml-node
+		content::bstring)
+  (let ((cur::xml-node cur)
+        (content::string content)
+        (len::int (string-length content)))
+    (pragma
+     "xmlNodeSetContentLen($1, $2, $3)"
+     cur content len)
+    #unspecified))
+
+(define-export (xml-node-add-content
+		cur::xml-node
+		content::bstring)
+  (let ((cur::xml-node cur)
+        (content::string content)
+        (len::int (string-length content)))
+    (pragma
+     "xmlNodeAddContentLen($1, $2, $3)"
+     cur content len)
+    #unspecified))
+
+(define-func xmlNodeGetContent string ((xmlNode cur)))
+
+;; xmlNodeBufGetContent:
+;; @buffer:  a buffer
+;; @cur:  the node being read
+
+;; Read the value of a node @cur, this can be either the text carried
+;; directly by this node if it's a TEXT node or the aggregate string
+;; of the values carried by this node child's (TEXT and ENTITY_REF).
+;; Entity references are substituted.
+;; Fills up the buffer @buffer with this value
+
+;; Returns 0 in case of success and -1 in case of error.
+(define-func xmlNodeBufGetContent int((xmlBuffer buffer)(xmlNode cur)))
+
+(define-func xmlNodeGetLang string ((xmlNode cur)))
+(define-func xmlNodeGetSpacePreserve int ((xmlNode cur)))
+
+(define-func xmlNodeSetLang void ((xmlNode cur)(string lang)))
+(define-func xmlNodeSetSpacePreserve void ((xmlNode cur)(int val)))
+(define-func xmlNodeGetBase string ((xmlDoc doc)(xmlNode cur)))
+(define-func xmlNodeSetBase void ((xmlNode cur)(string uri)))
+
+;; Removing content.
+
+(define-func xmlRemoveProp bool (((xml-attribute xmlAttrPtr) cur)))
+
+(define-export (xml-unset-prop::bool
+		node::xml-node
+		name::string
+		#!optional
+		ns
+		)
+  (let ((node::xml-node node)
+        (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+        (name::string name))
+    (pragma::bool
+     "xmlUnsetNsProp($1, $2, $3)"
+     node
+     ns
+     name)))
+
+;; 
+;; Namespace handling.
+;;
+(define-func xmlReconciliateNs int ((xmlDoc doc)(xmlNode tree)))
+
+;; Saving.
+
+;; xmlDocDumpFormatMemoryEnc:
+;; @out_doc:  Document to generate XML text from
+;; @doc_txt_ptr:  Memory pointer for allocated XML text
+;; @doc_txt_len:  Length of the generated XML text
+;; @encoding:  Character encoding to use when generating XML text, if omitted, then the document encoding is used
+;; @format:  should formatting spaces been added
+;;
+;; Dump the current DOM tree into memory using the character encoding specified
+;; by the caller.  Note it is up to the caller of this function to free the
+;; allocated memory with xmlFree().
+;; Note that @format = 1 provide node indenting only if xmlIndentTreeOutput = 1
+;; or xmlKeepBlanksDefault(0) was called
+
+(define-export (xml-doc->string::bstring
+		doc::xml-doc
+		#!key
+		encoding
+		indent)
+  (let ((doc-txt-ptr::string (pragma::string "NULL"))
+	(doc-txt-len::int (pragma::int "0"))
+	(doc::xml-doc doc)
+        (encoding::string (or encoding (pragma::string "NULL")))
+        (indent::bool indent))
+    (pragma
+     "xmlDocDumpFormatMemoryEnc($1, (xmlChar **)&$2, &$3, (char*)$4, $5)"
+     doc
+     doc-txt-ptr
+     doc-txt-len
+     encoding
+     indent)
+    (when (=fx 0 doc-txt-len)
+	  (error "xml-doc-dump-format-memory-enc" "empty document" doc))
+    (pragma::bstring "string_to_bstring_len($1, $2)"
+		     doc-txt-ptr
+		     doc-txt-len)))
+
+
+(define-export (xml-doc-save::int
+		doc::xml-doc
+		filename::string
+		#!key
+		encoding
+		indent)
+  (let ((doc::xml-doc doc)
+        (encoding::string (or encoding (pragma::string "NULL")))
+	(filename::string filename)
+        (indent::bool indent))
+    (pragma::int
+     "xmlSaveFormatFileEnc((char*)$1, $2, (char*)$3, $4)"
+     filename
+     doc
+     encoding
+     indent)))
+
+;;(define-func xmlDocFormatDump int ((file f)(xmlDoc cur)(int format)))
+;;(define-func xmlDocDump int ((file f)(xmlDoc cur)))
+;;(define-func xmlElemDump void ((file f)(xmlDoc doc)(xmlNode cur)))
+;;(define-func xmlSaveFile int ((string filename "char*")
+;;			      (xmlDoc cur)))
+
+(define-func xmlKeepBlanksDefault bool ((bool newVal)))
+
+(define-export (xml-node-dump::int buf::xml-buffer
+				   cur::xmlobj
+				   #!optional
+				   level
+				   doc)
+  (let((buf::xml-buffer buf)
+       (doc::xml-doc (or doc (xmlobj-doc cur)))
+       (cur::xmlobj cur)
+       (level::int (or level (pragma::int "0")))
+       (format::bool level))
+    (pragma::int "xmlNodeDump($1, $2, $3, $4, $5)"
+		 buf doc cur level format)))
+
+;;(define-func xmlSaveFileTo int ((xmlOutputBuffer buf)(xmlDoc cur)(string encoding "char*")))
+;;(define-func xmlSaveFormatFileTo int ((xmlOutputBuffer buf)(xmlDoc cur)(string encoding "char*")(int format)))
+
+;;(define-func xmlSaveFileEnc int ((string filename "char*")(xmlDoc cur)(string encoding "char*")))
+
+;; XHTML
+;;
+(define-func xmlIsXHTML int ((string systemID)(string publicID)))
+
+;; Compression.
+;;
+(define-func xmlGetDocCompressMode int ((xmlDoc doc)))
+
+(define-func xmlSetDocCompressMode void ((xmlDoc doc)(int mode)))
+(define-func xmlGetCompressMode int ())
+
+(define-func xmlSetCompressMode void ((int mode)))
