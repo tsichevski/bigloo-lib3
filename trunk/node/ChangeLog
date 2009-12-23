@@ -1,0 +1,19 @@
+2004-11-10  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* tree-node.scm (tree-node): type of the GI field changed from
+	SYMBOL to STRING
+
+2004-11-10  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* node.scm: node-bind!, node-bind-descendants! commented out
+
+2003-11-18  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* sgml-node.scm (node-data::bstring): contents of
+	sgml-char-ref included in node-data
+
+2003-09-21  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* sgml-node.scm (node-emit-stag): apostrophes are replaced by
+	entities in output
+

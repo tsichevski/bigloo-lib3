@@ -1,0 +1,2 @@
+Miscellaneous utilies, supporting HTTP and CGI. All stuff is written
+in scheme, no C libraries used. See the documentation for more info.
