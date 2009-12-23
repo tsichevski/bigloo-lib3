@@ -1,0 +1,43 @@
+how to build RPM set
+
+1. Obtain and install bigloo-2.5c-6.i386.rpm:
+
+-- unarchive bigloo-2.5c.tar.gz
+-- edit the bigloo.spec: change `configure' to `./configure'
+-- do make bigloo-2.5c.spec
+-- copy bigloo-2.5c.tar.gz to /usr/src/redhat/SOURCES
+
+-- disable the "list check" rpm build phase either by edit the
+/usr/lib/rpm/macros file (comment out the %__check_files line) or
+adding the line
+	%__check_files         /usr/cat
+
+to ~/.rpmmacros
+
+-- execute (as root)
+
+	CC=kgcc rpmbuild  -bb bigloo2.5c.spec
+
+2. Prepare the package as usual (i.e. unarchive it and run ./configure)
+
+3. Build RPM for each subpackage you need (common gd node http expat
+ldap rdbms bgtk docs gl). For example, to build the bigloo-common
+subpackage, do the following:
+
+	cd common
+	make rpm
+
+On x86 Linux, this builds the bigloo-common-0.20alpha-1.i386.rpm and
+stores it in the RPM archive (i.e. /usr/src/redhat/RPMS/i386). Now you
+probably have to install the RPM in order to build other subpackages
+that depends on this RPM is installed:
+
+	sudo rpm -i /usr/src/redhat/RPMS/i386/bigloo-common-0.20alpha-1.i386.rpm
+
+For the dependency list see the `BuildRequires' line in the RPM spec
+in each subdirectory.
+
+4. You may rebuild all RPMs at once (assuming all abovementioned
+dependencies are met) by executing in bigloo-lib toplevel directory:
+
+	make all-rpm

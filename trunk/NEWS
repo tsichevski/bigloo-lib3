@@ -1,0 +1,9 @@
+2000-10-19  Vladimir V. Tsichevski  <wowa@jet.msk.su>
+	* bigloo-0.14 released. GTK+ base interface is completed
+
+2000-04-02  Vladimir V. Tsichevski  <wowa@jet.msk.su>
+
+	* the regexps in libcommon redesigned and thoroughly documented
+	* GTK support preview added in gtk/ catalog
+	* test bed configured in test/ catalog
+

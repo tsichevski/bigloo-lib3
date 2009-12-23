@@ -1,0 +1,226 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* gdbm - Bigloo interface to the GNU database manager                  */
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module gdbm
+	(import srfi-1)
+	(extern (include "gdbm.h"))
+	(export
+	 (gdbm-open::gdbm-file filename::string #!optional flag #!key block-size mode)
+	 (gdbm-store conn::gdbm-file key::bstring value::bstring #!optional replace?)
+	 (gdbm-fetch conn::gdbm-file key::bstring)
+	 (gdbm-delete::bool conn::gdbm-file key::bstring)
+	 (gdbm-firstkey conn::gdbm-file)
+	 (gdbm-nextkey conn::gdbm-file key::bstring)
+	 (gdbm-setopt conn::gdbm-file option::gdbm-setopt-flags value)
+	 (gdbm-version::string)
+	 (gdbm-reorganize gdbm::gdbm-file)
+	 )
+	)
+
+(register-eval-srfi! 'gdbm)
+
+; External variable, the gdbm build release string.
+(define (gdbm-version::string)(pragma::string "gdbm_version"))
+
+(define-flags (gdbm-open-flags int)
+  (reader GDBM_READER)   ;; A reader.
+  (writer GDBM_WRITER)   ;; A writer.
+  (wrcreat GDBM_WRCREAT) ;; A writer.  Create the db if needed.
+  (newdb GDBM_NEWDB)     ;; A writer.  Always create a new db.
+;;  (fast GDBM_FAST)       ;; Write fast! => No fsyncs.  OBSOLETE.
+  (sync GDBM_SYNC)       ;; Sync operations to the disk.
+  (nolock GDBM_NOLOCK)   ;; Don't do file locking operations.
+  )
+
+(define-object (gdbm-file GDBM_FILE) ())
+
+(define (gdbm-open::gdbm-file filename::string #!optional flags #!key block-size mode onerror)
+ (let((block-size::int (or block-size 0))
+      (flags::gdbm-open-flags (or flags '(reader)))
+      (mode::int (or mode #o0666))
+      )
+   
+   (let((result::gdbm-file
+	 (pragma::gdbm-file "gdbm_open($1, $2, $3, $4, NULL)"
+			    filename
+			    block-size
+			    flags
+			    mode)))
+     (if(pragma::bool "$1 == NULL" result)
+	(gdbm-error "gdbm-open")
+	result))))
+
+(define-func gdbm_close void ((GDBM_FILE)))
+
+(define (gdbm-store conn::gdbm-file key::bstring value::bstring #!optional replace?)
+  (let((key::string key)
+       (keylen::int (string-length key))
+       (value::string value)
+       (valuelen::int (string-length value))
+       (result::int (pragma::int "0")))
+    (pragma "{
+datum key; datum value; key.dptr = $2; key.dsize = $3;
+value.dptr = $4; value.dsize = $5;
+$7 = gdbm_store($1, key, value, $6 == BFALSE? GDBM_INSERT: GDBM_REPLACE);}"
+	    conn
+	    key
+	    keylen
+	    value
+	    valuelen
+	    replace?
+	    result)
+    (case result
+      ((-1)
+       (gdbm-error  "gdbm-store"))
+      ((1)
+       #t)
+      (else #f))))
+
+(define (gdbm-fetch conn::gdbm-file key::bstring)
+  (let((key::string key)
+       (keylen::int (string-length key))
+       (result(pragma "BFALSE")))
+    (pragma "{
+datum key; datum r; key.dptr = $2; key.dsize = $3;
+r = gdbm_fetch($1, key);
+if (r.dptr) $4 = string_to_bstring_len(r.dptr, r.dsize);
+free (r.dptr);}"
+	    conn
+	    key
+	    keylen
+	    result)
+    result))
+
+(define (gdbm-delete::bool conn::gdbm-file key::bstring)
+  (let((key::string key)
+       (keylen::int (string-length key))
+       (result::bool (pragma::bool "0")))
+    (pragma "{
+datum key; key.dptr = $2; key.dsize = $3;
+$4 = !gdbm_delete($1, key);}"
+	    conn
+	    key
+	    keylen
+	    result)
+    result))
+
+(define (gdbm-firstkey conn::gdbm-file)
+  (let((result::obj (pragma::obj "BFALSE")))
+    (pragma "{
+datum r = gdbm_firstkey($1);
+if (r.dptr) $2 = string_to_bstring_len(r.dptr, r.dsize);
+free (r.dptr);}"
+	    conn
+	    result)
+    result))
+
+(define (gdbm-nextkey conn::gdbm-file key::bstring)
+  (let((key::string key)
+       (keylen::int (string-length key))
+       (result::obj (pragma::obj "BFALSE")))
+    (pragma "{
+datum key; datum r; key.dptr = $2; key.dsize = $3;
+r = gdbm_nextkey($1, key);
+if (r.dptr) $4 = string_to_bstring_len(r.dptr, r.dsize);
+free (r.dptr);}"
+	    conn
+	    key
+	    keylen
+	    result)
+    result))
+
+(define (gdbm-reorganize gdbm::gdbm-file)
+  (when(<fx (pragma::int "gdbm_reorganize($1)"gdbm) 0)
+       (gdbm-error "gdbm-reorganize")))
+
+(define (gdbm-exists conn::gdbm-file key::bstring)
+  (let((key::string key)
+       (keylen::int (string-length key))
+       (result::int (pragma::int "0")))
+    (pragma "{
+datum key; key.dptr = $2; key.dsize = $3;
+$4 = gdbm_exists($1, key);}"
+	    conn
+	    key
+	    keylen
+	    result)
+    result))
+
+; Parameters to gdbm_setopt, specifing the type of operation to perform.
+(define-enum (gdbm-setopt-flags int)
+  (cachesize GDBM_CACHESIZE) ;; Set the cache size.
+  (fastmode GDBM_FASTMODE)   ;; Toggle fast mode.  OBSOLETE.
+  (syncmode GDBM_SYNCMODE)   ;; Turn on or off sync operations.
+  (centfree GDBM_CENTFREE)   ;; Keep all free blocks in the header.
+  (coalesceblks GDBM_COALESCEBLKS) ;; Attempt to coalesce free blocks.
+  )
+
+(define (gdbm-setopt conn::gdbm-file option::gdbm-setopt-flags value)
+  (when
+   (=fx
+    (case option
+      ((cachesize)
+       (let((value::int value))
+	 (pragma::int "gdbm_setopt ($1, GDBM_CACHESIZE, &$2, sizeof(int))"
+		       conn value)))
+      (else
+       (let((value::bool value))
+	 (pragma::int "gdbm_setopt ($1, $3, &$2, sizeof(int))"
+		      conn value option))))
+    -1)
+   (gdbm-error "gdbm-setopt")))
+
+;; int gdbm_setopt __P((GDBM_FILE, int, int *, int));
+(define-func gdbm_fdesc int((GDBM_FILE)))
+
+;(define-enum (gdbm-error int)
+;  (no-error GDBM_NO_ERROR)
+;  (malloc-error GDBM_MALLOC_ERROR)
+;  (block-size-error GDBM_BLOCK_SIZE_ERROR)
+;  (file-open-error GDBM_FILE_OPEN_ERROR)
+;  (file-write-error GDBM_FILE_WRITE_ERROR)
+;  (file-seek-error GDBM_FILE_SEEK_ERROR)
+;  (file-read-error GDBM_FILE_READ_ERROR)
+;  (bad-magic-number GDBM_BAD_MAGIC_NUMBER)
+;  (empty-database GDBM_EMPTY_DATABASE)
+;  (cant-be-reader GDBM_CANT_BE_READER)
+;  (cant-be-writer GDBM_CANT_BE_WRITER)
+;  (reader-cant-delete GDBM_READER_CANT_DELETE)
+;  (reader-cant-store GDBM_READER_CANT_STORE)
+;  (reader-cant-reorganize GDBM_READER_CANT_REORGANIZE)
+;  (unknown-update GDBM_UNKNOWN_UPDATE)
+;  (item-not-found GDBM_ITEM_NOT_FOUND)
+;  (reorganize-failed GDBM_REORGANIZE_FAILED)
+;  (cannot-replace GDBM_CANNOT_REPLACE)
+;  (illegal-data GDBM_ILLEGAL_DATA)
+;  (opt-already-set GDBM_OPT_ALREADY_SET)
+;  (opt-illegal GDBM_OPT_ILLEGAL))
+
+(define-static (gdbm-error where)
+  (error where (gdbm-strerror)(pragma::int "gdbm_errno")))
+
+(define-func gdbm_strerror string ((int errno (= "gdbm_errno"))))

@@ -1,0 +1,152 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ iconv
+ (use os misc)
+ (include "common.sch")
+ (extern
+  (include "iconv.h")
+  (include "string.h")
+  (include "errno.h")
+  )
+ (export
+  (class iconv cd::iconv_t
+	 writer::procedure ;; procedure to handle partial results
+	 processed-in::int ;; input character counter (for error reporting)
+	 processed-out::int ;; output character counter (for error reporting)
+	 )
+  )
+ )
+
+(register-eval-srfi! 'iconv)
+
+(define-object (iconv_t iconv_t) ())
+
+(define-export (iconv-open::iconv tocode::string fromcode::string writer::procedure)
+  (let ((res::iconv_t(pragma::iconv_t "iconv_open($1, $2)" tocode fromcode)))
+    (if (pragma::bool "(long)$1 <= 0" res)
+	(error "iconv-open"
+	       (if (pragma::bool "errno == EINVAL")
+		   "The  conversion  specified  by  fromcode  and tocode  is  not  supported by the implementation."
+		   (pragma::string "strerror(errno)"))
+	       (list tocode fromcode))
+	(make-iconv res writer 0 0))))
+;;(iconv-open "UTF-8" "KOI8-R" display)
+
+(define-export (iconv-close::int self::iconv)
+  (pragma::int "iconv_close($1)" (iconv-cd self)))
+
+
+
+(define-export (iconv-write self::iconv data::bstring)
+  (define (write-internal::int
+	   self::iconv
+	   data ;; if not of string type -> flush iconv state
+	   buffer::bstring
+	   offset::int
+	   end::int)
+    (with-access::iconv
+     self (cd writer processed-in processed-out)
+     (let* ((outsize::int (string-length buffer))
+	    (buffer::string buffer)
+	    ;; !!! trick to prevent Bigloo from over-optimizing outbuf and buffer into a single location
+	    (outbuf::string (pragma::string "$1" buffer))
+	    (insize::int (-fx end offset))
+	    ;; !!! trick to prevent Bigloo from over-optimizing inbuf and data into  into a single location
+	    (inbuf::string
+	     (if (string? data)
+		 (let((cbuf::string data))
+		   (pragma::string "$1 + $2" cbuf offset))
+		 ;; flush iconv internals
+		 (pragma::string "NULL")))
+	    
+	    (chars::int
+	     (pragma::int "iconv($1, &$2, &$3, &$4, &$5)"
+			  cd
+			  inbuf
+			  insize
+			  outbuf
+			  outsize))
+	    (got-input
+	     (if (string? data)
+		 (let((cbuf::string data))
+		   (pragma::int "$1 - $2 + $3" inbuf cbuf offset))
+		 0))
+	    )
+       ;;[print data " offset: " offset " end: " end " inbuf: "inbuf " insuze: " insize " outbuf: " outbuf " outsize: "outsize]
+       (set! processed-in (+fx processed-in got-input))
+       
+       (when (<fx chars 0)
+	     (unless (=fx (errno)(pragma::int "EINVAL"))
+		     (error "write-internal"
+			    (pragma::string "strerror(errno)")
+			    (format "read: ~a written: ~a chars: ~a"
+				    processed-in processed-out
+				    (pragma::bstring "string_to_bstring_len($1, $2)" inbuf insize))
+			    )))
+       (let ((size::int (pragma::int "$1 - $2" outbuf buffer)))
+	 (when (>fx size 0)
+	       (writer
+		(pragma::bstring "string_to_bstring_len($1, $2)" buffer size))))
+       
+       (let((processed (pragma::int "$1 - $2" outbuf buffer)))
+	 (set! processed-out (+fx processed processed-out)))
+       
+       got-input)))
+  
+  (let* ((buflen::int (string-length data))
+	 (buffer::bstring (make-string (* 4 buflen))))
+    (let loop ((offset::int 0))
+      (if (<fx offset buflen)
+	  (let((wrote::int
+		(write-internal self data buffer offset buflen)))
+	    (loop (+fx offset wrote)))
+	  ;; flush
+	  (write-internal self #f buffer 0 0))))
+  #unspecified
+  )
+
+;; (define ic (iconv-open "UTF-8" "KOI8-R" display))
+;; (iconv-write ic (make-string 8196 #\в))
+;; (iconv-write ic "Привет")
+
+(define-export (make-iconv-encoder from::bstring to::bstring)
+  (let* ((os (open-output-string))
+	 (encoder (iconv-open to from
+			      (lambda (s)(display s os)))))
+    (lambda (#!optional s #!key from to onerror)
+      (cond ((not(iconv? encoder))
+	     (error "iconv" "try to use the closed iconv object" ""))
+	    ((string? s)
+	     (iconv-write encoder s)
+	     (begin0
+	      (get-output-string os)
+	      (set! os (open-output-string))))
+	    (else
+	     (iconv-close encoder)
+	     (set! encoder #unspecified))))))
+;;((make-iconv-encoder "KOI8-R" "UTF-8") "АОЗТ Инфосистемы Джет")
+;;(pp((make-iconv-encoder "KOI8-R" "UTF-8") "АОЗТ Инфосистемы Джет" from: 4))

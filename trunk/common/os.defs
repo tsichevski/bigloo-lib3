@@ -1,0 +1,589 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ os
+ (import
+  misc
+  srfi-1
+  )
+ (option (loadq "common.sch"))
+ (extern
+  (include "unistd.h")
+  (include "common.h")
+  (include "sys/types.h")
+  (include "sys/fcntl.h")
+  (include "sys/stat.h")
+  (include "pwd.h")
+  (include "errno.h")
+  (include "stdio.h")
+  (include "string.h")
+  (include "sys/types.h")
+  (include "sys/file.h")
+  (include "utime.h")
+
+  @if have-syswait
+  (include "sys/wait.h")
+  @else
+  (include "wait.h")
+  @endif
+  (type dev-t ulong "dev_t")
+  )
+ )
+
+(define-object (string* char**) ())
+
+(define-export (string*->string-list::pair-nil sp::string* #!optional len)
+  ((cpointer->list string) sp len))
+
+(define-export (string-list->string*::string* sl::pair-nil)
+  ((list->cpointers string)
+   (lambda(s::bstring)
+     (let((cs::string s))
+       cs))
+   sl))
+
+(define-func getpid int ())
+(define-func getppid int ())
+
+(define-export (setenv name::string value::string)
+  @if enable-setenv
+  (when
+   (pragma::bool "setenv($1, $2, 1)" name value)
+   (cerror "setenv"))
+  @else
+  (let* ((s::string(string-append name "=" value))
+	 (se::string (pragma::string "strdup($1)"s)))
+    (when
+     (pragma::bool "putenv($1)" se)
+     (pragma "free($1)"se)
+     (cerror "putenv")))
+  @endif
+  )
+
+@if enable-setenv
+(define-export (unsetenv name::string)
+   (pragma "unsetenv($1)" name)
+   #unspecified)
+@endif
+
+;; FIXME: allow to set an environment also
+(define-export (environ::pair-nil)
+  (pragma "extern char** environ")
+  (map
+   (lambda(str)
+     (cons (string-before str #\=)
+	   (string-after  str #\=)))
+   (string*->string-list
+    (pragma::string* "environ"))))
+
+(define-global errno int)
+
+(define-func strerror string ((int errnum (= "errno"))))
+
+(define-export (cerror name::bstring . arguments)
+  (let ((errnum(errno)))
+    (and (not(=fx errnum 0))
+	 (error name (format "~a: ~a~a"
+			     errnum
+			     (strerror errnum)
+			     (if(null? arguments)
+				""
+				" arguments was"))
+		(print-list-delimited arguments)))))
+
+;*-------------------------------------------------------------------*;
+;*  open/close/read/write                                            *;
+;*-------------------------------------------------------------------*;
+(define-flags (oflag int)
+  (rdonly O_RDONLY)
+  (wronly O_WRONLY)
+  (rdwr O_RDWR)
+  ;;#if defined(__EXTENSIONS__) || !defined(_POSIX_C_SOURCE)
+  ;;O_NDELAY 0x04 /* non-blocking I/O */
+  ;;#endif /* defined(__EXTENSIONS__) || !defined(_POSIX_C_SOURCE) */
+  (append O_APPEND)
+  ;;#if defined(__EXTENSIONS__) || !defined(_POSIX_C_SOURCE) || \
+  ;; (_POSIX_C_SOURCE > 2) || defined(_XOPEN_SOURCE)
+  ;;O_SYNC 0x10 /* synchronized file update option */
+  ;;O_DSYNC 0x40 /* synchronized data update option */
+  ;;O_RSYNC 0x8000 /* synchronized file update option */
+  ;; /* defines read/write file integrity */
+  ;;#endif /* defined(__EXTENSIONS__) || !defined(_POSIX_C_SOURCE) ... */
+  (nonblock O_NONBLOCK)
+  ;;#ifdef SUN_SRC_COMPAT
+  ;;O_PRIV 0x1000 /* Private access to file */
+  ;;#endif /* SUN_SRC_COMPAT */
+  ;;#ifdef _LARGEFILE_SOURCE
+  ;;O_LARGEFILE 0x2000
+  ;;#endif
+  (creat O_CREAT)
+  (trunc O_TRUNC)
+  (excl O_EXCL)
+  (noctty O_NOCTTY)
+  )
+
+(define-flags (stmode int)
+  (fsock S_IFSOCK)   ;; socket
+  (flnk S_IFLNK)     ;; symbolic link
+  (freg S_IFREG)     ;; regular file
+  (fblk S_IFBLK)     ;; block device
+  (fdir S_IFDIR)     ;; directory
+  (fchr S_IFCHR)     ;; character device
+  (fifo S_IFIFO)     ;; fifo
+  (suid S_ISUID)     ;; set UID bit
+  (sgid S_ISGID)     ;; set GID bit (see below)
+  (svtx S_ISVTX)     ;; sticky bit (see below)
+  (rusr S_IRUSR)     ;; owner has read permission
+  (wusr S_IWUSR)     ;; owner has write permission
+  (xusr S_IXUSR)     ;; owner has execute permission
+  (rgrp S_IRGRP)     ;; group has read permission
+  (wgrp S_IWGRP)     ;; group has write permission
+  (xgrp S_IXGRP)     ;; group has execute permission
+  (roth S_IROTH)     ;; others have read permission
+  (woth S_IWOTH)     ;; others have write permisson
+  (xoth S_IXOTH)     ;; others have execute permission
+  )
+
+(define-object (stat "struct stat*") ()
+  (fields
+   (stmode (mode st_mode))       ;; File mode (see mknod(2))
+   (int (ino st_ino))            ;; Inode number
+   (dev_t (dev st_dev))          ;; ID of device containing a directory entry
+				 ;; for this file
+   (int (rdev st_rdev))          ;; ID of device
+   (int (nlink st_nlink))        ;; Number of links
+   (int (uid st_uid))            ;; User ID of the file's owner
+   (int (gid st_gid))            ;; Group ID of the file's group
+   (long (size st_size))         ;; File size in bytes
+   (elong (atime st_atime))      ;; Time of last access
+   (elong (mtime st_mtime))      ;; Time of last data modification
+   (elong (ctime st_ctime))      ;; Time of last file status change
+   ;; Times measured in seconds since
+   ;; 00:00:00 UTC, Jan. 1, 1970
+   ;;long     (blksize st_blksize); ;; Preferred I/O block size
+   ;;blkcnt_t (blocks st_blocks);  ;; Number of 512 byte blocks allocated
+   ))
+
+(define-export (stat::stat what)
+  (let*((buf(pragma::stat
+	     "(struct stat*)GC_malloc_atomic(sizeof(struct stat))"))
+	(failed?
+	 (cond((string? what)
+	       (pragma::bool "stat($1, $2)"
+			     ($bstring->string what)
+			     buf))
+	      ((and(integer? what)
+		   (positive? what))
+	       (pragma::bool "fstat($1, $2)"
+			     ($bint->int what)
+			     buf))
+	      (else
+	       (error "stat"
+		      "must be filename or open file descriptor"
+		      what)))))
+    (when failed? (cerror "stat" what))
+    buf))
+
+(define-export (isatty fd::int)
+  (errno 0)
+  (or(pragma::bool "isatty($1)"fd)
+     (if(pragma::bool "errno == ENOTTY")
+	#f
+	(cerror "isatty"))))
+
+(define-export (open::int file-name::string #!optional oflag mode)
+  (let*((oflag::oflag (or oflag (pragma::oflag "O_RDONLY")))
+	(mode::stmode (or mode (pragma::stmode "S_IRUSR | S_IWUSR | S_IRGRP")))
+	(fd(pragma::int
+	    "open($1, $2, $3)"
+	    file-name
+	    oflag
+	    mode)))
+    (if(< fd 0)
+       (error "open" "file opening error"file-name)
+       fd)))
+;;(open "/etc/passwd")
+;;(open "/tmp/temp" '(creat))
+
+(define-export (fopen::file file-name::string #!optional mode)
+  (let*((mode::string (or mode "r"))
+	(f::file
+	 (pragma::file
+	  "fopen($1, $2)" file-name mode)))
+    (if (pragma::bool "$1 == NULL" f)
+	(error "fopen" "file opening error" file-name)
+	f)))
+;;(fopen "/etc/passwd")
+;;(fopen "/tmp/temp" "creat")
+
+(define-export (fwrite s::bstring f::file)
+  (let((s::string s)
+       (l::int (string-length s)))
+    (pragma::int "fwrite($1, (size_t)$2, 1, $3)"s l f)))
+
+(define-func fclose int ((file f)))
+;;(fclose (fopen "/etc/passwd"))
+
+(define-func close int ((int fd)))
+
+(define-export (fdread fd::int arg)
+  (let*((buffer(cond((string? arg)
+		     arg)
+		    ((integer? arg)
+		     (make-string arg))
+		    (else
+		     (error "fdread"
+			    "second argument must be either a string or an integer"
+			    arg))))
+	(size::int(string-length buffer))
+	(cbuffer::string buffer)
+	(got(pragma::int "read($1, $2, $3)" fd cbuffer size)))
+    (when(< got 0)
+	 (if(pragma::bool "errno == EAGAIN")
+	    ""
+	    (cerror "fdread")))
+    (if(< got size)
+       (substring buffer 0 got)
+       buffer)))
+
+(define-export (fdwrite fd::int data::bstring)
+  (let((wrote(pragma::int "write($1, $2, $3)"
+			  fd
+			  ($bstring->string data)
+			  (string-length data))))
+    (when(negative? wrote)
+	 (cerror "fdwrite" fd))
+    wrote))
+
+(define-object (passwd "struct passwd*") ()
+  (fields
+   (string (name pw_name))     ;; user's login name
+   (string (passwd pw_passwd)) ;; no longer used
+   (int (uid pw_uid))          ;; user's uid
+   (int (gid pw_gid))          ;; user's gid
+   ;;(string (age pw_age))     ;; not used
+   ;;(string (comment pw_comment))   ;; not used
+   (string (gecos pw_gecos))   ;; typically user's full name
+   (string (dir pw_dir))       ;; user's home dir
+   (string (shell pw_shell))   ;; user's login shell
+   ))
+
+(define-export (getlogin::bstring)
+  (let((login::string (pragma::string "getlogin()")))
+    (if (pragma::bool "$1 == NULL"login)
+	(cerror "getlogin")
+	login)))
+
+; (define-export (getlogin)
+;   (pragma "int getlogin_r (char *, size_t); char name[1024]")
+;   (and(pragma::bool "!getlogin_r(name, sizeof(name))")
+;       (pragma::string "name")))
+
+; The cuserid() function is obsoleted. FIXME: use getpwuid(getuid())
+; or getpwuid(geteuid()) to get similar info
+;; (define-export (cuserid::bstring)
+;;   (pragma "char * cuserid ( char *string ); char name[L_cuserid]")
+;;   (when(pragma::bool "cuserid(name) == NULL")
+;;        (cerror "cuserid"))
+;;   (pragma::string "name"))
+
+  
+(define-export (getpwnam what::symbol #!optional user)
+  (let((pwd(pragma::passwd
+	    "(struct passwd*)GC_malloc_atomic(sizeof(struct passwd))"))
+       (result::passwd(pragma::passwd "NULL"))
+       (buffer::string(make-string 1024))
+       (user(or user (pragma::int "getuid()"))))
+    (when
+     (cond((string? user)
+	   (pragma::bool "GETPWNAM_R($1, $2, $3, $4, &$5)"
+			 ($bstring->string user)
+			 pwd
+			 buffer
+			 1024
+			 result))
+	  ((integer? user)
+	   (pragma::bool "GETPWUID_R($1, $2, $3, $4, &$5)"
+			 ($bint->int user)
+			 pwd
+			 buffer
+			 1024
+			 result))
+	  (else
+	   (error "getpwnam" "Invalid user argument type: must be string or integer"user)))
+     (cerror "getpwent"))
+    (case what
+      ((uid)(pragma::int      "$1->pw_uid" pwd))
+      ((gid)(pragma::int      "$1->pw_gid" pwd))
+      ((gecos)(pragma::string "$1->pw_gecos" pwd))
+      ((dir)(pragma::string   "$1->pw_dir" pwd))
+      ((shell)(pragma::string "$1->pw_shell" pwd))
+      (else
+       (error "getpwent"
+	      "Invalid field name, must be one of: name uid gid gecos dir shell"
+	      what)))))
+
+(define-export (strxfrm::bstring s::bstring)
+  (let*((len(string-length s))
+	(result(make-string len)))
+    (pragma::int "strxfrm($1, $2, $3)"
+		 ($bstring->string result)
+		 ($bstring->string s)
+		 ($bint->int (+fx len 1)))
+    result))
+
+(define-export (memcmp::int s1::bstring s2::bstring #!optional n)
+  (let((n::int(or n(min(string-length s1)(string-length s2))))
+       (cs1::string s1)
+       (cs2::string s2))
+    (check-range
+     (unless(and(<=fx n (string-length s1))(<=fx n (string-length s2)))
+	    (error "memcmp" "index too large"n)))
+    (pragma::int "memcmp($1, $2, $3)" cs1 cs2 n)))
+;;(memcmp "asdD" "asdC" 4)
+
+;; these are probably SRFI-14 business
+(define-export (char-alpha? c::uchar)
+  (pragma::bool "isalpha($1)"c))
+
+(define-export (char-upper? c::uchar)
+  (pragma::bool "isupper($1)"c))
+
+(define-export (char-lower? c::uchar)
+  (pragma::bool "islower($1)"c))
+
+(define-export (char-digit? c::uchar)
+  (pragma::bool "isdigit($1)"c))
+
+(define-export (char-xdigit? c::uchar)
+  (pragma::bool "isxdigit($1)"c))
+
+(define-export (char-alnum? c::uchar)
+  (pragma::bool "isalnum($1)"c))
+
+(define-export (char-space? c::uchar)
+  (pragma::bool "isspace($1)"c))
+
+(define-export (gethostname::bstring)
+  (let((buffer::string(pragma::string "(char*)GC_malloc_atomic(1024)")))
+    (when(pragma::bool "gethostname($1, 1024)"buffer)
+	 (cerror "gethostname"))
+    buffer))
+
+(define-export (getdomainname::bstring)
+  (let((buffer::string(pragma::string "(char*)GC_malloc_atomic(1024)")))
+    (when(pragma::bool "getdomainname($1, 1024)"buffer)
+	 (cerror "getdomainname"))
+    buffer))
+
+(define-export (readlink::bstring path::string)
+  (let*((buffer::bstring(make-string 1024))
+	(cbuffer::string buffer)
+	(got(pragma::int "readlink($1, $2, 1024)" path cbuffer)))
+    (if (<fx got 0)
+	(cerror "readlink")
+	(substring buffer 0 got))))
+
+@if (not bigloo-has-sleep?)
+  (define-func (sleep usleep) void ((int microseconds)))
+@endif
+
+(define-func fork int ())
+
+(define-flags (waitpid-options "int")
+  (nohang WNOHANG) ;;return immediately if no child has exited.
+  (untraced WUNTRACED) ;;also return for children which are stopped, and whose status has not been reported.
+  )
+
+(define-export  (waitpid pid::int #!rest options)
+  (let*((status::int (pragma::int "0"))
+	(options::waitpid-options options)
+	(pid::int pid)
+	(return::int (pragma::int "waitpid($1, &$2, $3)"
+				  pid status options)))
+    (list return
+	  (pragma::bool "WIFEXITED($1)"status)
+	  (pragma::int "WEXITSTATUS($1)"status)
+	  (if(pragma::bool "WIFSIGNALED($1)"status)
+	     (pragma::int "WTERMSIG($1)"status)
+	     #f)
+	  (if(pragma::bool "WIFSTOPPED($1)"status)
+	     (pragma::int "WSTOPSIG($1)"status)
+	     #f)
+	  )))
+
+(define-export  (wait)
+  (let*((status::int (pragma::int "0"))
+	(return::int (pragma::int "wait(&$1)" status)))
+    (list return
+	  (pragma::bool "WIFEXITED($1)"status)
+	  (pragma::int "WEXITSTATUS($1)"status)
+	  (if(pragma::bool "WIFSIGNALED($1)"status)
+	     (pragma::int "WTERMSIG($1)"status)
+	     #f)
+	  (if(pragma::bool "WIFSTOPPED($1)"status)
+	     (pragma::int "WSTOPSIG($1)"status)
+	     #f)
+	  )))
+
+(define-export  (pipe)
+  (let((filedes::void* (pragma::void* "GC_malloc_atomic(2 * sizeof(int))")))
+    (when(pragma::bool "pipe($1)"filedes)
+	 (cerror "pipe"))
+    (values (pragma::int "((int*)$1)[0]"filedes)
+	    (pragma::int "((int*)$1)[1]"filedes))))
+
+(define-export  (fdopen::file fd::int mode::string)
+  (let((result::file(pragma::file "fdopen($1, $2)"fd mode)))
+    (if(pragma::bool "$1 == NULL" result)
+       (cerror "fdopen")
+       result)))
+
+(define-export  (make-input-port::input-port
+		 kindof::obj
+		 name::bstring
+		 fd::int #!optional buflen)
+  (let((buflen::int (or buflen 8192)))
+    ;;(pragma "{ extern obj_t make_input_port(char* name, FILE* file, obj_t kindof, long bufsiz)}")
+    (pragma::input-port "(obj_t)bgl_make_input_port($1, fdopen($2,\"r\"),$3,$4)"
+			name fd kindof buflen)))
+
+#|
+(define-export  (make-output-port::output-port kindof::obj name::string fd::int)
+    (pragma
+     "extern obj_t bgl_make_output_port(char* name, FILE* file, obj_t kindof, obj_t buf,
+		      size_t (*write)(),
+		      long (*seek)(),
+		      int (*close)() )")
+    (pragma::output-port "make_output_port($1,fdopen($2,\"w\"),$3)"
+			 name fd kindof))
+
+(define-export (make-pipe #!optional buflen name)
+  (let((name(or name "pipe")))
+    (receive
+     (in out)
+     (pipe)
+     (values(make-input-port 3 name in (or buflen 8192))
+	    (make-output-port 3 name out)))))
+|#
+
+(define-object fd_set ())
+
+;; GCC says it's dangerous
+;(define-export (mktemp #!optional (prefix (format "/tmp/~aXXXXXX"(getpid))))
+;  (let((result (string-copy prefix)))
+;    (let((cresult::string result))
+;      (if (pragma::bool "mktemp($1) == NULL || !$1[0]" cresult)
+;	  (error "mktemp" "invalid template" prefix)
+;	  result))))
+
+(define-export (mkstemp::pair #!optional prefix)
+  (let*((result(if prefix
+		   (string-copy prefix)
+		   (format "/tmp/~aXXXXXX"(getpid))))
+	(cresult::string result)
+	(fd(pragma::int "mkstemp($1)" cresult)))
+    (if (<fx fd 0)
+	(cerror "mkstemp" result)
+	(cons result fd))))
+
+;; GCC says it's dangerous
+;;(define-func tempnam string ((string dir (= "NULL"))(string prefix (= "NULL"))))
+
+@if enable-flock
+
+;; TODO: provide a replacement for systems which do not support flock
+;; (i.e. Solaris) using fcntl(2) or using ucb compatibility libs and
+;; headers
+
+(define-flags (flock-flags int)
+  (sh LOCK_SH)  ;; Shared lock.  More than one process may hold a
+		;; shared lock for a given file at a given time.
+
+  (ex LOCK_EX)  ;; Exclusive lock.  Only one process may hold an
+		;; exclusive lock for a given file at a given time.
+
+  (un LOCK_UN)  ;; Unlock.
+
+  (nb LOCK_NB)  ;; Don't block when locking.  May be specified (by
+		;; or'ing) along with one of the other operations.
+)
+
+(define-export (flock fd::int #!rest operation)
+  (let((operation::flock-flags (if (pair? operation)operation (pragma::flock-flags "LOCK_EX"))))
+    (when(pragma::bool "flock($1, $2)" fd operation)
+	 (cerror "flock"))))
+
+@endif
+
+;; This function is useful when storing Scheme string in structures
+;; not managed by GC
+(define-export (strdup::bstring s::bstring)
+  (let*((size::int(+fx(string-length s)(pragma::int "STRING_SIZE")))
+	(obj::bstring(pragma::bstring"(obj_t)malloc($1)"size)))
+    (pragma "memcpy($1, $2, $3)"obj s size)
+    obj))
+
+(define-export (file-contents what)
+  (let((fd(cond((integer? what)
+		what)
+	       ((string? what)
+		(open what))
+	       (else
+		(error "file-contents"
+		       "argument must be filename of file descriptor"
+		       what)))))
+    (if (isatty fd)
+       
+       ;; read all to string buffer
+       (let((buffer(open-output-string)))
+	 (let loop()
+	   (let((gotbytes(fdread fd 4096)))
+	     (display gotbytes buffer)
+	     (if(or(=fx(string-length gotbytes) 4096)
+		   (pragma::bool "errno == EAGAIN"))
+		(loop)
+		(begin
+		  (cerror "file-contents")
+		  (get-output-string buffer))))))
+       
+       (let*((statbuf(stat fd))
+	     (size(stat-size statbuf)))
+	 (fdread fd size)))))
+;(file-contents "misc.scm")
+
+(define-func strcoll int ((string a)(string b)))
+
+(define-export (utime filename::string actime::elong modtime::elong)
+  (let((result::int (pragma::int "0")))
+    (pragma::bool
+     "{struct utimbuf ub; ub.actime = $1; ub.modtime = $2; $3 = utime((const char *)$4, &ub);}"
+     actime
+     modtime
+     result
+     filename)
+    (cerror "utime")))
+

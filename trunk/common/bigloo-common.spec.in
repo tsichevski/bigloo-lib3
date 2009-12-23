@@ -1,0 +1,70 @@
+# -*-rpm-spec-*-
+%define version	@VERSION@
+%define release	1
+%define name 	bigloo-common
+%define realname  bigloo-common
+
+Summary: 	bigloo-lib core bindings and utilities
+Name:    	%{name}
+Version: 	%{version}
+Release: 	%{release}
+Copyright: 	LGPL
+Vendor:		Vladimir Tsichevski <wowa1@online.ru>
+Source: 	bigloo-common-@VERSION@.tar.gz
+Group:		Development
+Packager:	Vladimir Tsichevski <wowa1@online.ru>
+BuildRoot:	/var/tmp/bigloo-common
+Requires:	bigloo >= 2.5c, curl >= 7.9.6
+BuildRequires:	bigloo >= 2.5c, curl-devel >= 7.9.6
+
+%description
+
+The bigloo-common is the core part of bigloo-lib library, a set of
+libraries for Bigloo, the Scheme programming language compiler
+(<http://www-sop.inria.fr/mimosa/fp/Bigloo/>).
+
+bigloo-common includes:
+
+-- internationalized basic and extended regular expression matching
+   procedures (regex)
+-- The GNU DBM interface
+-- MzScheme compatibility procedures
+-- Dynamic link support
+-- SRFI-1 List Library
+-- SRFI-13 String Library
+-- cgen: bigloo preprocessor, required to build interfaces to C
+-- interface to iconv: charset conversion procedures
+-- interface to C  time and date routines
+-- afile: advanced replacement for Bigloo afile utility
+-- commandline: Command-line applications support (readline, history etc.)
+
+Install bigloo-common if you need these in programs compiled with
+Bigloo.
+
+%prep
+
+%setup
+%configure
+
+%build
+make
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+make install DESTDIR=%{buildroot}
+
+%clean
+#rm -rf %{buildroot}
+
+%post
+
+%postun
+
+%files
+%{_bindir}/*
+%{_libdir}/bigloo/*
+
+%changelog
+* Sat Jun  7 2003 Vladimir Tsichevski <wowa1@online.ru> @VERSION@-1
+- first edition

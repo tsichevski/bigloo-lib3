@@ -1,0 +1,13 @@
+;; -*-Scheme-*-
+(set! *include-foreign*
+      (append
+       '(@common_headers@
+	 ;;"common.h"
+	 )
+       *include-foreign*))
+(set! *ld-post-options*
+      (string-append
+       *ld-post-options*
+       " @iconv_libs@ @crypt_libs@ @commandline_libs@ @gdbm_libs@ @db_libs@ @curl_libs@ @pthread_libs@ "
+		     ))
+;;(loadq "common.sch")

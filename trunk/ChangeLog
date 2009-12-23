@@ -1,0 +1,693 @@
+2004-09-06  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* bigloo-lib.m4 (includedir): check for pthreads moved here from
+	common/common.m4; the bigloo lib names section fixed to allow
+	using GC library compiled for pthreads
+
+2004-08-19  wowa  <wowa@wowa-note.ouis.jet.su>
+
+	* bigloo-lib.m4 (includedir): wring variable name:
+	$ac_cv_search_dl, must be $ac_cv_search_dlopen
+
+2004-08-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Makefile.am (EXTRA_DIST): bigloo-lib.m4 was missing in
+	distribution
+
+2003-09-11  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* bigloo-lib.m4: fix: afile_target wasn't set properly
+
+2003-09-01  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* *.spec.in: Bigloo more recent than 2.5c is now allowed to build RPMs
+
+2003-07-29  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Makefile.am (subdirs-maintainer-clean): a new target added. I
+	It deletes bootstrap files (`configure', `ltmain.sh' etc.) in subdirs.
+	It reduces the size of the bigloo-lib package.
+
+2003-07-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* bigloo-lib.m4 (lib_LIBRARIES_target): wrong name for static
+	libraries fixed
+
+2003-05-26  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in: check for MySQL presense fixed
+
+	* autoconf-2.57 and automake-1.7.3 are now used to configure the
+	package
+
+2003-07-08  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* got rid of using `config.h'. With autoconf you can do without it
+
+2002-12-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* bigloo-lib-0.19 has been uploaded to SourceForge
+
+	* common/Makefile.am: apropos target is no more optional; fix:
+	crypt and mzcompat targets removed from DEFS target list
+
+2002-12-19  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in, ldap/ldap.defs: forced recent ldap API
+	compatibility: check whether the lber library required and
+	present; check whether ldap_modrdn2 present and is required
+
+
+2002-12-13  Vladimir Tsichevski  <wowa@localhost>
+
+	* bigloo-lib-0.19-beta has been released
+
+	* common/string-lib.scm: string-titlecase implemented
+
+	* common/os.defs: setenv interface added
+
+	* bgtk/gtk.sch: declare-class-methods added undocumented
+
+	* bgtk/Makefile.am, Makefile.rules: target structure (almost)
+	completely redesigned, see makefile-structure.gd scheme
+
+	* config.scm.in: added
+
+	* common/socket.scm, common/time.scm, common/regex.scm,
+	common/pthread.scm, common/readline.scm, common/os.scm,
+	common/locale.scm, common/iconv.scm, common/gdbm.scm,
+	common/curl.scm, common/bigloo-compat.scm: formerly needed to
+	bootstrap, now cgen doesn't need these anymore
+
+	* common/test.scm: process environment-related test added
+
+	* common/mzcompat.scm: read-string removed
+
+	* common/misc.scm: read-string renamed to scheme-read-string;
+	file-contents moved to os.defs
+
+	* common/pthread.defs, common/socket.defs, common/gdbm.defs: now
+	compile with gcc 2.96
+
+	* common/curl.defs: curl version dependency added (but never used
+	still)
+
+	* common/cgen.scm: explicit file names in module import section;
+	other changes undocumented
+
+	* bgtk/gtk.defs: gtk-fixed type procs went to another module;
+	gtk-type-from-name reimplemented manually
+
+	* bgtk/gtk-compat.scm: call gtk-init does not require gtk-compat
+	module be initialised at the time of the call
+ 
+	* test.sch: (test-true) macro added
+
+	* configure.in: test whether bigloo revision is compatible
+	removed, the 2.5c final is the only suitable revision to build
+	bigloo-lib-0.19. In the future I will test for features, not for
+	revision; method of querying bigloo library name ajusted for
+	Bigloo 2.5c; check whether bpp workable was added; cgenoptions
+	variable is no more used, config.scm used to configure cgen
+	instead; check for revision of curl was added: must be 7.9.6 or
+	more recent; checks for setenv() and flock() were added;
+	config.scm added to filtered files list
+
+	* README: notes for the 0.19 release
+
+	* rdbms/Makefile.am, node/Makefile.am, http/Makefile.am,
+	ldap/Makefile.am, expat/Makefile.am, common/Makefile.am,
+	Makefile.am, Makefile.rules: target structure (almost) completely
+	redesigned, see makefile-structure.gd scheme
+
+2002-12-04  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in: a configuration file was created, which is loaded
+	by cgen. At configuration time file is preprocessed by
+	`configure'. cgenoptions configuration variable is not used
+	anymore
+
+	* common/misc.scm et al (read-string): renamed to
+	scheme-read-string to avoid name conflict in bigloo2.5c
+
+2002-10-01  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/gdbm.defs (): C code blocks in pragmas ported to gcc-2.96
+
+2002-09-25  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/os.defs: `strdup' procedure added which copies strings to
+	malloc'ed space.
+
+	* bgtk/widget.defs (gtk-widget-size-allocate-handler): error
+	fixed: pointed to wrong callback function previously
+
+	* bgtk/pixmap.defs (gtk-pixmap-create-from-xpm): proto changed:
+	window argument always should be provided; `bg-color' argument
+	renamed to `transparent'; if the second argument is not a string
+	(filename), it is treated as pixmap data, and it should be a list
+	of string
+
+2002-09-24  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bgtk/examples/new-widget-class* (): examples of new widget class
+	creation support added
+
+2002-09-22  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bgtk/ruler.defs (gtk-vruler-new, gtk-hruler-new): object
+	attributes may be passed to these procedures as keyword arguments
+
+2002-09-21  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bgtk/arg.defs (list->gtk-arg): support for the GTK_VALUE_FLAGS
+	added
+
+	* bgtk/*: interface of creation of labelled objects
+	(gtk-xxx-button-new, gtl-xxx-item-new) made backward compatible:
+	keyword argument is no more necessary to pass the label string
+	argument
+
+2002-09-20  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/iconv.defs (iconv): subtle error due to
+	super-optimization in -Obench fixed
+
+	* bgtk/gtk-compat.scm (gtk-pixmap-create-from-xpm): result of
+	internal C calls checked for errors
+
+	* bgtk/Makefile.am (DEFS_INCLUDED): fix: bgtk library depended on
+	testgtk.defs and tesdnd.defs sources; drag-icon.xpm added to the
+	distribution list
+
+2002-09-19  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* (configure.in, */Makefile.am): linking of `driver' modules:
+	library list fixed. Compiling of static libraries made possible.
+
+2002-09-08  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/test.scm (lset-xor): bug in the reference implementation
+	fixed: (lset-xor string=? '("a") '("a")) generated an error
+
+2002-09-04  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bgtk/scale.defs ((gtk-vscale-new::gtk-vscale adj::gtk-adjustment
+	. keys+values)): {h,v}scale went to a module, constructor now
+	accepts keyed attributes
+
+2002-09-01  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/cgen.scm ((import filename::bstring)): new clause added:
+	define-export
+
+2002-08-08  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/time.defs (localtime, gmtime): time argument is now
+	defaulted to the current time
+
+2002-07-28  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* gtk/{window,gtk,*button}.defs: gtk-{window,*button,dialog}-new:
+	proto changed: object attributes may be set at the window creation
+	time, for example: (gtk-window-new title: "The title"
+	border_width: 5)
+
+2002-07-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs (flock): new function added
+	(wait) just added
+	(wait, waitpid) now return the status info splitted
+
+2002-07-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs (mktemp): new function added
+
+2002-06-15  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/format.scm: file was removed from project, the contents
+	of this file was moved to the bigloo-compat.defs and is compiled
+	only if bigloo is older than 2.5b
+
+2002-06-12  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/misc.scm ((object-data-... o)): fixed
+
+2002-06-10  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/time.defs (read-date): `%y' spec (year without a century)
+	support added
+
+2002-06-08  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* rdbms/adhoc.scm ((gui-mode)): status line widget added
+	((connect)): an OS signal handler is set up to react on Ctrl-C
+	signals after the connection to RDBMS is established (needed since
+	oracle client library disables a such handler)
+
+2002-06-07  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/rdbms.scm : add slot rdbms session to hold SQL statement
+	to facilitate reporting errors
+
+2002-06-07  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/os.defs (os): new functions were added fdopen, make-pipe,
+	make-input-port, and make-output-port
+
+2002-06-02  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/iconv.defs ((make-iconv from to)): the resulting
+	procedure, being called with no arguments, now closes the iconv
+	process
+
+2002-05-28  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/curl.defs ((curl-easy-setopt)): option values are
+	GC-protected with object-data-set!
+
+	* common/misc.scm (misc): object-data-... functions were added to
+	replace object-ref/unref
+
+2002-05-21  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/oracle.defs (execute): output binding of NUMBERs fixed
+
+2002-05-18  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/iconv.defs (iconv) default invalid character handler was added
+
+2002-05-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/string-lib.scm (string-trim-*): any whitespace character
+	is trimmed by default; bug fixed: string containing only blanks
+	weren't trimmed at all
+
+2002-05-14  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/iconv.defs ((iconv)): wrong input character sequence
+	error now reports offset of the offending character; iconv now
+	takes also optional start/end arguments
+
+	* common/pthread.defs (pthread-create): attributes can be set for
+	the thread created
+
+2002-05-09  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* configure.in: configuration for pthread support added
+
+2002-05-04  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* configure.in: configuration of the CURL support added
+
+2002-04-29  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/test.scm: all `cond-expand' clauses have their `else'
+	parts received
+
+	* rdbms/adhoc.scm ((connect)): only non empty keyed parameter list
+	are included in keyed argument list
+
+	* common/test.scm ((time-test)): ctime test works in any timezone
+	now (thanks to Todd Dukes <tdukes@austin.rr.com>)
+
+2002-04-27  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs: fork, waitpid, sleep, usleep were added
+
+2002-04-22  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/cgen.scm: copy handler may be registered for objects
+
+2002-04-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/oracle.defs (execute::bool self::oracle-session): input
+	bindings for integers of all kinds were added (untested)
+
+2002-04-10  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/cgen.scm ((cpp->scheme cpp-name)): dots are now
+	transformed to dashes as well as underscores
+
+2002-03-31  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bigloo-lib 0.17 has been released
+
+	* docs/rdbms.texi: RDBMS library documentation updated
+
+	* rdbms/rdbms.scm ((dismiss!)): dismiss! all bound session objects
+	either.
+
+2002-03-27  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* node/sgml-node.scm (sgml-node-display)): an optional argument
+	added which defines the list of EMPTY element names
+
+2002-03-26  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* expat/expat-utils.scm (xml-build-node): element and attribute
+	names are now case-sensitive (as bigloo symbols are now
+	case-sensitive)
+
+2002-03-26  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/oracle.defs (execute)): selection of LONG and LONG RAW
+	columns support was added
+
+2002-03-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs: `readlink' function was added
+
+2002-03-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/cgen.scm (x-define-enum): coercers from Bigloo `short'
+	and `long' types were added
+
+2002-03-14  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/test.scm: oracle test has been prepended
+
+	* rdbms/oracle.defs ((prepare::bool self::oracle-session
+	sql::bstring)): bug fix - session prepare operation must clean
+	last parameter bindings.
+
+2002-02-01  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/string-lib.scm: string-tokenize implemented
+
+2002-01-31  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/gdbm.defs: The GNU DBM support added (yet undocumented)
+
+	* common/misc.scm (with-current-input-string)): procedure
+	removed. Use Bigloo `with-input-from-string' equivalent instead
+
+2002-01-26  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/cgen.scm: if we define both scheme and C names when
+	defining a new object type, then the translation will always be
+	used later
+
+
+2002-01-22  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/pgsql.defs (pgsql): PostgreSQL support provided by Alex
+	Ott <ott@jet.msk.su> was added
+
+	* all sources: Copyright messages were inserted into most source
+	files.
+
+2001-12-28  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/cgen.scm (define-func): argument names in proto can be
+	omitted now
+
+2001-12-27  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/regex.defs: regexp now accepts compiled regexp as argument.
+
+2001-12-23  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* rdbms/test.scm (sqlite): authomated test of sqlite backend was
+	added
+
+2001-12-22  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/misc.scm (string*->string-list): an optional length
+	argument can be passed to this procedure to convert arrays of
+	pointers which are not NULL-terminated
+
+2001-12-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in: SQLite support development started
+
+2001-12-19  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs (errno): errno reimplemented using
+	`define-global' cgen directive (when called with parameter it
+	returns the old errno value)
+
+	* common/cgen.scm: `define-global' directive is recognized which
+	wraps access to a C global variable
+
+2001-12-16  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/misc.scm: string*->string-list and string-list->string*
+	convenience procedures were introduced
+
+	* configure.in: optional subpackage `commandline' was added to
+	`common' library. The subpackage includes `termios' module
+	(complete) and `readline' modules (development just started)
+
+2001-12-09  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* configure.in: change to use AM_PATH_GTK when configuring gtk
+	interface
+
+2001-11-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/cgen.scm ((define-accessors)): new feature: `modifier'
+	directive indicates that not only getter but setter procedure has
+	to be created for a field. TODO: converting of new field values
+	based on `false' directive is not supported still
+
+2001-11-11  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* */driver.scm: make-driver script was added to automatically
+	create driver.scm for each library
+
+	* configure.in: LDAP configuration. Check was added whether
+	-lresolv is required to link binaries. Openldap2 library has some
+	unresolved symbols init.
+
+2001-10-28  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* gtk/gtk-compat.scm (gtk-init): call synopsis changed. See the
+	documentation in gtk-refman.texi
+
+	* gtk/fileselection.defs (GtkFileSelection): all fields made
+	visible to allow file selection disabling
+
+2001-10-27  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* (common): bigloo compatibility implemented using conditional
+	compilation feature of cgen
+
+	* (*/driver.scm): all driver programs take an -I and --help
+	options now; it is possible to define the path where the loaded
+	files will be searched
+
+2001-10-26  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in (cgenoptions): LDAP module compilation is optional
+	now (compiling on systems where with too old or too late LDAP
+	libraries are installed may cause troubles)
+
+	* common/cgen.scm ((import filename::bstring)): buf fixed: too
+	late check if the imported module file wasn't found
+
+2001-10-22  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/locale.defs (setlocale): from now on all arguments are
+	optional
+
+2001-10-13  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* ./configure.in: move to gtk2 has begun: if --with-gtk2 is set,
+	link against gtk2 set of libraries is attempted (and failed of
+	course :-)
+
+	* gtk/*.defs: move to gtk2 has begun: functions deprecated in gtk2
+	marked as such;
+
+2001-10-11  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/cgen.scm ( cgen): @if/@endif directives are recognized in
+	any list within any cgen expression
+
+2001-10-09  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/cgen.scm ((import filename::bstring)): @else directive is
+	recognized in @if/@endif block
+
+2001-10-07  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* docs/gtk-refman.texi: gtk-editable API documentation was completed
+
+	* common/cgen.scm ((define-func names return-spec proto-spec
+	. options)): The generated procedures formal parameter names are
+	also converted to scheme style
+	((import filename::bstring)): @if directive is CPP-style now
+
+	* gtk/gdk-1.2.defs: gtk-event-xxx accessors moved here from gtk-compat.defs
+
+2001-10-06  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* gtk/editable.defs (GtkEditable): internal structure public
+	member accessor were added
+
+2001-10-05  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* gtk/gtk-compat.scm (all mouse-button event getters): missing
+	2button-press and 3button-press events were added
+
+2001-10-04  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* gtk/window.defs: gtkwindow stuff went to a standalone module.
+	Some gtk-1.3 stuff was added (completely untested)
+
+	* common/cgen.scm (@if): The -e command option and @if directive
+	were added to enable conditional processing
+
+2001-10-03  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* gtk/handlebox.defs (GtkHandleBox): went to a standalone module
+
+	* gtk/clist.defs (gtk-clist-append gtk-clist-prepend): each column value passed as an argument
+
+2001-10-01  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs ((stmode int)): new flag set is introduced for st_mode field of stat structure
+
+	* common/cgen.scm ((define-flags names . enum)): added support for multi-bit flags
+
+2001-09-23  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* gtk/gtk.defs: GtkClist support went to its own module;
+	gtk-clist-get-text function was implemented
+
+	* bigloo2.4a is supported now (CVS only)
+
+2001-07-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/mysql.defs: FIELD_TYPE_DATETIME support was added (thanks
+	to Detlev Zundel <detlev.zundel@stud.uni-karlsruhe.de>)
+
+2001-06-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in (AM_INIT_AUTOMAKE): revision number updated
+
+2001-04-02  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* configure.in: bug fix in iconv library detecting: was attempted
+	to link against "none required" library
+
+2001-03-24  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* Can be compiled by bigloo2.3a now.
+
+	* gd/Makefile.am: files missing from distributive error fixed
+
+2001-03-15  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* /cvsroot/bigloo-lib/Makefile.rules: BIGLOO_LIBS value fixed
+
+2001-03-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/time.defs (tzname::bstring): fixed: strings returned by
+	tzname() may be non null-terminated
+
+2001-03-15  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/time.defs ((read-date::tm fmt::bstring port::input-port)):
+	minor bug fixed
+
+2001-03-14  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* common/cgen.scm (cgen): code generation fixed: declaring C
+	variable, and using it in different bigloo pragmas resulted to
+	code than cannot be processed by bigloo compiler in -g4 mode
+
+	* docs/rdbms.texi (Bigloo SQL database interface): fixed: missing
+	category field in deffn section resulting in problem when creating
+	DVI
+
+	* common/dl.defs (dlopen): fixed: wrong mode parameter treatment
+	resulted in a wrong default argument value
+
+2001-03-13  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in (-ldl stuff): fixed for systems with no dlXXX() available
+
+	* Makefile.rules (BIGLOO_LIBS): switched to indirect bigloo
+	runtime library references in order to compile on HP
+
+	* configure.in, common/Makefile.in, common/mmap.defs: mmap-related
+	functions may be configured out on systems where broken mmap is
+	reported by AC_FUNC_MMAP (i.e. HP)
+
+2001-03-04  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* configure.in: common/init.scm* cleaned up; checkin whether
+	-liconv is required added (thank to Bruno Haible <haible@ilog.fr>)
+
+2001-02-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* rdbms/mysql.defs: positional binding of SQL statement parameters
+	implemented
+
+2001-02-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* docs/rdbms.texi complete example fixed
+
+	* rdbms/mysql.defs: bug fix: statement state was not properly
+	cleaned by `prepare'
+
+	* rdbms/mysql.defs: mysql error message printed if execution error
+	occured
+
+2001-02-13  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in: use mysql_config to configure mysql build
+
+2001-02-11  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/string-lib.scm: strncmp bug fixed (when any two strings
+	of different lengths were compared, the longes was always returned
+	as the biggest one.
+
+2001-02-07  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/dl.defs: interface to dynamic link library (libdl.so) was
+	added
+
+2001-01-30  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/os.defs `stat' and `passwd' accessors renamed
+
+	* common/time.defs tm structure accessors renamed
+
+	* common/cgen.scm C and Scheme type names may be declared
+	explicitly in `fields' directive of `define-object'. Convenience
+	procedures `namedef-cname' and `namedef-sname' to access/create
+	such names were introduced.
+
+2001-01-28  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/string-lib.scm: string-filter fixed; string-delete implemented
+
+	* common/misc.scm: pair->0..2^x-1 procedure was added to compute
+	hash numbers for Scheme lists
+
+2001-01-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* expat configuration: open source expat library support added
+
+2001-01-21  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common/string-lib.scm: prefix/suffix procedures implementations
+	were added; some protos were fixed
+
+2001-01-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* gtk/gtk-compt.scm: all C `switch' statements fixed (break;s were
+	missed. Shame on me!)
+
+	* gtk/gtk-compt.scm: gtk-init interface changed, it is now save call
+	  it many times
+	* common/csrfi-13.c: fixed
+	* gtk/signal.defs: now individual signal marshallers may be registered
+	* gtk/widget.defs, gtk/editable.defs: specific signal marshallers added
+	
+	
+

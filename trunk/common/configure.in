@@ -1,0 +1,36 @@
+AC_INIT(Makefile.rules)
+AM_INIT_AUTOMAKE(bigloo-common, 0.21)
+#AM_CONFIG_HEADER(config.h)
+
+dnl check for valid cgen utility
+
+AC_PATH_PROG(cgen, cgen)
+
+if test -f ${srcdir}/cgen.scm; then
+    cgen=${objdir}/cgen${EXEEXT}
+else
+    if test -f ${objdir}/../common/cgen${EXEEXT}; then
+	cgen=${objdir}/../common/cgen${EXEEXT}
+    fi
+fi
+
+if test -z "$cgen"; then
+  AC_MSG_ERROR([cannot find the 'cgen' utility])
+fi
+
+dnl AC_CHECK_PROG_VER(cgen, cgen,
+dnl     [--version],
+dnl     [\([1-9][.][0-9]+\)],
+dnl     [1.[012345]],
+dnl     [CGEN=with_cgen=no])
+
+m4_include([bigloo-lib.m4])
+m4_include([common.m4])
+
+AC_PROG_LIBTOOL
+
+AC_OUTPUT([					\
+  Makefile					\
+  bigloo-common.spec				\
+  common.init					\
+])

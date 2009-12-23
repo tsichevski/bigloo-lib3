@@ -1,0 +1,719 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ readline
+ (import os misc)
+ (include "common.sch")
+ (extern (include "readline/readline.h")
+	 (include "string.h"))
+ (export
+  (rl-library-version::string)
+  (set-rl-readline-name! name::string)
+  (readline #!optional prompt)
+  (rl-bind-key-callback::bool a::int b::int)
+  (rl-bind-key::bool key::int handle #!optional map)
+  (rl-unbind-key::bool key::int #!optional map)
+  (rl-completion-entry-function-cb::string s::string state::int)
+  (set-rl-completion-function! #!optional generator)
+
+  (rl-attempted-completion-function-callback::string*
+   s::string
+   start::int
+   end::int)
+  (set-attempted-completion-function! #!optional generator)
+  )
+
+ (extern
+  (export rl-bind-key-callback "rl_bind_key_callback")
+  (export rl-completion-entry-function-cb
+	  "rl_completion_entry_function_callback")
+  (export rl-attempted-completion-function-callback
+	  "rl_attempted_completion_function_callback")
+  )
+ )
+
+;; Readline data structures. 
+
+;; Maintaining the state of undo.  We remember individual deletes and
+;; inserts on a chain of things to do.
+
+;; The actions that undo knows how to undo.  Notice that UNDO_DELETE
+;; means to insert some text, and UNDO_INSERT means to delete some
+;; text.  I.e., the code tells undo what to undo, not how to undo it.
+
+(define-enum (undo-code "enum undo_code")
+  (delete UNDO_DELETE)
+  (insert UNDO_INSERT)
+  (begin UNDO_BEGIN)
+  (end UNDO_END))
+
+;; what an element of the_undo_list looks like. 
+(define-object (undo-list "UNDO_LIST*") ()
+  (fields
+   (undo_list next)
+   (int start)
+   (int end)		;; Where the change took place.
+   (string text)        ;; The text to insert, if undoing a delete.
+   (undo_code what)     ;; Delete, Insert, Begin, End.
+   ))
+
+;; The current undo list for RL_LINE_BUFFER. 
+;; UNDO_LIST *rl_undo_list
+
+;; The data structure for mapping textual names to code addresses. 
+;typedef struct _funmap {
+;  char *name
+;  Function *function
+;} FUNMAP
+
+; FUNMAP **funmap
+
+;;; **************************************************************** 
+;;;								    
+;;;	     Functions available to bind to key sequences	    
+;;;								    
+;;; **************************************************************** 
+
+;;; Bindable commands for numeric arguments. 
+; int rl_digit_argument (int, int)
+; int rl_universal_argument (int, int)
+
+;;; Bindable commands for moving the cursor. 
+; int rl_forward (int, int)
+; int rl_backward (int, int)
+; int rl_beg_of_line (int, int)
+; int rl_end_of_line (int, int)
+; int rl_forward_word (int, int)
+; int rl_backward_word (int, int)
+; int rl_refresh_line (int, int)
+; int rl_clear_screen (int, int)
+; int rl_arrow_keys (int, int)
+
+;;; Bindable commands for inserting and deleting text. 
+; int rl_insert (int, int)
+; int rl_quoted_insert (int, int)
+; int rl_tab_insert (int, int)
+; int rl_newline (int, int)
+; int rl_do_lowercase_version (int, int)
+; int rl_rubout (int, int)
+; int rl_delete (int, int)
+; int rl_rubout_or_delete (int, int)
+; int rl_delete_horizontal_space (int, int)
+; int rl_delete_or_show_completions (int, int)
+; int rl_insert_comment (int, int)
+
+;;; Bindable commands for changing case. 
+; int rl_upcase_word (int, int)
+; int rl_downcase_word (int, int)
+; int rl_capitalize_word (int, int)
+
+;;; Bindable commands for transposing characters and words. 
+; int rl_transpose_words (int, int)
+; int rl_transpose_chars (int, int)
+
+;;; Bindable commands for searching within a line. 
+; int rl_char_search (int, int)
+; int rl_backward_char_search (int, int)
+
+;;; Bindable commands for readline's interface to the command history. 
+; int rl_beginning_of_history (int, int)
+; int rl_end_of_history (int, int)
+; int rl_get_next_history (int, int)
+; int rl_get_previous_history (int, int)
+
+;;; Bindable commands for managing the mark and region. 
+; int rl_set_mark (int, int)
+; int rl_exchange_point_and_mark (int, int)
+
+;;; Bindable commands to set the editing mode (emacs or vi). 
+; int rl_vi_editing_mode (int, int)
+; int rl_emacs_editing_mode (int, int)
+
+;;; Bindable commands for managing key bindings. 
+; int rl_re_read_init_file (int, int)
+; int rl_dump_functions (int, int)
+; int rl_dump_macros (int, int)
+; int rl_dump_variables (int, int)
+
+;;; Bindable commands for word completion. 
+(define-func rl_complete int ((int) (int)))
+
+; int rl_possible_completions (int, int)
+; int rl_insert_completions (int, int)
+; int rl_menu_complete (int, int)
+
+;;; Bindable commands for killing and yanking text, and managing the kill ring. 
+; int rl_kill_word (int, int)
+; int rl_backward_kill_word (int, int)
+; int rl_kill_line (int, int)
+; int rl_backward_kill_line (int, int)
+; int rl_kill_full_line (int, int)
+; int rl_unix_word_rubout (int, int)
+; int rl_unix_line_discard (int, int)
+; int rl_copy_region_to_kill (int, int)
+; int rl_kill_region (int, int)
+; int rl_copy_forward_word (int, int)
+; int rl_copy_backward_word (int, int)
+; int rl_yank (int, int)
+; int rl_yank_pop (int, int)
+; int rl_yank_nth_arg (int, int)
+; int rl_yank_last_arg (int, int)
+;;; Not available unless __CYGWIN32__ is defined. 
+;#ifdef __CYGWIN32__
+; int rl_paste_from_clipboard (int, int)
+;#endif
+
+;;; Bindable commands for incremental searching. 
+; int rl_reverse_search_history (int, int)
+; int rl_forward_search_history (int, int)
+
+;;; Bindable keyboard macro commands. 
+; int rl_start_kbd_macro (int, int)
+; int rl_end_kbd_macro (int, int)
+; int rl_call_last_kbd_macro (int, int)
+
+;;; Bindable undo commands. 
+; int rl_revert_line (int, int)
+; int rl_undo_command (int, int)
+
+;;; Bindable tilde expansion commands. 
+; int rl_tilde_expand (int, int)
+
+;;; Bindable terminal control commands. 
+; int rl_restart_output (int, int)
+; int rl_stop_output (int, int)
+
+;;; Miscellaneous bindable commands. 
+; int rl_abort (int, int)
+; int rl_tty_status (int, int)
+
+;;; Bindable commands for incremental and non-incremental history searching. 
+; int rl_history_search_forward (int, int)
+; int rl_history_search_backward (int, int)
+; int rl_noninc_forward_search (int, int)
+; int rl_noninc_reverse_search (int, int)
+; int rl_noninc_forward_search_again (int, int)
+; int rl_noninc_reverse_search_again (int, int)
+
+;;; Bindable command used when inserting a matching close character. 
+; int rl_insert_close (int, int)
+
+;;; Not available unless READLINE_CALLBACKS is defined. 
+; void rl_callback_handler_install (char *, VFunction *)
+; void rl_callback_read_char ()
+; void rl_callback_handler_remove ()
+
+;;; Things for vi mode. Not available unless readline is compiled -DVI_MODE. 
+;;; VI-mode bindable commands. 
+; int rl_vi_redo (int, int)
+; int rl_vi_undo (int, int)
+; int rl_vi_yank_arg (int, int)
+; int rl_vi_fetch_history (int, int)
+; int rl_vi_search_again (int, int)
+; int rl_vi_search (int, int)
+; int rl_vi_complete (int, int)
+; int rl_vi_tilde_expand (int, int)
+; int rl_vi_prev_word (int, int)
+; int rl_vi_next_word (int, int)
+; int rl_vi_end_word (int, int)
+; int rl_vi_insert_beg (int, int)
+; int rl_vi_append_mode (int, int)
+; int rl_vi_append_eol (int, int)
+; int rl_vi_eof_maybe (int, int)
+; int rl_vi_insertion_mode (int, int)
+; int rl_vi_movement_mode (int, int)
+; int rl_vi_arg_digit (int, int)
+; int rl_vi_change_case (int, int)
+; int rl_vi_put (int, int)
+; int rl_vi_column (int, int)
+; int rl_vi_delete_to (int, int)
+; int rl_vi_change_to (int, int)
+; int rl_vi_yank_to (int, int)
+; int rl_vi_delete (int, int)
+; int rl_vi_back_to_indent (int, int)
+; int rl_vi_first_print (int, int)
+; int rl_vi_char_search (int, int)
+; int rl_vi_match (int, int)
+; int rl_vi_change_char (int, int)
+; int rl_vi_subst (int, int)
+; int rl_vi_overstrike (int, int)
+; int rl_vi_overstrike_delete (int, int)
+; int rl_vi_replace (int, int)
+; int rl_vi_set_mark (int, int)
+; int rl_vi_goto_mark (int, int)
+
+;;; VI-mode utility functions. 
+; int rl_vi_check ()
+; int rl_vi_domove (int, int *)
+; int rl_vi_bracktype (int)
+
+;;; VI-mode pseudo-bindable commands, used as utility functions. 
+; int rl_vi_fWord (int, int)
+; int rl_vi_bWord (int, int)
+; int rl_vi_eWord (int, int)
+; int rl_vi_fword (int, int)
+; int rl_vi_bword (int, int)
+; int rl_vi_eword (int, int)
+
+;;; **************************************************************** 
+;;;								    
+;;;			Well Published Functions		    
+;;;								    
+;;; **************************************************************** 
+
+;;; Readline functions. 
+
+;;; Read a line of input.  Prompt with PROMPT.  An omitted argument means none.
+(define (readline #!optional prompt)
+  (let* ((prompt::string
+          (or prompt (pragma::string #"NULL")))
+	 (result::string
+	  (pragma::string #"readline($1)" prompt)))
+    (if(pragma::bool "$1 == NULL"result)
+       beof
+       (let((retval::bstring result))
+	 (pragma "free($1)"result)
+	 retval))))
+
+; int rl_initialize ()
+
+; int rl_discard_argument ()
+
+;;; Utility functions to bind keys to readline commands. 
+; int rl_add_defun (char *, Function *, int)
+
+(define *rl-bind-key-callback-registry*
+  (make-hash-table 256 pair->0..255 cdr equal?))
+
+(define (rl-bind-key-callback::bool a::int key::int)
+  (let((tuple(get-hash (list key (rl-get-keymap))
+		       *rl-bind-key-callback-registry*)))
+    [assert(a key tuple) (list? tuple)]
+    ((car tuple) a key)
+    ))
+
+(define (rl-bind-key::bool key::int handle #!optional map)
+  (let((map::keymap (or map (rl-get-keymap))))
+    (put-hash! (list handle key map)
+	       *rl-bind-key-callback-registry*)
+    (pragma::bool "rl_bind_key_in_map($1, rl_bind_key_callback, $2)"key map)))
+
+; int rl_unbind_key (int)
+(define (rl-unbind-key key::int #!optional map)
+  (let((map::keymap (or map (rl-get-keymap))))
+    (rem-key-hash! (list key map) *rl-bind-key-callback-registry*)
+    (pragma::bool "rl_unbind_key_in_map($1, $2)"key map)))
+
+; int rl_unbind_function_in_map (Function *, Keymap)
+; int rl_unbind_command_in_map (char *, Keymap)
+; int rl_set_key (char *, Function *, Keymap)
+; int rl_generic_bind (int, char *, char *, Keymap)
+; int rl_variable_bind (char *, char *)
+
+; Function *rl_named_function (char *)
+; Function *rl_function_of_keyseq (char *, Keymap, int *)
+
+; void rl_list_funmap_names ()
+; char **rl_invoking_keyseqs_in_map (Function *, Keymap)
+; char **rl_invoking_keyseqs (Function *)
+; 
+; void rl_function_dumper (int)
+; void rl_macro_dumper (int)
+; void rl_variable_dumper (int)
+
+; int rl_read_init_file (char *)
+; int rl_parse_and_bind (char *)
+
+;;; Functions for manipulating keymaps. 
+(define-object (keymap Keymap) () )
+(define-func rl_make_bare_keymap Keymap ())
+(define-func rl_copy_keymap Keymap ((Keymap)))
+(define-func rl_make_keymap Keymap ())
+(define-func rl_discard_keymap void ((Keymap)))
+
+(define-func rl_get_keymap_by_name Keymap ((string)))
+
+(define-func rl_get_keymap_name string ((Keymap)))
+(define-func rl_set_keymap void ((Keymap)))
+(define-func rl_get_keymap Keymap ())
+(define-func rl_set_keymap_from_edit_mode void ())
+(define-func rl_get_keymap_name_from_edit_mode string ())
+
+;;; Functions for manipulating the funmap, which maps command names to functions. 
+; int rl_add_funmap_entry (char *, Function *)
+; void rl_initialize_funmap ()
+; char **rl_funmap_names ()
+
+;;; Utility functions for managing keyboard macros. 
+; void rl_push_macro_input (char *)
+
+;;; Functions for undoing, from undo.c 
+; void rl_add_undo (enum undo_code, int, int, char *)
+; void free_undo_list ()
+; int rl_do_undo ()
+; int rl_begin_undo_group ()
+; int rl_end_undo_group ()
+; int rl_modifying (int, int)
+
+;;; Functions for redisplay. 
+; void rl_redisplay ()
+; int rl_on_new_line ()
+; int rl_on_new_line_with_prompt ()
+; int rl_forced_update_display ()
+; int rl_clear_message ()
+; int rl_reset_line_state ()
+
+;#if (defined (__STDC__) || defined (__cplusplus)) && defined (USE_VARARGS) && defined (PREFER_STDARG)
+; int rl_message (const char *, ...)
+;#else
+; int rl_message ()
+;#endif
+
+;;; Undocumented in texinfo manual. 
+; int rl_show_char (int)
+; int rl_character_len (int, int)
+; int crlf ()
+
+;;; Save and restore internal prompt redisplay information. 
+; void rl_save_prompt ()
+; void rl_restore_prompt ()
+
+;;; Modifying text. 
+; int rl_insert_text (char *)
+; int rl_delete_text (int, int)
+; int rl_kill_text (int, int)
+; char *rl_copy_text (int, int)
+
+;;; Terminal and tty mode management. 
+(define-func rl_prep_terminal void ((int)))
+(define-func rl_deprep_terminal void ())
+; void rltty_set_default_bindings (Keymap)
+
+(define-func rl_reset_terminal int ((string term (= "NULL"))))
+
+; void rl_resize_terminal ()
+
+;;; `Public' utility functions . 
+; void rl_extend_line_buffer (int)
+; int ding ()
+
+;;; Functions for character input. 
+; int rl_stuff_char (int)
+; int rl_execute_next (int)
+; int rl_read_key ()
+; int rl_getc (FILE *)
+
+;;; Readline signal handling, from signals.c 
+; int rl_set_signals ()
+; int rl_clear_signals ()
+; void rl_cleanup_after_signal ()
+; void rl_reset_after_signal ()
+; void rl_free_line_state ()
+; 
+;;; Undocumented. 
+; int rl_expand_prompt (char *)
+
+; int maybe_save_line ()
+; int maybe_unsave_line ()
+; int maybe_replace_line ()
+
+;;; Completion functions. 
+; int rl_complete_internal (int)
+; void rl_display_match_list (char **, int, int)
+
+; char **completion_matches (char *, CPFunction *)
+
+;;; **************************************************************** 
+;;;								    
+;;;			Well Published Variables		    
+;;;								    
+;;; **************************************************************** 
+
+;;; The version of this incarnation of the readline library. 
+(define (rl-library-version::string)
+  (pragma::string "(char *)rl_library_version"))
+
+;;; True if this is real GNU readline. 
+; int rl_gnu_readline_p
+
+;;; The name of the calling program.  You should initialize this to whatever was in argv[0].  It is used when parsing conditionals. 
+
+(define (set-rl-readline-name! name::string)
+  (pragma "rl_readline_name = $1" name)
+  #unspecified)
+
+;;; The prompt readline uses.  This is set from the argument to readline (), and should not be assigned to directly. 
+(define-global rl_prompt string)
+
+;;; The line buffer that is in use.  FIXME: Currently only reading is
+;;; allowed. If anybody want to write
+;; to this var, when the definition MUST be changed, using ``malloc''
+;; and ``free''
+(define-global rl_line_buffer string)
+
+;;; The location of point, and end. 
+(define-global rl_point int)
+(define-global rl_end int)
+
+;;; The mark, or saved cursor position. 
+(define-global rl_mark int)
+
+
+;;; Flag to indicate that readline has finished with the current input line and should return it. 
+; int rl_done
+
+;;; If set to a character value, that will be the next keystroke read. 
+; int rl_pending_input
+
+;;; Non-zero if we called this function from _rl_dispatch().  It's present so functions can find out whether they were called from a key binding or directly from an application. 
+; int rl_dispatching
+
+;;; The name of the terminal to use. 
+; char *rl_terminal_name
+
+;;; The input and output streams. 
+; FILE *rl_instream, *rl_outstream
+
+;;; If non-zero, then this is the address of a function to call just before readline_internal () prints the first prompt. 
+; Function *rl_startup_hook
+
+;;; If non-zero, this is the address of a function to call just before readline_internal_setup () returns and readline_internal starts reading input characters. 
+; Function *rl_pre_input_hook;    
+;;; The address of a function to call periodically while Readline is awaiting character input, or NULL, for no event handling. 
+; Function *rl_event_hook
+
+; Function *rl_getc_function
+; VFunction *rl_redisplay_function
+; VFunction *rl_prep_term_function
+; VFunction *rl_deprep_term_function
+
+;;; Dispatch variables. 
+; Keymap rl_executing_keymap
+;;(define-global rl_binding_keymap keymap)
+
+;;; Display variables. 
+;;; If non-zero, readline will erase the entire line, including any prompt, if the only thing typed on an otherwise-blank line is something bound to rl_newline. 
+; int rl_erase_empty_line
+
+;;; If non-zero, the application has already printed the prompt (rl_prompt) before calling readline, so readline should not output it the first time redisplay is done. 
+; int rl_already_prompted
+
+;;; A non-zero value means to read only this many characters rather than up to a character bound to accept-line. 
+; int rl_num_chars_to_read
+
+;;; Variables to control readline signal handling. 
+;;; If non-zero, readline will install its own signal handlers for SIGINT, SIGTERM, SIGQUIT, SIGALRM, SIGTSTP, SIGTTIN, and SIGTTOU. 
+; int rl_catch_signals
+
+;;; If non-zero, readline will install a signal handler for SIGWINCH that also attempts to call any calling application's SIGWINCH signal handler.  Note that the terminal is not cleaned up before the application's signal handler is called; use rl_cleanup_after_signal() to do that. 
+; int rl_catch_sigwinch
+
+;;; Completion variables. 
+
+;;; Pointer to the generator function for completion_matches (). NULL
+;;; means to use filename_entry_function (), the default filename
+;;; completer. Function *rl_completion_entry_function
+(define-static *rl-completion-entry-function* *rl-completion-entry-function*)
+
+(define (rl-completion-entry-function-cb::string s::string state::int)
+  (let((result(*rl-completion-entry-function* s state)))
+    (if result
+	(let((result::string result))
+	  (pragma::string "strdup($1)"result))
+	(pragma::string "NULL"))))
+
+(define (set-rl-completion-function! #!optional generator)
+  (if (procedure? generator)
+      (begin
+	(pragma "
+rl_completion_entry_function =
+ (rl_compentry_func_t *)rl_completion_entry_function_callback")
+	(set!
+	 *rl-completion-entry-function*
+	 (let (completions)
+	   (lambda (s state)
+	     (cond((zero? state)
+		   (let ((comps (generator s)))
+		     (if(pair? comps)
+			(begin
+			  (set! completions (list->vector comps))
+			  (vector-ref completions 0))
+			#f)))
+		  
+		  ((>fx state (vector-length completions))
+		   #f)
+		  (else
+		   (vector-ref completions (-fx state 1))))))))
+      
+      (case generator
+	((filename)
+	 (pragma "
+rl_completion_entry_function =
+ (rl_compentry_func_t *)rl_filename_completion_function"))
+	((username)
+	 (pragma "
+rl_completion_entry_function =
+ (rl_compentry_func_t *)rl_username_completion_function"))
+	((#f)
+	 (pragma "
+rl_completion_entry_function =
+ (rl_compentry_func_t *)NULL"))
+	(else
+	 (error "set-rl-completion-function!"
+		"Invalid argument: must be ``filename'', ``username'' or #f"
+		generator))))
+  #unspecified)
+
+;; Same as string-list->cpointers, but both strings in array and the
+;; array itself are malloc'ed
+(define (string-list->cpointers-malloced::string* attvals::pair-nil)
+  (let((valsp::string*
+	(pragma::string* "malloc($1 * sizeof(void*))"
+			 (+fx 1 (length attvals)))))
+    (let loop ((i 0)
+	       (attvals attvals))
+      (if (pair? attvals)
+	  (let((s::string(car attvals)))
+	    (string*-set! valsp i (pragma::string "strdup($1)"s))
+	    (loop (+fx i 1)
+		  (cdr attvals)))
+	  (begin
+	    (string*-set! valsp i (pragma::string "NULL"))
+	    valsp)))))
+
+(define-static *rl-attempted-completion-function* *rl-attempted-completion-function*)
+
+(define (rl-attempted-completion-function-callback::string*
+	 s::string
+	 start::int
+	 end::int)
+  (let((matches (*rl-attempted-completion-function* s start end)))
+    (if (pair? matches)
+	(string-list->cpointers-malloced matches)
+	(pragma::string* "NULL"))))
+
+(define (set-attempted-completion-function! #!optional generator)
+  (if (procedure? generator)
+      (begin
+	(pragma "
+rl_attempted_completion_function =
+ (rl_completion_func_t *) rl_attempted_completion_function_callback")
+	(set! *rl-attempted-completion-function* generator))
+      
+      (pragma "
+rl_attempted_completion_function =(rl_completion_func_t *)NULL"))
+  #unspecified)
+
+;;; If rl_ignore_some_completions_function is non-NULL it is the
+;;; address of a function to call after all of the possible matches
+;;; have been generated, but before the actual completion is done to
+;;; the input line. The function is called with one argument; a NULL
+;;; terminated array of (char *).  If your function removes any of the
+;;; elements, they must be free()'ed.
+
+; rl_compentry_func_t *rl_ignore_some_completions_function
+
+;;; Pointer to alternative function to create matches. Function is
+;;; called with TEXT, START, and END. START and END are indices in
+;;; RL_LINE_BUFFER saying what the boundaries of TEXT are. If this
+;;; function exists and returns NULL then call the value of
+;;; rl_completion_entry_function to try to match, otherwise use the
+;;; array of strings returned.
+
+; CPPFunction *rl_attempted_completion_function
+
+;;; The basic list of characters that signal a break between words for
+;;; the completer routine.  The initial contents of this variable is
+;;; what breaks words in the shell, i.e. "n\"\\'`@$>".
+
+; char *rl_basic_word_break_characters
+
+;;; The list of characters that signal a break between words for rl_complete_internal.  The default list is the contents of rl_basic_word_break_characters.  
+; char *rl_completer_word_break_characters
+
+;;; List of characters which can be used to quote a substring of the line. Completion occurs on the entire substring, and within the substring    rl_completer_word_break_characters are treated as any other character, unless they also appear within this list. 
+; char *rl_completer_quote_characters
+
+;;; List of quote characters which cause a word break. 
+; char *rl_basic_quote_characters
+
+;;; List of characters that need to be quoted in filenames by the completer. 
+; char *rl_filename_quote_characters
+
+;;; List of characters that are word break characters, but should be left in TEXT when it is passed to the completion function.  The shell uses this to help determine what kind of completing to do. 
+; char *rl_special_prefixes
+
+;;; If non-zero, then this is the address of a function to call when completing on a directory name.  The function is called with the address of a string (the current directory name) as an arg. 
+; Function *rl_directory_completion_hook
+
+;;; Backwards compatibility with previous versions of readline. 
+;#define rl_symbolic_link_hook rl_directory_completion_hook
+
+;;; If non-zero, then this is the address of a function to call when completing a word would normally display the list of possible matches. This function is called instead of actually doing the display. It takes three arguments: (char **matches, int num_matches, int max_length) where MATCHES is the array of strings that matched, NUM_MATCHES is the number of strings in that array, and MAX_LENGTH is the length of the longest string in that array. 
+; VFunction *rl_completion_display_matches_hook
+
+;;; Non-zero means that the results of the matches are to be treated as filenames.  This is ALWAYS zero on entry, and can only be changed within a completion entry finder function. 
+; int rl_filename_completion_desired
+
+;;; Non-zero means that the results of the matches are to be quoted using double quotes (or an application-specific quoting mechanism) if the filename contains any characters in rl_word_break_chars.  This is ALWAYS non-zero on entry, and can only be changed within a completion entry finder function. 
+; int rl_filename_quoting_desired
+
+;;; Set to a function to quote a filename in an application-specific fashion. Called with the text to quote, the type of match found (single or multiple) and a pointer to the quoting character to be used, which the function can reset if desired. 
+; CPFunction *rl_filename_quoting_function
+
+;;; Function to call to remove quoting characters from a filename.  Called before completion is attempted, so the embedded quotes do not interfere with matching names in the file system. 
+; CPFunction *rl_filename_dequoting_function
+
+;;; Function to call to decide whether or not a word break character is quoted.  If a character is quoted, it does not break words for the completer. 
+; Function *rl_char_is_quoted_p
+
+;;; Non-zero means to suppress normal filename completion after the user-specified completion function has been called. 
+; int rl_attempted_completion_over
+
+;;; Set to a character describing the type of completion being attempted by rl_complete_internal; available for use by application completion functions. 
+; int rl_completion_type
+
+;;; Character appended to completed words when at the end of the line.  The default is a space.  Nothing is added if this is '\0'. 
+; int rl_completion_append_character
+
+;;; Up to this many items will be displayed in response to a possible-completions call.  After that, we ask the user if she is sure she wants to see them all.  The default value is 100. 
+; int rl_completion_query_items
+
+;;; If non-zero, then disallow duplicates in the matches. 
+; int rl_ignore_completion_duplicates
+
+;;; If this is non-zero, completion is (temporarily) inhibited, and the completion character will be inserted as any other. 
+; int rl_inhibit_completion; 
+;;; Definitions available for use by readline clients. 
+;#define RL_PROMPT_START_IGNORE	'\001'
+;#define RL_PROMPT_END_IGNORE	'\002'
+
+;;; Possible values for do_replace argument to rl_filename_quoting_function, called by rl_complete_internal. 
+;#define NO_MATCH        0
+;#define SINGLE_MATCH    1
+;#define MULT_MATCH      2
+
+;

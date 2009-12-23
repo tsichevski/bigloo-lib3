@@ -1,0 +1,110 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+;; This module is configured out on systems, on which AC_FUNC_MMAP
+;; detects broken mmap (module
+(module
+ mmap
+ (extern
+  (include "sys/mman.h")
+  (include "errno.h")
+  )
+ (import os srfi-1)
+ (export
+  (mmap::bstring len::int #!key
+                 fd
+                 (prot '(read write))
+                 (flags '(private))
+                 (offset 0))
+
+  (munmap mem::bstring)
+  )
+ )
+
+;*-------------------------------------------------------------------*;
+;*  mmap/unmap                                                       *;
+;*-------------------------------------------------------------------*;
+(define-flags (mmap-prot int)
+  (exec PROT_EXEC)  ;; Pages may be executed.
+  (read PROT_READ)  ;; Pages may be read.
+  (write PROT_WRITE) ;; Pages may be written.
+  (none PROT_NONE)  ;; Pages may not be accessed.
+  )
+
+(define-flags (mmap-flags int)
+  (fixed MAP_FIXED)
+  (shared MAP_SHARED)
+  (private MAP_PRIVATE)
+  ;; these are known only by Linux, so should be defined
+  ;; as zeroes on other systems
+  (denywrite MAP_DENYWRITE)
+  (executable MAP_EXECUTABLE)
+  (anonymous MAP_ANONYMOUS)
+  )
+
+(define(mmap::bstring
+	len::int
+	#!key
+	fd
+	(prot '(read write))
+	(flags '(private))
+	(offset 0))
+  
+  (let((efd(or fd (open "/dev/zero" '(rdwr))))
+       (mem ""))
+    (unwind-protect
+     (begin
+       (set! mem
+	     (let((len::int len)
+		  (prot::mmap-prot prot)
+		  (flags::mmap-flags flags)
+		  (efd::int efd)
+		  (offset::int offset))
+	       (pragma::bstring "(obj_t)mmap((caddr_t)NULL, STRING_SIZE + $1,$2,$3,$4,$5)"
+				len
+				prot
+				flags
+				efd
+				offset)))
+       (when(pragma::bool "$1 == (obj_t)-1"mem)
+	    (cerror "mmap"))
+       (let((len::int len))
+	 (pragma "
+#if( !defined( TAG_STRING ) )
+   $1->string_t.header = MAKE_HEADER( STRING_TYPE, 0 );
+#endif	
+   $1->string_t.length = $2;
+   ((char *)&($1->string_t.char0))[ $2 ] = '\0'"
+		 mem len))
+       mem)
+
+     (or fd (close efd))
+
+     mem)))
+
+(define(munmap mem::bstring)
+  (when(pragma::bool "munmap($1, $1->string_t.length + STRING_SIZE)" mem)
+       (error "munmap" (strerror(errno)) (errno))))
+

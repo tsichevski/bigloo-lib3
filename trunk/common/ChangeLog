@@ -1,0 +1,78 @@
+2005-11-28  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* utime binding added
+
+2005-10-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* curl.defs (curl-formadd): changed the proto; finushed
+	implementation
+
+2005-10-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* os.defs (stat): all time slots it stat struct are elong now
+	(were doubles)
+
+2005-09-12  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* time.defs (read-date): added poor man's month name reading
+	(tm->seconds): added a new procedure to convert tm back to seconds
+
+2005-03-24  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* misc.scm (mkdir): the procedure must now compile and work
+	correctly on platforms on which the second `mode' argument is not
+	supported.
+
+2004-12-18  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* time.defs: The current-seconds procedure was removed. Now it is
+	drictly supported by Bigloo. The current-milliseconds now returns
+	elong values.
+
+2004-12-12  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* misc.scm (misc): add-printer procedure was added
+
+2004-12-05  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* cgen.scm: a new field `argument cast' added to function argument
+	specifications or object field specifications. It allows explicit
+	casting to Bigloo scheme types from external types. For example,
+	if C library declares argument as `const char*' and it is mapped
+	to Bigloo `string', which is effectively `char*', explicit casting
+	eliminates C compiler warnings about `const'.
+
+2004-11-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common.sch (define-instantiate): new macro introduced
+
+2004-11-01  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* misc.scm (misc): `grove-walk' from node/node.scm moved here
+
+2004-02-26  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* os.defs (strcoll): interface to strcoll added
+
+2003-09-27  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* md5.scm (md5): the function accept now optional start and end
+	arguments
+
+2003-09-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* common.m4: exact location of "wait.h" is auto-configured now
+
+	* os.defs: (unsetenv, getlogin) implementation fixed (thanks to
+	Alex Yakovlev)
+
+2003-09-11  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* iconv.defs: completely redesigned. The previous version seemed
+	not to work. make-iconv renamed into make-iconv-encoder. All
+	keyword parameters are not supported for now.
+
+2003-06-08  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* init 
+
