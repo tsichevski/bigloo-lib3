@@ -1,0 +1,1159 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* curl - Bigloo interface to the CURL library                          */
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ curl
+ (import srfi-1 os misc)
+ (include "common.sch")
+ (extern
+  (include "curl/curl.h")
+  )
+ 
+ (export
+  (libcurl-version::string)
+  (libcurl-version-num::int)
+  (curl-easy-init::curl . options)
+  (curl-easy-setopt curl::curl . options)
+  (curl-write-callback::int buffer::string
+			    size::int
+			    nitems::int
+			    proc::procedure)
+  (curl-progress-callback::bool
+   proc::procedure
+   dltotal::double
+   dlnow::double
+   ultotal::double
+   ulnow::double)
+  (curl-passwd-callback::bool
+   proc::procedure
+   prompt::string
+   buffer::string
+   buflen::int)
+  (curl-debug-callback::bool
+   handle::curl
+   type::curl-infotype
+   data::string
+   size::int
+   proc::procedure)
+  (curl-escape::bstring str::bstring)
+  (curl-unescape::bstring str::bstring)
+  (curl-formadd::httppost post . arguments)
+  (curl-easy-getinfo curl::curl what::symbol)
+  (curl-easy-cleanup curl::curl)
+  (final-class httppost
+	       post::curl-httppost
+	       last-post::curl-httppost
+	       )
+  )
+ (extern
+  (export curl-write-callback "bigloo_curl_write_callback")
+  (export curl-progress-callback "bigloo_curl_progress_callback")
+  (export curl-passwd-callback "bigloo_curl_passwd_callback")
+  (export curl-debug-callback "bigloo_curl_debug_callback")
+  )
+ )
+
+(register-eval-srfi! 'curl)
+
+(define-export (curl-base64-encode data::bstring)
+  (let*((cdata::string data)
+	(length::int (string-length data))
+	(cresult::string (pragma::string "NULL"))
+	(result-length::int
+	 (pragma::int
+	  "Curl_base64_encode((const char *)$1, $2, &$3)"
+	  cdata length cresult)))
+    (if (< result-length 0)
+	[error "curl-base64-encode" "error" ""]
+	(begin0
+	 (pragma::bstring "string_to_bstring_len($1, $2)"
+			  cresult result-length)
+	 (pragma "free($1)" cresult)))))
+;;(curl-base64-encode (file-contents "test.png"))
+
+;; Note: this function seemes to be broken in curl-7.9.8, use more
+;; recent curl versions
+(define-export (curl-base64-decode data::bstring)
+  (let*((cdata::string data)
+	(length::int (string-length data))
+	(result::string
+	 (pragma::string "(char*)GC_malloc_atomic($1 * 4 / 3 + 4)"length))
+	(result-len::int
+	 (pragma::int
+	  "Curl_base64_decode((const char *)$1, $2)"
+	  cdata result)))
+    (pragma::bstring "string_to_bstring_len($1, $2)"
+		     result result-len)))
+;;(curl-base64-decode (curl-base64-encode (file-contents "test.png")))
+
+(define-object CURL ())
+
+(define-object (curl-httppost "struct curl_httppost*") ())
+
+(define (curl-progress-callback::bool
+	 proc::procedure
+	 dltotal::double
+	 dlnow::double
+	 ultotal::double
+	 ulnow::double)
+  (proc dltotal dlnow ultotal ulnow))
+
+(define (curl-write-callback::int buffer::string
+				  size::int
+				  nitems::int
+				  proc::procedure)
+  (proc (pragma::bstring "string_to_bstring_len($1, $2 * $3)"
+			 buffer size nitems)))
+
+(define (curl-read-callback::int buffer::string
+				 size::int
+				 nitems::int
+				 proc::procedure)
+  (proc (pragma::bstring "string_to_bstring_len($1, $2 * $3)"
+			 buffer size nitems)))
+
+(define (curl-passwd-callback::bool
+	 proc::procedure
+	 prompt::string
+	 buffer::string
+	 buflen::int)
+  (let((result(proc prompt buflen)))
+    (cond ((string? result)
+	   (if (<fx (string-length result)buflen)
+	       (let((result::string result))
+		 (pragma "strcpy($1, $2)"buffer result))
+	       (error "curl-passwd-callback" "passwd loo long" ""))
+	   #f)
+	  (else #t))))
+
+;; the kind of data that is passed to information_callbac
+(define-enum curl_infotype
+  (text CURLINFO_TEXT)
+  (header-in CURLINFO_HEADER_IN)
+  (header-out CURLINFO_HEADER_OUT)
+  (data-in CURLINFO_DATA_IN)
+  (data-out CURLINFO_DATA_OUT))
+  
+(define (curl-debug-callback::bool
+	 handle::curl
+	 type::curl-infotype
+	 data::string
+	 size::int
+	 proc::procedure)
+  (proc handle
+	type
+	(pragma::bstring "string_to_bstring_len($1, $2)"data size)))
+
+(define-errcode CURLcode curl-check-error)
+
+(define-static (curl-check-error name::bstring code::int)
+  (unless
+   (pragma::bool "$1 == CURLE_OK" code)
+   (error
+    name
+    (case code
+      ((1) "Unsupported protocol. This build of curl has no support for this protocol.")
+      ((2) "Failed to initialize.")
+      ((3) "URL malformat. The syntax was not correct.")
+      ((4) "URL user malformatted. The user-part of the URL syntax was not correct.")
+      ((5) "Couldn't resolve proxy. The given proxy host could not be resolved.")
+      ((6) "Couldn't resolve host. The given remote host was not resolved.")
+      ((7) "Failed to connect to host.")
+      ((8) "FTP weird server reply. The server sent data curl couldn't parse.")
+      ((9) "FTP access denied. The server denied login.")
+      ((10) "FTP user/password incorrect. Either one or both were not accepted by the server.")
+      ((11) "FTP weird PASS reply. Curl couldn't parse the reply sent to the PASS request.")
+      ((12) "FTP weird USER reply. Curl couldn't parse the reply sent to the USER request.")
+      ((13) "FTP weird PASV reply, Curl couldn't parse the reply sent to the PASV request.")
+      ((14) "FTP weird 227 format. Curl couldn't parse the 227-line the server sent.")
+      ((15) "FTP can't get host. Couldn't resolve the host IP we got in the 227-line.")
+      ((16) "FTP can't reconnect. Couldn't connect to the host we got in the 227-line.")
+      ((17) "FTP couldn't set binary. Couldn't change transfer method to binary.")
+      ((18) "Partial file. Only a part of the file was transfered.")
+      ((19) "FTP couldn't download/access the given file, the RETR (or similar) command failed.")
+      ((20) "FTP write error. The transfer was reported bad by the server.")
+      ((21) "FTP quote error. A quote command returned error from the server.")
+      ((22) "HTTP page not retrieved. The requested url was not found or returned another error with the HTTP error code being 400 or above. This return code only appears if -f/--fail is used.")
+      ((23) "Write error. Curl couldn't write data to a local filesystem or similar.")
+      ((24) "Malformed user. User name badly specified.")
+      ((25) "FTP couldn't STOR file. The server denied the STOR operation, used for FTP uploading.")
+      ((26) "Read error. Various reading problems.")
+      ((27) "Out of memory. A memory allocation request failed.")
+      ((28) "Operation timeout. The specified time-out period was reached according to the conditions.")
+      ((29) "FTP couldn't set ASCII. The server returned an unknown reply.")
+      ((30) "FTP PORT failed. The PORT command failed. Not all FTP servers support the PORT command, try doing a transfer using PASV instead!")
+      ((31) "FTP couldn't use REST. The REST command failed. This command is used for resumed FTP transfers.")
+      ((32) "FTP couldn't use SIZE. The SIZE command failed. The command is an extension to the original FTP spec RFC 959.")
+      ((33) "HTTP range error. The range \"command\" didn't work.")
+      ((34) "HTTP post error. Internal post-request generation error.")
+      ((35) "SSL connect error. The SSL handshaking failed.")
+      ((36) "FTP bad download resume. Couldn't continue an earlier aborted download.")
+      ((37) "FILE couldn't read file. Failed to open the file. Permissions?")
+      ((38) "LDAP cannot bind. LDAP bind operation failed.")
+      ((39) "LDAP search failed.")
+      ((40) "Library not found. The LDAP library was not found.")
+      ((41) "Function not found. A required LDAP function was not found.")
+      ((42) "Aborted by callback. An application told curl to abort the oper- ation.")
+      ((43) "Internal error. A function was called with a bad parameter.")
+      ((44) "Internal error. A function was called in a bad order.")
+      ((45) "Interface error. A specified outgoing interface could not be used.")
+      ((46) "Bad password entered. An error was signaled when the password was entered.")
+      ((47) "Too many redirects. When following redirects, curl hit the maxi- mum amount.")
+      ((48) "Unknown TELNET option specified.")
+      ((49) "Malformed telnet option.")
+      ((50) "NOT USED")
+      ((51) "The remote peer's SSL certificate wasn't ok")
+      ((52) "The server didn't reply anything, which here is considered an error.")
+      ((53) "SSL crypto engine not found")
+      ((54) "Cannot set SSL crypto engine as default")
+      ((55) "Failed sending network data")
+      ((56) "Failure in receiving network data")
+      ((57) "Share is in use (internal error)")
+      ((58) "Problem with the local certificate")
+      ((59) "Couldn't use specified SSL cipher")
+      ((60) "Problem with the CA cert (path? permission?)")
+      ((61) "Unrecognized transfer encoding")
+      ((62) "Invalid LDAP URL")
+      ((63) "Maximum file size exceeded")
+      ((64) "Requested FTP SSL level failed")
+      (else
+       "unknown error code"))
+    code)))
+
+;(define-enum CURLformoption
+;  (copyname CURLFORM_COPYNAME)
+;  (ptrname CURLFORM_PTRNAME)
+;  (namelength CURLFORM_NAMELENGTH)
+;  (copycontents CURLFORM_COPYCONTENTS)
+;  (ptrcontents CURLFORM_PTRCONTENTS)
+;  (contentslength CURLFORM_CONTENTSLENGTH)
+;  (filecontent CURLFORM_FILECONTENT)
+;  (array CURLFORM_ARRAY)
+;  (obsolete CURLFORM_OBSOLETE)
+;  (file CURLFORM_FILE)
+;  (contenttype CURLFORM_CONTENTTYPE)
+;  (contentheader CURLFORM_CONTENTHEADER)
+;  (filename CURLFORM_FILENAME)
+;  (end CURLFORM_END)
+;  (obsolete2 CURLFORM_OBSOLETE2))
+
+;; structure to be used as parameter for CURLFORM_ARRAY
+;struct curl_forms {
+;	CURLformoption		option;
+;	const char		*value;
+;};
+
+
+;; post is either http-post or #f
+(define (curl-formadd::httppost post . arguments)
+  ;; TODO: change CURLFORM_COPYxx to CURLFORM_PTRxxx implementation,
+  ;; protect all object passed against collecting by GC
+
+  ;; Allocate enought space to hold possible LENGTH arguments
+  (define optarray::bstring
+    (make-string (pragma::int "($1 + 1) * sizeof(struct curl_forms)"
+			      (let((optlen::int (length arguments)))
+				optlen))))
+  ;; current index into options array
+  (define idx::int 0)
+  
+  (define (push-string! option::int item::bstring)
+    (let((idx::int idx)
+	 (oa::string optarray)
+	 (option::int option)
+	 (item::string item)
+	 )
+      (pragma "((struct curl_forms*)$1)[$2].option = $3" oa idx option)
+      (pragma "((struct curl_forms*)$1)[$2].value = $3" oa idx item)
+      ;;[print "optarray: "(pragma::int "(int)$1" oa)]
+      )
+    (set! idx (+fx 1 idx)))
+  
+  (define (push-int! option::int item::int)
+    (let((idx::int idx)
+	 (oa::string optarray)
+	 (option::int option)
+	 (item::int item))
+      
+      (pragma "((struct curl_forms*)$1)[$2].option = $3" oa idx option)
+      (pragma "((struct curl_forms*)$1)[$2].value = (char*)$3" oa idx item)
+      )
+    (set! idx (+fx 1 idx)))
+  
+  (let loop ((args arguments))
+    (match-case
+     args
+     ((??)
+      (error "curl-formadd" "number of arguments must be even" arguments))
+     
+     ((?key ?name . ?rest)
+      (case key
+	((name:)
+	 (push-string! (pragma::int "CURLFORM_COPYNAME") name)
+	 (push-int! (pragma::int "CURLFORM_NAMELENGTH") (string-length name))
+	 (loop rest))
+	((contents:)
+	 (push-string! (pragma::int "CURLFORM_COPYCONTENTS") name)
+	 (push-int! (pragma::int "CURLFORM_CONTENTSLENGTH") (string-length name))
+	 (loop rest))
+	((filecontent)
+	 (push-string! (pragma::int "CURLFORM_FILECONTENT") name)
+	 (push-int! (pragma::int "CURLFORM_CONTENTSLENGTH")(string-length name))
+	 (loop rest))
+	((file:)
+	 (push-string! (pragma::int "CURLFORM_FILE") name)
+	 (loop rest))
+	((contenttype:)
+	 (push-string! (pragma::int "CURLFORM_CONTENTTYPE") name)
+	 (loop rest))
+	((filename:)
+	 (push-string! (pragma::int "CURLFORM_FILENAME") name)
+	 (loop rest))
+	;; 	  ((contentheader:)
+	;; 	   (pragma "$1[$2] = CURLFORM_CONTENTHEADER"optarray idx))
+	(else
+	 (error "curl-formadd" "invalid option name" key))))
+     (else
+      (push-int! (pragma::int "CURLFORM_END") 0)
+      (let((oa::string optarray))
+	(let* ((post::httppost
+		(or post (instantiate::httppost
+			  (post (pragma::curl-httppost "NULL"))
+			  (last-post (pragma::curl-httppost "NULL")))))
+	       (result::int
+		;; FIXME: change if Manuel allows to explicitly name class fields
+		(pragma::int
+		 "curl_formadd(&$1->BgL_postz00, &$2->BgL_lastzd2postzd2, CURLFORM_ARRAY, $3, CURLFORM_END)"
+		 post
+		 post
+		 oa)))
+	  (if (=fx 0 result)
+	      post
+	      [error "curl-formadd"
+		     (case result
+		       ((1) "CURL_FORMADD_MEMORY")
+		       ((2) "CURL_FORMADD_OPTION_TWICE")
+		       ((3) "CURL_FORMADD_NULL")
+		       ((4) "CURL_FORMADD_UNKNOWN_OPTION")
+		       ((5) "CURL_FORMADD_INCOMPLETE")
+		       ((6) "CURL_FORMADD_ILLEGAL_ARRAY"))
+		     arguments])))))))
+
+
+;; cleanup a form:
+(define-func curl_formfree void((curl_httppost form)))
+
+;; Returns a static ascii string of the libcurl version.
+(define-func curl_version string ())
+
+;; Escape and unescape URL encoding in strings. The functions return a new
+;; allocated string or NULL if an error occurred. 
+
+(define (curl-escape::bstring str::bstring)
+  (let*((s::string str)
+	(len::int (string-length str))
+	(result::string
+	 (pragma::string "curl_escape($1, $2)" s len)))
+    (if(pragma::bool "$1 == NULL" result)
+       (error "curl-escape" "internal error" str)
+       result)))
+
+(define (curl-unescape::bstring str::bstring)
+  (let*((s::string str)
+	(len::int (string-length str))
+	(result::string
+	 (pragma::string "curl_unescape($1, $2)" s len)))
+    (if(pragma::bool "$1 == NULL" result)
+       (error "curl-unescape" "internal error" str)
+       result)))
+
+(define-flags (curl-init int)
+  (ssl CURL_GLOBAL_SSL)
+  (win32 CURL_GLOBAL_WIN32)
+  (all CURL_GLOBAL_ALL)
+  (nothing CURL_GLOBAL_NOTHING)
+  (default CURL_GLOBAL_DEFAULT)
+  )
+
+(define-func curl_global_init CURLcode
+  ((curl-init flags (= "CURL_GLOBAL_DEFAULT"))))
+
+(define-func curl_global_cleanup void ())
+
+(define (libcurl-version) (pragma::string "LIBCURL_VERSION"))
+(define (libcurl-version-num) (pragma::int "LIBCURL_VERSION_NUM"))
+
+(define (curl-easy-init::curl . options)
+  (let((curl::curl(pragma::curl "curl_easy_init()")))
+    (if(pragma::bool "$1 == NULL"curl)
+       (error "curl-easy-init" "internal error" "")
+       (apply curl-easy-setopt (cons curl options)))
+    curl))
+
+(define (curl-easy-setopt curl::curl . options)
+  (let loop((options options))
+    (when
+     (pair? options)
+     (curl-check-error
+      "curl-easy-setopt"
+      (let((key(car options))
+	   (value(cadr options)))
+	(when (pointer? value)
+	      (object-data-set! curl value key))
+	     
+	(case key
+	  ((url:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_URL, $2)"
+	      curl value)))
+	  ((port:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PORT, $2)"
+	      curl value)))
+	  ((proxy:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PROXY, $2)"
+	      curl value)))
+	  ((userpwd:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_USERPWD, $2)"
+	      curl value)))
+	  ((proxyuserpwd:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PROXYUSERPWD, $2)"
+	      curl value)))
+	  ((range:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_RANGE, $2)"
+	      curl value)))
+	  ((infile:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_INFILE, $2)"
+	      curl value)))
+	  ((errorbuffer:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_ERRORBUFFER, $2)"
+	      curl value)))
+	  ((writefunction:)
+	   (let ((value::procedure value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_WRITEFUNCTION, bigloo_curl_write_callback)"
+	      curl)
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FILE, $2)"
+	      curl value)))
+	  ((readfunction:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_READFUNCTION, $2)"
+	      curl value)))
+	  ((timeout:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_TIMEOUT, $2)"
+	      curl value)))
+	  ((infilesize:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_INFILESIZE, $2)"
+	      curl value)))
+	  ((postfields:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_POSTFIELDS, $2)"
+	      curl value)))
+	  ((referer:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_REFERER, $2)"
+	      curl value)))
+	  ((ftpport:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FTPPORT, $2)"
+	      curl value)))
+	  ((useragent:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_USERAGENT, $2)"
+	      curl value)))
+	  ((low-speed-limit:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_LOW_SPEED_LIMIT, $2)"
+	      curl value)))
+	  ((low-speed-time:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_LOW_SPEED_TIME, $2)"
+	      curl value)))
+	  ((resume-from:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_RESUME_FROM, $2)"
+	      curl value)))
+	  ((cookie:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_COOKIE, $2)"
+	      curl value)))
+	  ((httpheader:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HTTPHEADER, $2)"
+	      curl value)))
+	  ((httppost:)
+	   (let ((value::curl-httppost
+		  (cond ((curl-httppost? value)
+			 value)
+			((httppost? value)
+			 (httppost-post value))
+			(else
+			 [error "curl-easy-setopt"
+				"bad httppost option type: must be either httppost or curl-httppost"
+				value]))))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HTTPPOST, $2)"
+	      curl value)))
+	  ((sslcert:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLCERT, $2)"
+	      curl value)))
+	  ((sslcertpasswd:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLCERTPASSWD, $2)"
+	      curl value)))
+	  ((sslkeypasswd:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLKEYPASSWD, $2)"
+	      curl value)))
+	  ((crlf:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_CRLF, $2)"
+	      curl value)))
+	  ((quote:)
+	   (let((slist::void* (pragma::void* "NULL")))
+	     (for-each
+	      (lambda(s)
+		(let((s::string s))
+		  (set! slist (pragma::void* "curl_slist_append((struct curl_slist*)$1, $2)"slist s))))
+	      value)
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_QUOTE, $2)"
+	      curl slist)
+	     (pragma "curl_slist_free_all((struct curl_slist*)$1)"slist)
+	     #unspecified))
+
+	  ((writeheader:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_WRITEHEADER, $2)"
+	      curl value)))
+	  ((cookiefile:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_COOKIEFILE, $2)"
+	      curl value)))
+	  ((sslversion:)
+	   (let ((value::int
+		  (case value
+		    ((default) (pragma::int "CURL_SSLVERSION_DEFAULT"))
+		    ((tlsv1) (pragma::int "CURL_SSLVERSION_TLSv1"))
+		    ((sslv2) (pragma::int "CURL_SSLVERSION_SSLv2"))
+		    ((sslv3) (pragma::int "CURL_SSLVERSION_SSLv3"))
+		    (else
+		     (error "ssl-version"
+			    "invalid version, must be default, tlsv1, sslv2 or sslv3"
+			    value)))))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLVERSION, $2)"
+	      curl value)))
+	  ((timecondition:)
+	   (let ((value::int
+		  (case value
+		    ((none) (pragma::int "CURL_TIMECOND_NONE"))
+		    ((ifmodsince) (pragma::int "CURL_TIMECOND_IFMODSINCE"))
+		    ((ifunmodsince) (pragma::int "CURL_TIMECOND_IFUNMODSINCE"))
+		    ((lastmod) (pragma::int "CURL_TIMECOND_LASTMOD"))
+		    (else
+		     (error "timecondition"
+			    "invalid option, must be one of none, ifmodsince, ifunmodsince or lastmod"
+			    value)))))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_TIMECONDITION, $2)"
+	      curl value)))
+	  ((timevalue:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_TIMEVALUE, $2)"
+	      curl value)))
+; 	  ((httprequest:)
+; 	   (let ((value::string value))
+; 	     (pragma::int
+; 	      "curl_easy_setopt($1, CURLOPT_HTTPREQUEST, $2)"
+; 	      curl value)))
+	  ((customrequest:)
+	   (let ((value::string value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_CUSTOMREQUEST, $2)"
+	      curl value)))
+	  ((stderr:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_STDERR, $2)"
+	      curl value)))
+	  ((postquote:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_POSTQUOTE, $2)"
+	      curl value)))
+	  ((writeinfo:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_WRITEINFO, $2)"
+	      curl value)))
+	  ((verbose:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_VERBOSE, $2)"
+	      curl value)))
+	  ((header:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HEADER, $2)"
+	      curl value)))
+	  ((noprogress:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_NOPROGRESS, $2)"
+	      curl value)))
+	  ((nobody:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_NOBODY, $2)"
+	      curl value)))
+	  ((failonerror:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FAILONERROR, $2)"
+	      curl value)))
+	  ((upload:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_UPLOAD, $2)"
+	      curl value)))
+	  ((post:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_POST, $2)"
+	      curl value)))
+	  ((ftplistonly:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FTPLISTONLY, $2)"
+	      curl value)))
+	  ((ftpappend:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FTPAPPEND, $2)"
+	      curl value)))
+	  ((netrc:)
+	   (let ((value::bool value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_NETRC, $2)"
+	      curl value)))
+	  ((followlocation:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FOLLOWLOCATION, $2)"
+	      curl value)))
+; 	  ((ftpascii:)
+; 	   (let ((value::int value))
+; 	     (pragma::int
+; 	      "curl_easy_setopt($1, CURLOPT_FTPASCII, $2)"
+; 	      curl value)))
+	  ((transfertext:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_TRANSFERTEXT, $2)"
+	      curl value)))
+	  ((put:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PUT, $2)"
+	      curl value)))
+; 	  ((mute:)
+; 	   (let ((value::int value))
+; 	     (pragma::int
+; 	      "curl_easy_setopt($1, CURLOPT_MUTE, $2)"
+; 	      curl value)))
+	  ((progressfunction:)
+	   (pragma::int
+	    "curl_easy_setopt($1, CURLOPT_PROGRESSFUNCTION, bigloo_curl_progress_callback)"
+	    curl)
+	   (let ((value::procedure value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PROGRESSDATA, $2)"
+	      curl value)))
+	  ((autoreferer:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_AUTOREFERER, $2)"
+	      curl value)))
+	  ((proxyport:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PROXYPORT, $2)"
+	      curl value)))
+	  ((postfieldsize:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_POSTFIELDSIZE, $2)"
+	      curl value)))
+	  ((httpproxytunnel:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HTTPPROXYTUNNEL, $2)"
+	      curl value)))
+	  ((interface:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_INTERFACE, $2)"
+	      curl value)))
+	  ((krb4level:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_KRB4LEVEL, $2)"
+	      curl value)))
+	  ((ssl-verifypeer:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSL_VERIFYPEER, $2)"
+	      curl value)))
+	  ((cainfo:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_CAINFO, $2)"
+	      curl value)))
+; 	  ((passwdfunction:)
+; 	   (if value
+; 	       (begin
+; 		 (pragma::int
+; 		  "curl_easy_setopt($1, CURLOPT_PASSWDFUNCTION,
+;                    bigloo_curl_passwd_callback)"
+; 		  curl)
+; 		 (let ((value::procedure value))
+; 		   (pragma::int
+; 		    "curl_easy_setopt($1, CURLOPT_PASSWDDATA, $2)"
+; 		    curl value)))
+; 	       (pragma::int
+; 		"curl_easy_setopt($1, CURLOPT_PASSWDFUNCTION, NULL)"
+; 		curl)))
+	  
+	  ((maxredirs:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_MAXREDIRS, $2)"
+	      curl value)))
+	  ((filetime:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FILETIME, $2)"
+	      curl value)))
+	  ((telnetoptions:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_TELNETOPTIONS, $2)"
+	      curl value)))
+	  ((maxconnects:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_MAXCONNECTS, $2)"
+	      curl value)))
+	  ((closepolicy:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_CLOSEPOLICY, $2)"
+	      curl value)))
+; 	  ((closefunction:)
+; 	   (let ((value::int value))
+; 	     (pragma::int
+; 	      "curl_easy_setopt($1, CURLOPT_CLOSEFUNCTION, $2)"
+; 	      curl value)))
+	  ((fresh-connect:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FRESH_CONNECT, $2)"
+	      curl value)))
+	  ((forbid-reuse:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FORBID_REUSE, $2)"
+	      curl value)))
+	  ((random-file:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_RANDOM_FILE, $2)"
+	      curl value)))
+	  ((egdsocket:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_EGDSOCKET, $2)"
+	      curl value)))
+	  ((connecttimeout:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_CONNECTTIMEOUT, $2)"
+	      curl value)))
+	  ((headerfunction:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HEADERFUNCTION, $2)"
+	      curl value)))
+	  ((httpget:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HTTPGET, $2)"
+	      curl value)))
+	  ((ssl-verifyhost:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSL_VERIFYHOST, $2)"
+	      curl value)))
+	  ((cookiejar:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_COOKIEJAR, $2)"
+	      curl value)))
+	  ((ssl-cipher-list:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSL_CIPHER_LIST, $2)"
+	      curl value)))
+	  ((http-version:)
+	   (let ((value::int
+		  (case value
+		    ((none) (pragma::int "CURL_HTTP_VERSION_NONE"))
+		    ((1.0)  (pragma::int "CURL_HTTP_VERSION_1_0"))
+		    ((1.1)  (pragma::int "CURL_HTTP_VERSION_1_1"))
+		    (else
+		     (error "http-version" "invalid version, must be 'none, 1.0 or 1.1" value)))))
+	     
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_HTTP_VERSION, $2)"
+	      curl value)))
+	  ((ftp-use-epsv:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_FTP_USE_EPSV, $2)"
+	      curl value)))
+	  ((sslcerttype:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLCERTTYPE, $2)"
+	      curl value)))
+	  ((sslkey:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLKEY, $2)"
+	      curl value)))
+	  ((sslkeytype:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLKEYTYPE, $2)"
+	      curl value)))
+	  ((sslengine:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLENGINE, $2)"
+	      curl value)))
+	  ((sslengine-default:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_SSLENGINE_DEFAULT, $2)"
+	      curl value)))
+	  ((dns-use-global-cache:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_DNS_USE_GLOBAL_CACHE, $2)"
+	      curl value)))
+	  ((dns-cache-timeout:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_DNS_CACHE_TIMEOUT, $2)"
+	      curl value)))
+	  ((prequote:)
+	   (let ((value::int value))
+	     (pragma::int
+	      "curl_easy_setopt($1, CURLOPT_PREQUOTE, $2)"
+	      curl value)))
+	  ((debugfunction:)
+	   (if value
+	       (begin
+		 (pragma::int
+		  "curl_easy_setopt($1, CURLOPT_DEBUGFUNCTION,
+                   bigloo_curl_debug_callback)"
+		  curl)
+		 (let ((value::procedure value))
+		   (pragma::int
+		    "curl_easy_setopt($1, CURLOPT_DEBUGDATA, $2)"
+		    curl value)))
+	       (pragma::int
+		"curl_easy_setopt($1, CURLOPT_DEBUGFUNCTION, NULL)"
+		curl)))
+
+	  (else
+	   (error "curl-easy-setopt"
+		  "invalid or unimplemented option"
+		  key))
+	  )))
+     (loop(cddr options)))))
+
+(define-func curl_easy_perform CURLcode ((CURL curl)))
+
+(define (curl-easy-cleanup curl::curl)
+  (let ((curl::curl curl))
+    (pragma "curl_easy_cleanup($1)" curl)
+    (object-data-free! curl)))
+
+(define (curl-easy-getinfo curl::curl what::symbol)
+  (let((buffer::void* (pragma::void* "GC_malloc_atomic(sizeof(double))"))
+       (what::int
+	(case what
+	  ((effective-url) (pragma::int "CURLINFO_EFFECTIVE_URL"))
+	  ((http-code) (pragma::int "CURLINFO_HTTP_CODE"))
+	  ((total-time) (pragma::int "CURLINFO_TOTAL_TIME"))
+	  ((namelookup-time) (pragma::int "CURLINFO_NAMELOOKUP_TIME"))
+	  ((connect-time) (pragma::int "CURLINFO_CONNECT_TIME"))
+	  ((pretransfer-time) (pragma::int "CURLINFO_PRETRANSFER_TIME"))
+	  ((size-upload) (pragma::int "CURLINFO_SIZE_UPLOAD"))
+	  ((size-download) (pragma::int "CURLINFO_SIZE_DOWNLOAD"))
+	  ((speed-download) (pragma::int "CURLINFO_SPEED_DOWNLOAD"))
+	  ((speed-upload) (pragma::int "CURLINFO_SPEED_UPLOAD"))
+	  ((header-size) (pragma::int "CURLINFO_HEADER_SIZE"))
+	  ((request-size) (pragma::int "CURLINFO_REQUEST_SIZE"))
+	  ((ssl-verifyresult) (pragma::int "CURLINFO_SSL_VERIFYRESULT"))
+	  ((filetime) (pragma::int "CURLINFO_FILETIME"))
+	  ((content-length-download) (pragma::int "CURLINFO_CONTENT_LENGTH_DOWNLOAD"))
+	  ((content-length-upload) (pragma::int "CURLINFO_CONTENT_LENGTH_UPLOAD"))
+	  ((starttransfer-time) (pragma::int "CURLINFO_STARTTRANSFER_TIME"))
+	  ((content-type) (pragma::int "CURLINFO_CONTENT_TYPE"))
+	  (else
+	   (error "curl-easy-getinfo" "invalid WHAT parameter" what))
+	  )))
+    (curl-check-error
+     "curl-easy-getinfo"
+     (pragma::int "curl_easy_getinfo($1, $2, $3)"curl what buffer))
+    (cond
+     ((pragma::bool "($1 & CURLINFO_TYPEMASK) == CURLINFO_STRING"what)
+      (pragma::string "*((char**)$1)"buffer))
+     ((pragma::bool "($1 & CURLINFO_TYPEMASK) == CURLINFO_LONG"what)
+      (pragma::long "*((long*)$1)"buffer))
+     (else
+      (pragma::double "*((double*)$1)"buffer)))))
+
+
+; NAME curl_easy_duphandle()
+;
+; DESCRIPTION
+;
+; Creates a new curl session handle with the same options set for the handle
+; passed in. Duplicating a handle could only be a matter of cloning data and
+; options, internal state info and things like persistant connections cannot
+; be transfered. It is useful in multithreaded applications when you can run
+; curl_easy_duphandle() for each new thread to avoid a series of identical
+; curl_easy_setopt() invokes in every thread.
+
+(define-func curl_easy_duphandle CURL((CURL curl)))
+
+@if (string>? curlversion "libcurl 7.9.5")
+;  -------------------------------------------
+;  GOALS
+
+;  o Enable a "pull" interface. The application that uses libcurl decides where
+;    and when to ask libcurl to get/send data.
+
+;  o Enable multiple simultaneous transfers in the same thread without making it
+;    complicated for the application.
+
+;  o Enable the application to select() on its own file descriptors and curl's
+;    file descriptors simultaneous easily.
+  
+;  Example sources using this interface is here: ../multi/
+
+(define-object CURLM ())
+
+(define-errcode CURLMcode check-curm-error)
+(define-static (check-curm-error name::bstring code::int)
+  (unless
+   (pragma::bool "$1 == CURLM_OK" code)
+   (error
+    name
+    (cond
+     ((pragma::bool "CURLM_BAD_HANDLE == $1"code)
+      "the passed-in handle is not a valid CURLM handle")
+     ((pragma::bool "CURLM_CALL_MULTI_PERFORM == $1"code)
+      "please call curl_multi_perform() soon")
+     ((pragma::bool "CURLM_BAD_EASY_HANDLE == $1"code)
+      "an easy handle was not good/valid")
+     ((pragma::bool "CURLM_OUT_OF_MEMORY == $1"code)
+      "if you ever get this, you're in deep sh*t")
+     ((pragma::bool "CURLM_INTERNAL_ERROR == $1"code)
+      "this is a libcurl bug")
+     (else
+      "unknown error code"))
+    code)))
+
+;typedef enum {
+;  CURLMSG_NONE,  first, not used
+;  CURLMSG_DONE,  This easy handle has completed. 'whatever' points to
+;                   the CURLcode of the transfer
+;  CURLMSG_LAST  last, not used
+;} CURLMSG;
+
+(define-object CURLMsg ()
+  (fields
+;  CURLMSG msg;        what this message means
+;  CURL *easy_handle;  the handle it concerns
+;  union {
+;    void *whatever;     message-specific data
+;    CURLcode result;    return code for transfer
+;  } data;
+   ))
+
+
+; Name:    curl_multi_init()
+;
+; Desc:    inititalize multi-style curl usage
+; Returns: a new CURLM handle to use in all 'curl_multi' functions.
+
+(define-func curl_multi_init CURLM ())
+
+; Name:    curl_multi_add_handle()
+;
+; Desc:    add a standard curl handle to the multi stack
+; Returns: CURLMcode type, general multi error code.
+;
+(define-func curl_multi_add_handle CURLMcode ((CURLM multi_handle)(CURL curl_handle)))
+
+;  * Name:    curl_multi_remove_handle()
+;  *
+;  * Desc:    removes a curl handle from the multi stack again
+;  * Returns: CURLMcode type, general multi error code.
+
+(define-func curl_multi_remove_handle CURLMcode ((CURLM multi_handle)(CURL curl_handle)))
+
+;  * Name:    curl_multi_fdset()
+;  *
+;  * Desc:    Ask curl for its fd_set sets. The app can use these to select() or
+;  *          poll() on. We want curl_multi_perform() called as soon as one of
+;  *          them are ready.
+;  * Returns: CURLMcode type, general multi error code.
+
+(define-export (curl-multi-fdset curlm::curlm)
+  (let((read-fd-set::fd-set (pragma::fd-set "(fd_set*)GC_malloc_atomic(sizeof(fd_set))"))
+       (write-fd-set::fd-set (pragma::fd-set "(fd_set*)GC_malloc_atomic(sizeof(fd_set))"))
+       (exc-fd-set::fd-set (pragma::fd-set "(fd_set*)GC_malloc_atomic(sizeof(fd_set))"))
+       (max-fd::int (pragma::int "0")))
+   (check-curm-error
+    "curl-multi-fdset"
+    (pragma::int "curl_multi_fdset($1, $2, $3, $4, &$5)"
+		 curlm read-fd-set write-fd-set exc-fd-set max-fd))
+   (values read-fd-set write-fd-set max-fd)))
+
+;  * Name:    curl_multi_perform()
+;  *
+;  * Desc:    When the app thinks there's data available for curl it calls this
+;  *          function to read/write whatever there is right now. This returns
+;  *          as soon as the reads and writes are done. This function does not
+;  *          require that there actually is data available for reading or that
+;  *          data can be written, it can be called just in case. It returns
+;  *          the number of handles that still transfer data in the second
+;  *          argument's integer-pointer.
+;  *
+;  * Returns: CURLMcode type, general multi error code. *NOTE* that this only
+;  *          returns errors etc regarding the whole multi stack. There might
+;  *          still have occurred problems on invidual transfers even when this
+;  *          returns OK.
+; 
+;CURLMcode curl_multi_perform(CURLM *multi_handle,
+;                             int *running_handles);
+
+; 
+;  * Name:    curl_multi_cleanup()
+;  *
+;  * Desc:    Cleans up and removes a whole multi stack. It does not free or
+;  *          touch any individual easy handles in any way. We need to define
+;  *          in what state those handles will be if this function is called
+;  *          in the middle of a transfer.
+;  * Returns: CURLMcode type, general multi error code.
+; 
+(define-func curl_multi_cleanup CURLMcode((CURLM multi_handle)))
+
+; Name:    curl_multi_info_read()
+;
+; Desc:    Ask the multi handle if there's any messages/informationals from
+;          the individual transfers. Messages include informationals such as
+;          error code from the transfer or just the fact that a transfer is
+;          completed. More details on these should be written down as well.
+;
+;          Repeated calls to this function will return a new struct each
+;          time, until a special "end of msgs" struct is returned as a signal
+;          that there is no more to get at this point.
+;
+;          The data the returned pointer points to will not survive calling
+;          curl_multi_cleanup().
+;
+;          The 'CURLMsg' struct is meant to be very simple and only contain
+;          very basic informations. If more involved information is wanted,
+;          we will provide the particular "transfer handle" in that struct
+;          and that should/could/would be used in subsequent
+;          curl_easy_getinfo() calls (or similar). The point being that we
+;          must never expose complex structs to applications, as then we'll
+;          undoubtably get backwards compatibility problems in the future.
+;
+; Returns: A pointer to a filled-in struct, or NULL if it failed or ran out
+;          of structs. It also writes the number of messages left in the
+;          queue (after this read) in the integer the second argument points
+;          to.
+
+;CURLMsg *curl_multi_info_read(CURLM *multi_handle,
+;                              int *msgs_in_queue);
+
+@endif

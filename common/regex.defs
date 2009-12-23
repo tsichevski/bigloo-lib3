@@ -1,0 +1,210 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ regex
+ (import
+  ;;mzcompat
+  srfi-1)
+ (extern
+  (include "regex.h")
+  (type rexp-cstring string "const char*")
+  )
+
+ (export
+  ;; C runtime API
+  (regexp::regexp rexp-or-string . flags)
+  (regerror::bstring errorid::regcomp-error rexp::regexp)
+
+  ;; MzScheme-compatible calls
+  (regexp-match-positions
+   rexp-or-string
+   s::bstring
+   #!optional
+   (offset::int 0)
+   #!rest
+   eflags
+   )
+
+  (regexp-match rexp-or-string s::bstring #!optional (offset::int 0) #!rest eflags)
+
+  ;; FIXME: simple replacement, no pattern in insert string recognized
+  (regexp-replace*::bstring pattern src::bstring insert::bstring)
+  )
+ (static
+  (map-positions str::bstring positions))
+ )
+
+(register-eval-srfi! 'regexp)
+
+(define-object (regexp regex_t*) ())
+(define-object (regmatchp regmatch_t*) ())
+
+(define-flags (regcomp-flags int)
+  (basic 0)                ;; Use Basic Regular Expressions.
+  (extended REG_EXTENDED)  ;; Use Extended Regular Expressions.
+  (icase REG_ICASE)        ;; Ignore case in match.
+  (nosub REG_NOSUB)        ;; Report only success/fail in regexec().
+  (newline REG_NEWLINE))   ;; Change the  handling  of  NEWLINE  characters,  as
+                           ;; described in the text.
+
+(define-flags (regexec-flags int)
+  (notbol REG_NOTBOL)
+  (noteol REG_NOTEOL))
+
+(define-func
+  regexec
+  regcomp-error
+  ((regexp rexp)
+   (rexp-cstring str)
+   (uint nmatch)
+   (regmatchp pmatch)
+   (regexec-flags eflags)))
+
+(define-enum-extended (regcomp-error int)
+  (noerror 0)
+  (nomatch REG_NOMATCH)      ;; The regexec() function failed to match.
+  (badpat REG_BADPAT)        ;;Invalid regular expression.
+  (ecollate REG_ECOLLATE)    ;;Invalid collating element referenced.
+  (ectype REG_ECTYPE)        ;;Invalid character class type referenced.
+  (eescape REG_EESCAPE)      ;;Trailing \ in pattern.
+  (esubreg REG_ESUBREG)      ;;Number in \digit invalid or in error.
+  (ebrack REG_EBRACK)        ;;imbalance.
+
+  ;; this sould not happen since all unsupported functions should
+  ;; be filtered out by `configure'
+  ;;(enosys REG_ENOSYS)        ;;The function is not supported.
+  (eparen REG_EPAREN)        ;;\(\) or () imbalance.
+  (ebrace REG_EBRACE)        ;;\{ \} imbalance.
+  (badbr REG_BADBR)          ;; Content of \{ \} invalid: not a number, number too
+                             ;; large,  more  than  two numbers, first larger than second.
+  (erange REG_ERANGE)        ;; Invalid endpoint in range expression.
+  (espace REG_ESPACE)        ;; Out of memory.
+  (badrpt REG_BADRPT)        ;; ?, * or + not preceded by  valid  regular  expression.
+  )
+
+(define-func regcomp
+  regcomp-error
+  ((regexp preg)
+   (string pattern)
+   (regcomp-flags flags)))
+
+(define-func regfree none ((regexp preg)))
+
+(define(regerror::bstring errorid::regcomp-error rexp::regexp)
+  (let*((buffer(make-string 1024))
+	(bufp::string buffer)
+	(len::int(string-length buffer))
+	(res-len
+	 (pragma::int "regerror($1, (const regex_t *)$2, $3, $4)"
+		      errorid rexp bufp len)))
+    (pragma::bstring "string_to_bstring_len($1, $2-1)"bufp res-len)))
+;;(regerror 'erange (regexp " "))
+
+(define(regexp::regexp rexp-or-string . flags)
+  (cond
+   ((regexp? rexp-or-string)
+    rexp-or-string)
+   ((string? rexp-or-string)
+    (let((rexp(pragma::regexp "(regex_t*)malloc(sizeof(regex_t))")))
+      (let*((s::string rexp-or-string)
+	    (res(regcomp rexp s(if(null? flags) '(extended) flags))))
+	(unless(eq? res 'noerror)
+	       (error "regcomp" (regerror res rexp) s)))
+      rexp))
+   (else
+    (error "regexp"
+	   "argument must be string or regexp"
+	   rexp-or-string))))
+
+(define(regexp-match-positions
+	rexp-or-string
+	s::bstring
+	#!optional
+	(offset::int 0)
+	#!rest
+	eflags
+	)
+  [assert(offset s)(and(>=fx offset 0)(<=fx offset(string-length s)))]
+  (let*((rexp::regexp(regexp rexp-or-string))
+	(nofmatches::int(+fx 1(pragma::int "((regex_t*)$1)->re_nsub"rexp)))
+	(matches
+	 (pragma::regmatchp "(regmatch_t*)GC_malloc(sizeof(regmatch_t) * ($1))" nofmatches)))
+
+    (and(eq? 'noerror
+	     (regexec
+	      rexp
+	      (pragma::string "$1 + $2"($bstring->string s) offset)
+	      nofmatches
+	      matches
+	      (bregexec-flags->regexec-flags eflags)
+	      ))
+	(let loop((i 0)(accu '()))
+	  (if(>=fx i nofmatches)
+	     (begin
+	       (when(string? rexp-or-string)
+		    (regfree rexp))
+	       (reverse accu))
+	     (loop
+	      (+fx 1 i)
+	      (cons
+	       (let((start(pragma::int "((regmatch_t*)$1)[$2].rm_so" matches i))
+		    (end  (pragma::int "((regmatch_t*)$1)[$2].rm_eo" matches i)))
+		 (and(>=fx start 0)
+		     (cons(+fx offset start)
+			  (+fx offset end))))
+	       accu)))))))
+;(regexp-match-positions "[ ]+" "  a   b  c")
+
+(define(map-positions str::bstring positions)
+  (map
+   (lambda(interval)
+     (and interval(substring str(car interval)(cdr interval))))
+   positions))
+
+(define(regexp-match
+	rexp-or-string
+	s::bstring
+	#!optional
+	(offset::int 0)
+	#!rest
+	eflags
+	)
+
+  (let((match(apply regexp-match-positions
+		    (cons* rexp-or-string s offset eflags))))
+    (and match(map-positions s match))))
+
+(define(regexp-replace* pattern src::bstring insert::bstring)
+  (apply
+   string-append
+   (let loop((offset 0))
+     (let((match(regexp-match-positions pattern src offset)))
+       (if match
+	  (let((p(car match)))
+	    (cons*(substring src offset(car p))
+		  insert
+		  (loop(cdr p))))
+	  (list(substring src offset(string-length src))))))))

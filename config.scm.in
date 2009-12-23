@@ -1,0 +1,16 @@
+;; -*-scheme-*-
+
+;; This file is intended for reading by cgen program. It isn't
+;; supposed to be used in runtime
+
+(define enable-broken (string=? "@with_deprecated@" "yes"))
+(define disable-deprecated (not enable-broken))
+(define gtkversion "@gtkversion@")
+(define glu-version (string->number "@glu_version@"))
+(define curlversion "@curlversion@")
+(define gcversion "@gcversion@")
+
+(define enable-setenv (equal? "@enable_setenv@" "yes"))
+(define enable-flock (equal? "@enable_flock@" "yes"))
+
+;;

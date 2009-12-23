@@ -1,0 +1,133 @@
+
+   `bigloo-lib' is a collection of libraries for Bigloo, the Scheme
+programming language compiler
+(`http://www-sop.inria.fr/mimosa/fp/Bigloo/'). Most of the libraries are
+ready-to-use interfaces for various C-based packages, such as C runtime
+library, Gtk++, LDAP client API or XML parser API. Other are done
+entirely in `pure Scheme', such as HTTP library and NODE library.
+
+   Besides, the `bigloo-lib' provides a comfortable framework to
+configure, compile, install and deploy Bigloo (in particular,
+system-dependent) libraries, so it is quite a good place to put code
+created by other Bigloo developers.
+
+   Currently `bigloo-lib' includes the following subpackages:
+
+   * Common utilities (used by all other packages)
+
+   * RDBMS interface including Oracle, MySQL, PostgreSQL and SQLite
+     back-ends
+
+   * HTTP+CGI (CGI programming framework)
+
+   * XML parser (interface to James Clark's expat library )
+
+   * LDAP client interface
+
+   * interface for GTK+-1.2
+
+   * interface to GD (GIF/PNG image processing library)
+
+   * interface to gdbm
+
+   Besides, `bigloo-lib' includes a few _experimental_ (and
+undocumented) modules:
+
+   * OpenGL interface, including gtkglarea
+
+   * interface to pthread, Posix Threads
+
+   * interface to Unix sockets
+
+   * interface to curl library `http://curl.haxx.se/'
+
+   * interface to the GNU Gettext Utilities
+
+   * interface to the GNU Readline Library
+
+0.1 Versions and Compitibility
+==============================
+
+The current version of `bigloo-lib' is 0.21. It has been tested with
+`bigloo2.6e'.
+
+   The 0.21 release of `bigloo-lib' was successfully compiled and
+tested on RedHat Linux 9.0.
+
+   Also it is known to work on SPARC Solaris 9. Some modules have been
+also tested under CYGWIN.
+
+0.2 Project Home page
+=====================
+
+`http://bigloo-lib.sourceforge.net'
+
+   Currently this site has only `bigloo-lib' documentation, converted
+by `texi2html'.
+
+0.3 SourceForge Project page
+============================
+
+`http://sourceforge.net/projects/bigloo-lib/'
+
+0.4 Documentation
+=================
+
+The documentation you see at project WEB site may differ from the
+documentation provided with the latest distribution of `bigloo-lib'.
+Sometimes the documentation reflects the development "bleeding edge",
+some of the features described there will only be visible in the next
+release. Use the documentation included in the package.
+
+0.5 Download
+============
+
+`http://sourceforge.net/project/showfiles.php?group_id=3455'
+
+   _Note:_ in an upcoming 0.21 release of `bigloo-lib' an attempt will
+be made to separate each library in bigloo-lib into its own package.
+Also, an RPM package will be available both for each subpackage as well
+as entire `bigloo-lib' package.
+
+0.6 Anonymous CVS Access
+========================
+
+This project's CVS repository can be checked out through anonymous
+(pserver) CVS with the following instruction set. When prompted for a
+password for anonymous, simply press the Enter key.
+
+     cvs -d:pserver:anonymous@cvs.bigloo-lib.sourceforge.net:/cvsroot/bigloo-lib login
+
+     cvs -d:pserver:anonymous@cvs.bigloo-lib.sourceforge.net:/cvsroot/bigloo-lib co .
+
+   Also, you can browse the CVS tree with CVSWEB
+
+   `http://cvs.sourceforge.net/cgi-bin/cvsweb.cgi?cvsroot=bigloo-lib'
+
+   Daily tarballs of entire project CVS Repository are available at
+
+   `http://cvs.sourceforge.net/cvstarballs/bigloo-lib-cvsroot.tar.gz'
+
+   _Note:_ After you have checked `bigloo-lib' for a first time, you'll
+probably need to build a few files that are missing in CVS repository.
+To do so you you will need the `autoconf-2.59', `automake-1.8.5' and
+`libtool-1.5.8' installed on your system (see `ftp://ftp.gnu.org').
+
+   To create the missing files run:
+
+     chmod +x ./bootstrap
+     ./bootstrap
+
+   When compile and install the package as usual (i.e. do
+`./configure', `make', `make check' and `make install'.
+
+0.7 Mailing lists
+=================
+
+`mailto:bigloo-lib-devel@lists.sourceforge.net'
+
+0.8 Bug Tracking
+================
+
+`https://sourceforge.net/bugs/?group_id=3455'
+

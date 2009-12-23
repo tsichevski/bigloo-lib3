@@ -1,0 +1,263 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module termios
+	(import os srfi-1)
+	(extern
+	 (include "termios.h"))
+	(export
+	 (tcsendbreak fd::int duration::int)
+	 (tcdrain fd::int)
+	 (tcflush fd::int queue-selector::tcflush-selector)
+	 (tcflow fd::int action::tcflow-action)
+	 (cfmakeraw termios::termios)
+	 (cfgetospeed::cfspeed termios::termios)
+	 (cfsetospeed termios::termios speed::cfspeed)
+	 (cfgetispeed::cfspeed termios::termios)
+	 (cfsetispeed termios::termios #!optional speed)
+	 (tcgetpgrp::int fd::int)
+	 (tcsetpgrp fd::int pgrpid::uint)
+
+	 (make-termios::termios #!optional (fd 0))
+	 (tcsetattr fd::int termios::termios #!optional (option 'now))
+	 (set-termios-cc! termios::termios what::tc-control #!optional value)
+	 )
+	)
+
+(define-flags (tc-iflag tcflag_t)
+  (ignbrk IGNBRK)
+  (brkint BRKINT)
+  (ignpar IGNPAR)
+  (parmrk PARMRK)
+  (inpck INPCK)
+  (istrip ISTRIP)
+  (inlcr INLCR)
+  (igncr IGNCR)
+  (icrnl ICRNL)
+  (iuclc IUCLC)
+  (ixon IXON)
+  (ixany IXANY)
+  (ixoff IXOFF)
+  (imaxbel IMAXBEL)
+  )
+
+(define-flags (tc-oflag tcflag_t)
+  (opost OPOST)
+  (olcuc OLCUC)
+  (onlcr ONLCR)
+  (ocrnl OCRNL)
+  (onocr ONOCR)
+  (onlret ONLRET)
+  (ofill OFILL)
+  (ofdel OFDEL)
+  (nldly NLDLY)
+  (crdly CRDLY)
+  (tabdly TABDLY)
+  (bsdly BSDLY)
+  (vtdly VTDLY)
+  (ffdly FFDLY)
+  )
+
+(define-flags (tc-cflag tcflag_t)
+  (csize CSIZE)
+  (cstopb CSTOPB)
+  (cread CREAD)
+  (parenb PARENB)
+  (parodd PARODD)
+  (hupcl HUPCL)
+  (clocal CLOCAL)
+  (cibaud CIBAUD)
+  (crtscts CRTSCTS)
+  )
+
+(define-flags (tc-lflag tcflag_t)
+  (isig ISIG)
+  (icanon ICANON)
+  (xcase XCASE)
+  (echo ECHO)
+  (echoe ECHOE)
+  (echok ECHOK)
+  (echonl ECHONL)
+  (echoctl ECHOCTL)
+  (echoprt ECHOPRT)
+  (echoke ECHOKE)
+  (flusho FLUSHO)
+  (noflsh NOFLSH)
+  (tostop TOSTOP)
+  (pendin PENDIN)
+  (iexten IEXTEN)
+  )
+
+(define-object (termios "struct termios *") ()
+  (fields
+   ((tc-iflag tcflag_t) (iflag c_iflag)  (setter))
+   ((tc-oflag tcflag_t) (oflag c_oflag)  (setter))
+   ((tc-cflag tcflag_t) (cflag c_cflag)  (setter))
+   ((tc-lflag tcflag_t) (lflag c_lflag)  (setter))
+   ))
+
+(define (make-termios::termios #!optional (fd 0))
+  (let((termios::termios
+	(pragma::termios
+	 "(struct termios *)GC_malloc(sizeof(struct termios))")))
+    (when fd
+	  (tcgetattr fd termios))
+    termios))
+
+(define-func tcgetattr int ((int fd) (termios termios)))
+
+(define-enum (tc-action int)
+  (now TCSANOW)    
+  (drain TCSADRAIN)
+  (flush TCSAFLUSH))
+
+(define (tcsetattr fd::int termios::termios #!optional (option 'now))
+  (let((option::tc-action (or option (pragma::tc-action "TCSANOW"))))
+    (when(pragma::bool "tcsetattr($1, $2, $3)" fd option termios)
+	 (cerror "tcsetattr"))))
+
+(define (tcsendbreak fd::int duration::int)
+  (when(pragma::bool "tcsendbreak($1, $2)" fd duration)
+       (cerror "tcsendbreak")))
+
+(define (tcdrain fd::int)
+  (when(pragma::bool "tcdrain($1)" fd)
+       (cerror "tcdrain")))
+
+(define-enum (tcflush-selector int)
+  (input TCIFLUSH) 
+  (output TCOFLUSH)
+  (both TCIOFLUSH))
+
+(define (tcflush fd::int queue-selector::tcflush-selector)
+  (when(pragma::bool "tcflush($1, $2)" fd queue-selector)
+       (cerror "tcflush")))
+
+(define-enum (tcflow-action int)
+  (ooff TCOOFF)
+  (oon TCOON)  
+  (ioff TCIOFF)
+  (ion TCION))
+
+(define (tcflow fd::int action::tcflow-action)
+  (when(pragma::bool "tcflow($1, $2)" fd action)
+       (cerror "tcflow")))
+
+(define (cfmakeraw termios::termios)
+  (pragma "cfmakeraw($1)"termios)
+  #unspecified)
+
+(define (cfgetospeed::cfspeed termios::termios)
+  (pragma::cfspeed "cfgetospeed($1)" termios))
+
+(define (cfsetospeed termios::termios speed::cfspeed)
+  (when(pragma::bool "cfsetospeed($1, $2)" termios speed)
+       (cerror "cfsetospeed")))
+
+(define (cfgetispeed::cfspeed termios::termios)
+  (pragma::cfspeed "cfgetispeed($1)" termios))
+
+(define (cfsetispeed termios::termios #!optional speed)
+  (let((speed::cfspeed (or speed (pragma::cfspeed "0"))))
+    (when(pragma::bool "cfsetispeed($1, $2)" termios speed)
+	 (cerror "cfsetispeed"))))
+
+(define (tcgetpgrp::int fd::int)
+  (let((grp(pragma::int "tcgetpgrp($1)" fd)))
+    (if(=fx grp -1)
+       (cerror "tcgetpgrp")
+       grp)))
+
+(define (tcsetpgrp fd::int pgrpid::uint)
+  (when(pragma::bool "tcsetpgrp($1, $2)" fd pgrpid)
+       (cerror "tcsetpgrp")))
+
+(define-enum (tc-control int)
+  (intr VINTR) 
+  (quit VQUIT) 
+  (erase VERASE)
+  (kill VKILL) 
+  (eof VEOF)   
+  (time VTIME) 
+  (min VMIN)
+  (swtc VSWTC) 
+  (start VSTART)
+  (stop VSTOP) 
+  (susp VSUSP) 
+  (eol VEOL)   
+  (reprint VREPRINT) 
+  (discard VDISCARD) 
+  (werase VWERASE) 
+  (lnext VLNEXT)
+  (eol2 VEOL2) 
+  )
+
+(define (set-termios-cc! termios::termios
+			 what::tc-control
+			 #!optional value)
+  (let((ch::int
+	(cond((char? value)
+	      (char->integer value))
+	     ((string? value)
+	      (read/rp (regular-grammar
+		()
+		((: #\^ (in ("AZ")))
+		 (-fx (char->integer(string-ref(the-string)1))64))
+		(else
+		 (let((ch(the-failure)))
+		   (if(eof-object? ch)
+		      ch
+		      (char->integer ch)))))
+	       (open-input-string value)))
+	       
+	     ((integer? value) value)
+	     (else
+	      ;; #f or any other object means reset
+	      0))))
+    (pragma "$1->c_cc[$2] = $3"termios what ch)
+    #unspecified))
+;;(set-termios-cc! termios 'stop "^N")
+
+(define-enum (cfspeed int)
+  (b0 B0)
+  (b50 B50)
+  (b75 B75)
+  (b110 B110)
+  (b134 B134)
+  (b150 B150)
+  (b200 B200)
+  (b300 B300)
+  (b600 B600)
+  (b1200 B1200)
+  (b1800 B1800)
+  (b2400 B2400)
+  (b4800 B4800)
+  (b9600 B9600)
+  (b19200 B19200)
+  (b38400 B38400)
+  (b57600 B57600)
+  (b115200 B115200)
+  (b230400 B230400)
+  )

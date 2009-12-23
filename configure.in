@@ -1,0 +1,45 @@
+AC_INIT(Makefile.rules)
+dnl note: I use underscore instead of minus sign in the
+dnl version id, since RPM doesn't accept minuses in version string
+AM_INIT_AUTOMAKE(bigloo-lib3, 0.10)
+
+dnl FIXME: these two declarations should appear in bgtk/bgtk.m4 and
+dnl gl/gl.m4 if aclocal would parse process these files
+
+dnl AM_PATH_GTK
+dnl AM_PATH_GTKGL
+
+m4_include([bigloo-lib.m4])
+m4_include([common/common.m4])
+m4_include([xml/xml.m4])
+dnl m4_include([gd/gd.m4])
+dnl m4_include([expat/expat.m4])
+m4_include([rdbms/rdbms.m4])
+dnl m4_include([bgtk/bgtk.m4])
+dnl m4_include([gl/gl.m4])
+m4_include([ldap/ldap.m4])
+
+AM_PROG_LIBTOOL
+
+AC_OUTPUT([					\
+  Makefile					\
+  bigloo-lib.spec				\
+  common/Makefile				\
+  common/common.init				\
+  xml/Makefile					\
+  xml/config.texi				\
+  xml/bxml.init					\
+  gd/Makefile					\
+  ldap/Makefile					\
+  node/Makefile					\
+  http/Makefile					\
+  rdbms/Makefile				\
+  rdbms/rdbms.init				\
+  expat/Makefile				\
+  bgtk/Makefile					\
+  bgtk/bgtk.init				\
+  gl/Makefile					\
+  gl/gl.init					\
+  docs/Makefile					\
+  docs/bigloo-lib-version.texi			\
+])

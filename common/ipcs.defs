@@ -1,0 +1,90 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+;; Interprocess Communications (ipc)
+
+;; Note: compilation of this module is disabled by default. Use
+;; --with-ipcs configure option to turn it on
+
+(module
+ ipcs
+ (import os srfi-1
+  )
+ (option (loadq "common.sch"))
+ (extern
+  (include "common.h")
+  (include "sys/ipc.h")
+  (include "sys/shm.h")
+  (type key-t ulong "key_t")
+  )
+ (export
+  (shmget::int key::key-t size::uint mode::uint . flags)
+  (shmat::void* shmid::int shmflg::shm-flags #!optional shmaddr)
+  )
+ )
+
+
+;; Mode bits for `msgget', `semget', and `shmget'.
+(define-flags (ipc-flags int)
+  (creat IPC_CREAT)	;; Create key if key does not exist.
+  (excl IPC_EXCL)	;; Fail if key exists. 
+  (nowait IPC_NOWAIT)	;; Return error on wait. 
+  )
+
+(define-object (shmid-ds "struct shmid_ds *") ())
+
+;; Shared memory control operation. 
+(define-func shmctl bool
+  ((int shmid)
+   (int cmd)
+   (shmid_ds buf)))
+   
+;; Get shared memory segment. 
+(define (shmget::int key::key-t size::uint mode::uint . flags)
+  (let*((shmflg::ipc-flags (or flags (pragma::ipc-flags "0")))
+	(id(pragma::int "shmget($1, $2, $3 + $4)"key size shmflg mode)))
+    (if (<fx id 0)
+	(cerror "shmget")
+	id)))
+
+;; Flags for `shmat'.
+(define-flags (shm-flags int)
+  (rdonly SHM_RDONLY)	;; attach read-only else read-write */
+  (rnd SHM_RND)		;; round attach address to SHMLBA */
+  (remap SHM_REMAP)	;; take-over region on attach */
+  )
+
+;; Attach shared memory segment. 
+(define (shmat::void* shmid::int shmflg::shm-flags #!optional shmaddr)
+  (let((shmaddr::void* (or shmaddr(pragma::void* "NULL"))))
+    (let((res(pragma::void* "shmat($1, $2, $3)"shmid shmaddr shmflg)))
+      (if(pragma::bool "$1 == (void*)-1"res)
+	 (cerror "shmat")
+	 res))))
+
+;; Detach shared memory segment. 
+(define-export (shmdt::bool shmaddr::void*)
+  (pragma::bool "shmdt((void*)$1)" shmaddr))
+

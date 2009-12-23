@@ -1,0 +1,64 @@
+2004-11-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* afile.scm (main): if the -o option was given, afile should check
+	if the output file exists. If so, try to load it and check if the
+	new contents differ to the old one. Do not overwrite the old file
+	unless necessary. Add a new option --force which tells afile to
+	always overwrite output files.
+
+2003-09-02  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* srfi-1.scm: recheck all procedures which are reimplementations
+	of Bigloo built-ins
+
+regexp:
+
+make regexp-match-ci obsolete by ability to create case insensitive
+regexps. Test case-insensitive regexp matching -- (cannot be made
+since regexp does not support locales properly)
+
+cgen:
+
+-- check and report uncomplete cgen directives (using match-case)
+-- introduce macros recognition to be evaluated just after .defs file was read
+-- implement `ret' directive (when multiple return values are required)
+
+format: make it more compatible with CL & SLIB, obsolete printf &
+fprintf, remove their use from all the libraries. Add the configure
+option to use SLIB implementation of format
+
+add boolean->flags coercion: #f => 0 
+
+------------------------------------------------------------------------------
+Sat Jan 13 19:12:28 2001 
+
+cgen: реализовать вставку в строки, передаваемые в C параметров
+процедуры a-la bigloo pragma:
+
+(define-func (gtk-text-get-chars "gtk_editable_get_chars")
+  string
+  ((GtkText text)
+   (int start(= "0"))
+   (int end(= "gtk_text_get_length($1)"))))
+
+здесь в процедуру gtk_text_get_length должен быть передан первый
+параметр функции gtk-text-get-chars
+
+cgen: make something like @ifdef using symbol-exists?
+------------------------------------------------------------------------------
+Apr 14 2002
+
+Add `define-cgen-macro' to recognize and evaluate some cgen directives
+such as cpp->scheme inside the procedure bodies.
+
+------------------------------------------------------------------------------
+curl: e-mail to curl developers: report a bug: no progress indication
+when using file:// protocol; curl_easy_setopt - should copy argument
+strings instead of storing the pointers
+
+------------------------------------------------------------------------------
+18/7/2002 19:17:44
+read-date
+
+write macro to compile the time spec into a regular-gramma to meke it
+possible to find dates in a stream

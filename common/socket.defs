@@ -1,0 +1,516 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ socket
+ (import srfi-1 os)
+ (extern
+  (include "sys/types.h")
+  (include "sys/socket.h")
+  (include "netdb.h")
+  )
+ 
+ (export
+  (socket::int #!optional domain type protocol)
+  (connect sockfd::int hostname::string port::int)
+  (send sock::int data::bstring #!optional flags)
+  (accept::int sockfd::int)
+  (bind sockfd::int port::int)
+  (recv::bstring sock::int n::int #!optional flags)
+  (getsockopt sock::int which)
+  (setsockopt sock::int . options)
+;;  (make-output-port::output-port name::string fd::int)
+  )
+ )
+
+(define-errcode sock-errcode sock-check-error)
+
+(define-inline (sock-check-error name::bstring code::int)
+  (unless
+   (pragma::bool "$1 == 0" code)
+   (cerror name))
+  code)
+
+(define-enum (socket-domain int)
+  (unix PF_UNIX)            ;; Local communication
+  (inet PF_INET)            ;; IPv4 Internet protocols
+  (inet6 PF_INET6)          ;; IPv6 Internet protocols
+  (ipx PF_IPX)              ;; IPX - Novell protocols
+  (netlink PF_NETLINK)      ;; Kernel user interface device
+  (x25 PF_X25)              ;; ITU-T X.25 / ISO-8208 protocol
+  (ax25 PF_AX25)            ;; Amateur radio AX.25 protocol
+  (atmpvc PF_ATMPVC)        ;; Access to raw ATM PVCs
+  (appletalk PF_APPLETALK)  ;; Appletalk
+  (packet PF_PACKET)        ;; Low level packet interface
+  )
+
+(define-enum (socket-type int)
+  (stream SOCK_STREAM)
+  (dgram SOCK_DGRAM)
+  (seqpacket SOCK_SEQPACKET)
+  (raw SOCK_RAW)
+  (rdm SOCK_RDM))
+
+; Create a new socket of type TYPE in domain DOMAIN, using
+; protocol PROTOCOL.  If PROTOCOL is zero, one is chosen automatically.
+; Returns a file descriptor for the new socket, or -1 for errors.
+(define (socket::int #!optional domain type protocol)
+  (let*((domain::socket-domain (or domain (pragma::socket-domain "PF_INET")))
+       (type::socket-type (or type (pragma::socket-type "SOCK_STREAM")))
+       (protocol::int (or protocol 0)))
+    (let((sock::int(pragma::int "socket($1, $2, $3)"
+				domain type protocol)))
+      (sock-check-error "socket" sock)
+      sock)))
+
+; Create two new sockets, of type TYPE in domain DOMAIN and using
+; protocol PROTOCOL, which are connected to each other, and put file
+; descriptors for them in FDS[0] and FDS[1].  If PROTOCOL is zero,
+; one will be chosen automatically.  Returns 0 on success, -1 for errors.  */
+;extern int socketpair (int __domain, int __type, int __protocol,
+;		       int __fds[2])
+
+; Give the socket FD the local address ADDR (which is LEN bytes long).
+(define (bind sockfd::int port::int)
+  (let((sockaddr::void*
+	(pragma::void* "GC_malloc_atomic(sizeof (struct sockaddr_in))")))
+    (pragma "
+            ((struct sockaddr_in*)$1)->sin_family = AF_INET;
+            ((struct sockaddr_in*)$1)->sin_port   = htons($2);
+            ((struct sockaddr_in*)$1)->sin_addr.s_addr = INADDR_ANY;"
+	    sockaddr port)
+    (sock-check-error
+     "bind"
+     (pragma::int
+      "bind($1,(struct sockaddr *)$2, sizeof(struct sockaddr_in))"
+      sockfd sockaddr))
+    #unspecified))
+
+; Put the local address of FD into *ADDR and its length in *LEN.
+;extern int getsockname (int __fd, __SOCKADDR_ARG __addr,
+;			socklen_t *__restrict __len) __THROW;
+
+; Open a connection on socket FD to peer at ADDR (which LEN bytes long).
+; For connectionless socket types, just set the default address to send to
+; and the only address from which to accept transmissions.
+(define (connect sockfd::int hostname::string port::int)
+  (let((sockaddr::void*
+	(pragma::void* "GC_malloc_atomic(sizeof (struct sockaddr_in))"))
+       (hp::void* (pragma::void* "gethostbyname($1)"hostname )))
+    (when (foreign-null? hp)
+	  (error "gethostbyname" "bad hostname" hostname))
+    (pragma "
+            memcpy((char*)&((struct sockaddr_in*)$1)->sin_addr,
+              ((struct hostent *)$2)->h_addr,
+              ((struct hostent *)$2)->h_length);
+            ((struct sockaddr_in*)$1)->sin_family = AF_INET;
+            ((struct sockaddr_in*)$1)->sin_port   = htons($3)"
+	    sockaddr hp port)
+    (sock-check-error
+     "connect"
+     (pragma::int
+      "connect($1,(struct sockaddr *)$2, sizeof(struct sockaddr_in))"
+      sockfd sockaddr))
+    #unspecified))
+
+; Put the address of the peer connected to socket FD into *ADDR
+; (which is *LEN bytes long), and its actual length into *LEN.  */
+;extern int getpeername (int __fd, __SOCKADDR_ARG __addr,
+;			socklen_t *__restrict __len)
+
+
+(define-flags (send-flags int)
+  (oob MSG_OOB)
+  (dontroute MSG_DONTROUTE)
+  (dontwait MSG_DONTWAIT)
+  (nosignal MSG_NOSIGNAL)
+  ;;(confirm MSG_CONFIRM)
+  )
+
+; Send N bytes of BUF to socket FD.  Returns the number sent or -1.
+(define (send sock::int data::bstring #!optional flags)
+  (let((flags::send-flags (or flags (pragma::send-flags "0")))
+       (len::int (string-length data))
+       (data::string data))
+    (sock-check-error
+     "send"
+     (pragma::int "send($1, $2, $3, $4) == $3"
+		  sock data len flags))
+    #unspecified))
+
+(define-flags (recv-flags int)
+  (oob MSG_OOB)
+  (peek MSG_PEEK)
+  (waitall MSG_WAITALL)
+  (nosignal MSG_NOSIGNAL)
+  (trunc MSG_TRUNC)
+  (errqueue MSG_ERRQUEUE)
+  )
+
+; Read N bytes into BUF from socket FD.
+(define (recv::bstring sock::int n::int #!optional flags)
+  (let*((flags::recv-flags (or flags (pragma::recv-flags "0")))
+	(buffer(make-string n))
+	(cbuffer::string buffer)
+	(got(pragma::int "recv($1,$2,$3,$4)"
+			 sock cbuffer n flags)))
+    (cond((<fx got 0)
+	  (cerror "recv"))
+	 ((<fx got n)
+	  (substring buffer 0 got))
+	 (else
+	  buffer))))
+
+;/* Send N bytes of BUF on socket FD to peer at address ADDR (which is
+;   ADDR_LEN bytes long).  Returns the number sent, or -1 for errors.  */
+;extern int sendto (int __fd, __const void *__buf, size_t __n,
+;		   int __flags, __CONST_SOCKADDR_ARG __addr,
+;		   socklen_t __addr_len) __THROW;
+
+;/* Read N bytes into BUF through socket FD.
+;   If ADDR is not NULL, fill in *ADDR_LEN bytes of it with tha address of
+;   the sender, and store the actual size of the address in *ADDR_LEN.
+;   Returns the number of bytes read or -1 for errors.  */
+;extern int recvfrom (int __fd, void *__restrict __buf, size_t __n, int __flags,
+;		     __SOCKADDR_ARG __addr, socklen_t *__restrict __addr_len)
+
+; Send a message described MESSAGE on socket FD.
+; Returns the number of bytes sent, or -1 for errors.  */
+;extern int sendmsg (int __fd, __const struct msghdr *__message, int __flags)
+
+; Receive a message as described by MESSAGE from socket FD.
+; Returns the number of bytes read or -1 for errors.  */
+;extern int recvmsg (int __fd, struct msghdr *__message, int __flags)
+
+
+; Set socket FD's option OPTNAME at protocol level LEVEL
+; to *OPTVAL (which is OPTLEN bytes long).
+; Returns 0 on success, -1 for errors.  */
+(define (setsockopt sock::int . options)
+  (let loop((options options))
+    (when(pair? options)
+	 (sock-check-error
+	  "setsockopt"
+	  (match-case
+	   options
+	   ((keepalive: ?value . ??)
+	    ;;Enable sending of keep-alive messages on
+	    ;;connection-oriented sockets. Expects a integer boolean
+	    ;;flag.
+	    (let((value::bool value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_KEEPALIVE,&$2,sizeof(int))"
+	       sock value)))
+	   ((oobinline: ?value . ??)
+	    ;;If this option is enabled, out-of-band data is directly
+	    ;;placed into the receive data stream.  Otherwise
+	    ;;out-of-band data is only passed when the MSG_OOB flag is
+	    ;;set during receiving.
+	    (let((value::bool value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_OOBINLINE,&$2,sizeof(int))"
+	       sock value)))
+	   ((rcvlowat: ?value . ??)
+	    ;; Specify the minimum number of bytes in the buffer until
+	    ;; the socket layer will pass the data to the protocol
+	    ;; (SO_SNDLOWAT) or the user on receiving (SO_RCVLOWAT).
+	    ;; These two values are not changeable in Linux and their
+	    ;; argument size is always fixed to 1 byte.  getsockopt is
+	    ;; able to read them; setsock+- opt will always return
+	    ;; ENOPROTOOPT.
+	    (let((value::int value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_RCVLOWAT,&$2,sizeof(int))"
+	       sock value)))
+	   ((sndlowat: ?value . ??)
+	    (let((value::int value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_SNDLOWAT,&$2,sizeof(int))"
+	       sock value)))
+	   ((rcvtimeo: ?value . ??)
+	    ;;Specify the sending or receiving timeouts until reporting
+	    ;;an error.  They are fixed to a protocol specific setting
+	    ;;in Linux and cannot be read or written.  Their
+	    ;;functionality can be emulated using alarm(2) or
+	    ;;setitimer(2).
+	    (let((value::int value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_RCVTIMEO,&$2,sizeof(int))"
+	       sock value)))
+	   ((sndtimeo: ?value . ??)
+	    (let((value::int value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_SNDTIMEO,&$2,sizeof(int))"
+	       sock value)))
+	   ((bsdcompat: ?value . ??)
+	    ;;Enable BSD bug-to-bug compatibility. This is used only by
+	    ;;the UDP protocol module and scheduled to be removed in
+	    ;;future.  If enabled ICMP errors received for a UDP socket
+	    ;;will not be passed to the user program. Linux 2.0 also
+	    ;;enabled BSD bug-to-bug com- patibility options (random
+	    ;;header changing, skipping of the broadcast flag) for raw
+	    ;;sockets with this option, but that has been removed in
+	    ;;Linux 2.2. It is better to fix the user programs than to
+	    ;;enable this flag.
+	    (let((value::bool value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_BSDCOMPAT,&$2,sizeof(int))"
+	       sock value)))
+	   ((passcred: ?value . ??)
+	    ;;Enable or disable the receiving of the SCM_CREDENTIALS
+	    ;;control message.  For more information see unix(7).
+	    (let((value::bool value))
+	      (pragma::int
+	       "setsockopt($1, SOL_SOCKET, SO_PASSCRED,&$2,sizeof(int))"
+	       sock value)))
+	   ((bindtodevice: ?value . ??)
+	    ;;Bind this socket to a particular device like "eth0", as
+	    ;;specified in the passed interface name.  If the name is
+	    ;;an empty string or the option length is zero, the socket
+	    ;;device binding is removed. The passed option is a
+	    ;;variable-length null terminated interface name string
+	    ;;with the maximum size of IFNAMSIZ.  If a socket is bound
+	    ;;to an interface, only packets received from that
+	    ;;particular inter- face are processed by the socket.  Note
+	    ;;that this only works for some socket types, particularly
+	    ;;AF_INET sockets. It is not supported for packet sockets
+	    ;;(use normal bind(8) there).
+	    (let((value::int value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_BINDTODEVICE,&$2,sizeof(int))"
+			   sock value)))
+	   ((debug: ?value . ??)
+	    ;;Enable socket debugging. Only allowed for processes with
+	    ;;the CAP_NET_ADMIN capability or an effective user id of
+	    ;;0.
+	    (let((value::bool value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_DEBUG,&$2,sizeof(int))"
+			   sock value)))
+	   ((reuseaddr: ?value . ??)
+	    ;;Indicates that the rules used in validating addresses
+	    ;;supplied in a bind(2) call should allow reuse of local
+	    ;;addresses. For PF_INET sockets this means that a socket
+	    ;;may bind, except when there is an active listening socket
+	    ;;bound to the address.  When the listening socket is bound
+	    ;;to INADDR_ANY with a specific port then it is not
+	    ;;possible to bind to this port for any local address.
+	    (let((value::bool value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_REUSEADDR,&$2,sizeof(int))"
+			   sock value)))
+	   ((dontroute: ?value . ??)
+	    ;;Don't send via a gateway, only send to directly connected
+	    ;;hosts.  The same effect can be achieved by setting the
+	    ;;MSG_DONTROUTE flag on a socket send(2) operation. Expects
+	    ;;an integer boolean flag.
+	    (let((value::bool value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_DONTROUTE,&$2,sizeof(int))"
+			   sock value)))
+	   ((broadcast: ?value . ??)
+	    ;;Set or get the broadcast flag. When enabled, data- gram
+	    ;;sockets receive packets sent to a broadcast address and
+	    ;;they are allowed to send packets to a broadcast address.
+	    ;;This option has no effect on stream-oriented sockets.
+	    (let((value::bool value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_BROADCAST,&$2,sizeof(int))"
+			   sock value)))
+	   ((sndbuf: ?value . ??)
+	    ;;Sets or gets the maximum socket send buffer in bytes.
+	    ;;The default value is set by the wmem_default sysctl and
+	    ;;the maximum allowed value is set by the wmem_max sysctl.
+	    (let((value::int value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_SNDBUF,&$2,sizeof(int))"
+			   sock value)))
+	   ((rcvbuf: ?value . ??)
+	    ;;Sets or gets the maximum socket receive buffer in
+	    ;;bytes. The default value is set by the rmem_default
+	    ;;sysctl and the maximum allowed value is set by the
+	    ;;rmem_max sysctl.
+	    (let((value::int value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_RCVBUF,&$2,sizeof(int))"
+			   sock value)))
+	   ((linger: ?value . ??)
+	    ;;Sets or gets the SO_LINGER option. The argument is a linger
+	    ;;structure.    
+	    (if value
+		(let((value::int value))
+		  (pragma "{
+struct linger l = {1,0};
+l.l_linger = $2;
+setsockopt($1, SOL_SOCKET, SO_LINGER,&l,sizeof(struct linger));}"
+			  sock value))
+		(pragma "{
+struct linger l = {0,0};
+setsockopt($1, SOL_SOCKET, SO_LINGER,&l,sizeof(struct linger));}"
+			sock))
+	    #unspecified)
+	   ((priority: ?value . ??)
+	    ;;Set the protocol-defined priority for all packets to be
+	    ;;sent on this socket.  Linux uses this value to order the
+	    ;;networking queues: packets with a higher priority may be
+	    ;;processed first depending on the selected device queueing
+	    ;;discipline. For ip(7), this also sets the IP
+	    ;;type-of-service (TOS) field for outgoing packets.
+	    
+	    (let((value::int value))
+	      (pragma::int "setsockopt($1, SOL_SOCKET, SO_PRIORITY,&$2,sizeof(int))"
+			   sock value)))
+	   (else
+	    (error "setsockopt" "invalid option" options))
+	   ))
+	 (loop(cddr options)))))
+
+(define (getsockopt sock::int which)
+  (let((value::int (pragma::int "0"))
+       (len::int (pragma::int "0")))
+    (sock-check-error
+     "getsockopt"
+     (case which
+       ((keepalive:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_KEEPALIVE,&$2,&$3)"
+	 sock value len))
+       ((oobinline:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_OOBINLINE,&$2,&$3)"
+	 sock value len))
+       ((rcvlowat:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_RCVLOWAT,&$2,&$3)"
+	 sock value len))
+       ((sndlowat:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_SNDLOWAT,&$2,&$3)"
+	 sock value len))
+       ((rcvtimeo:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_RCVTIMEO,&$2,&$3)"
+	 sock value len))
+       ((sndtimeo:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_SNDTIMEO,&$2,&$3)"
+	 sock value len))
+       ((bsdcompat:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_BSDCOMPAT,&$2,&$3)"
+	 sock value len))
+       ((passcred:)
+	(pragma::int
+	 "getsockopt($1, SOL_SOCKET, SO_PASSCRED,&$2,&$3)"
+	 sock value len))
+       ((peercred:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_PEERCRED,&$2,&$3)"
+		     sock value len))
+       ((bindtodevice:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_BINDTODEVICE,&$2,&$3)"
+		     sock value len))
+       ((debug:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_DEBUG,&$2,&$3)"
+		     sock value len))
+       ((reuseaddr:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_REUSEADDR,&$2,&$3)"
+		     sock value len))
+       ((type:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_TYPE,&$2,&$3)"
+		     sock value len))
+       ((dontroute:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_DONTROUTE,&$2,&$3)"
+		     sock value len))
+       ((broadcast:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_BROADCAST,&$2,&$3)"
+		     sock value len))
+       ((sndbuf:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_SNDBUF,&$2,&$3)"
+		     sock value len))
+       ((rcvbuf:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_RCVBUF,&$2,&$3)"
+		     sock value len))
+       ((linger:)
+	(pragma "
+struct linger l;
+getsockopt($1, SOL_SOCKET, SO_LINGER,&l,&$3);
+if (l.l_onoff)
+  $2 = l.l_linger;"
+		sock value len)
+	0)
+       ((priority:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_PRIORITY,&$2,&$3)"
+		     sock value len))
+       ((error:)
+	(pragma::int "getsockopt($1, SOL_SOCKET, SO_ERROR,&$2,&$3)"
+		     sock value len))
+       (else
+	(error "getsockopt" "invalid option selector" which))))
+    value))
+
+; Prepare to accept connections on socket FD.
+;   N connection requests will be queued before further requests are refused.
+(define-func listen sock-errcode ((int fd)
+				  (int n (= "0"))))
+
+; Await a connection on socket FD.
+; When a connection arrives, open a new socket to communicate with it,
+; set *ADDR (which is *ADDR_LEN bytes long) to the address of the connecting
+; peer and *ADDR_LEN to the address's actual length, and return the
+; new socket's descriptor, or -1 for errors.
+(define (accept::int sockfd::int)
+  (let loop()
+    (let*((sockfd::int sockfd)
+	  (sock::int (pragma::int "accept($1,NULL,NULL)" sockfd)))
+      (if(<fx sock 0)
+	 (if(pragma::bool "errno == EINTR")
+	    (loop)
+	    (sock-check-error "accept" sock))
+	 sock))))
+
+; The following constants should be used for the second parameter of
+; `shutdown'.
+(define-enum (shut-how int)
+  (rd SHUT_RD)    ;; No more receptions.
+  (wr SHUT_WR)    ;; No more transmissions.
+  (rdwr SHUT_RDWR);; No more receptions or transmissions.
+  )
+
+;Shut down all or part of the connection open on socket FD.
+;   HOW determines what to shut down:
+;   Returns 0 on success, -1 for errors.
+(define-func shutdown sock-errcode ((int fd)(shut-how how (= "SHUT_RDWR"))))
+
+(define-func dup int ((int fd)))
+
+; (define-func fdopen file ((int fildes)
+; 			  (string mode)))
+
+#|
+(define (make-output-port::output-port name::string fd::int)
+  (let((port::output-port (pragma::output-port
+			   "GC_MALLOC(OUTPUT_PORT_SIZE)"))
+       (file::file (fdopen fd "w")))
+    (pragma "
+   $1->output_port_t.header = MAKE_HEADER(OUTPUT_PORT_TYPE, 0);
+   $1->output_port_t.file = $3;
+   $1->output_port_t.name = $2;
+   $1->output_port_t.kindof = KINDOF_FILE"
+	    port name file)
+    port))
+|#
