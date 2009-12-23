@@ -1,0 +1,16 @@
+;; -*-Scheme-*-
+(set! *include-foreign*
+      (cons* @mysql_includes@
+	     @oracle_includes@
+	     @pgsql_includes@
+	     @sqlite_includes@
+	     *include-foreign*))
+(set! *cc-options*(string-append
+		   "@oracle_cflags@ @mysql_cflags@ @pgsql_cflags@ "
+		   *cc-options*))
+(set!
+ *ld-post-options*
+ (string-append
+  *ld-post-options*
+  " @oracle_libs@ @mysql_libs@ @sqlite_libs@ @pgsql_libs@ "))
+

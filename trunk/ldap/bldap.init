@@ -1,0 +1,2 @@
+;; -*-Scheme-*-
+(set! *include-foreign*(cons* "ldap.h" "lber.h" *include-foreign*))

@@ -1,0 +1,44 @@
+<<<<<<< ChangeLog
+2005-11-17  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* mysql.defs: decimal type supported in query results
+
+2005-11-07  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* mysql.defs: new accessors:
+	(mysql-field-count ::mysql)
+	(mysql-affected-rows::long self::mysql)
+	(mysql-insert-id::long self::mysql)
+	(mysql-sqlstate::string self::mysql)
+	(mysql-warning-count::int self::mysql)
+	(mysql-info::string self::mysql)
+
+
+2005-02-28  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* mysql.defs (mysql-connect::mysql-connection): the
+	`mysql_options' is used to set some of supported MySQL connection
+	options. Useful to change the default character set.
+
+2004-10-28  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* mysql.defs (fetch!::pair-nil): support for Bigloo elong/llong
+	types was added
+
+	* rdbms.scm (rdbms-format): support for Bigloo elong/llong types
+	was added
+
+2004-03-22  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* mysql.defs (fetch!::pair-nil): fields ``tiny'' and ``int24''
+	support added
+
+2004-02-24  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* configure.in: rdbms.init was missing in the AC_OUTPUT target
+	list
+
+	* rdbms.m4: result of call of `mysql_config' contains single
+	quotes, which broke the AC_TRY_COMPILE. Now the quotes are
+	filtered out with sed
+

@@ -1,0 +1,413 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* mysql.defs - MySQL database support for bigloo-lib                   */
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ mysql
+ (import rdbms)
+ (library common) ;; uses time type
+ (extern
+  (include "mysql.h")
+  )
+ (export
+  (class mysql-connection::connection
+	 (impl::mysql (default(pragma::mysql "NULL"))))
+
+  (class mysql-session::session
+	 (result::mysql-res (default (pragma::mysql-res "NULL")))
+	 (query (default #f))
+	 )
+  )
+ )
+
+(register-eval-srfi! 'mysql)
+
+(define-object (mysql MYSQL*) ())
+(define-object MYSQL_RES ())
+(define-object MYSQL_FIELD ())
+(define-object (mysql-row char**) ())
+
+(define-enum (field-type "enum enum_field_types")
+  (decimal "FIELD_TYPE_DECIMAL")
+  (tiny "FIELD_TYPE_TINY")
+  (short "FIELD_TYPE_SHORT")
+  (long "FIELD_TYPE_LONG")
+  (float "FIELD_TYPE_FLOAT")
+  (double "FIELD_TYPE_DOUBLE")
+  (null "FIELD_TYPE_NULL")
+  (timestamp "FIELD_TYPE_TIMESTAMP")
+  (longlong "FIELD_TYPE_LONGLONG")
+  (int24 "FIELD_TYPE_INT24")
+  (date "FIELD_TYPE_DATE")
+  (time "FIELD_TYPE_TIME")
+  (datetime "FIELD_TYPE_DATETIME")
+  (year "FIELD_TYPE_YEAR")
+  (newdate "FIELD_TYPE_NEWDATE")
+  (enum "FIELD_TYPE_ENUM")
+  (set "FIELD_TYPE_SET")
+  (tiny-blob "FIELD_TYPE_TINY_BLOB")
+  (medium-blob "FIELD_TYPE_MEDIUM_BLOB")
+  (long-blob "FIELD_TYPE_LONG_BLOB")
+  (blob "FIELD_TYPE_BLOB")
+  (var-string "FIELD_TYPE_VAR_STRING")
+  (string "FIELD_TYPE_STRING"))
+
+(define-method (_acquire::session self::mysql-connection)
+  (instantiate::mysql-session(connection self)))
+
+(define-method (prepare::bool self::mysql-session sql::bstring)
+  (call-next-method)
+  (with-access::mysql-session
+   self
+   (statement query)
+   (set! query #f)
+   #t))
+
+(define-method (execute::bool self::mysql-session)
+  (with-access::mysql-session
+   self
+   (connection statement result query)
+   (let((may-be-bound(or query statement)))
+     (with-access::mysql-connection
+      connection
+      (impl)
+      (unless may-be-bound
+	      (error "mysql-session-execute"
+		     "no statement to execute"
+		     self))
+      (when(let((may-be-bound::string may-be-bound))
+	     (pragma::bool "mysql_query($1, $2)"
+			   impl may-be-bound))
+	   (error "mysql_query" (mysql-error impl) may-be-bound))
+      (let((r(pragma::mysql-res "mysql_store_result($1)"impl)))
+	(and r
+	     (begin
+	       (when result
+		     (pragma "mysql_free_result($1)" result))
+	       (set! result r)
+	       ;; Note: we cannot deduce if result has answer set
+	       #t)))))))
+
+(define-method (fetch!::pair-nil self::mysql-session)
+  (let((result(mysql-session-result self)))
+    (unless result
+	    (error "session:fetch"
+		   "Invalid cursor state: not executed"
+		   self))
+    (let((row (pragma::mysql-row "mysql_fetch_row($1)"result)))
+      (if row
+	  (let((lengths (pragma::void*
+			 "mysql_fetch_lengths($1)"
+			 result)))
+	    (let loop((lst '())
+		      (count::int(pragma::int
+				  "mysql_num_fields($1) - 1"
+				  result)))
+	      (if(<fx count 0)
+		 lst
+		 (let((field(pragma::mysql-field
+			     "$1->fields + $2"
+			     result
+			     count))
+		      (value(pragma::string "$1[$2]"row count))
+		      (len(pragma::uint "((ulong*)$1)[$2]"lengths count)))
+		   (loop
+		    (cons
+		     (if (pragma::bool "$1 == NULL" value)
+			 #unspecified
+			 (let((ft (pragma::field-type "$1->type" field)))
+			   (case ft
+			     ((var-string string char tiny-blob medium-blob
+					  long-blob blob)
+			      (pragma::bstring
+			       "(obj_t)string_to_bstring_len($1,$2)"
+			       value
+			       len))
+			     
+			     ((tiny short int24)
+			      (string->integer value))
+
+			     ((long longlong)
+			      (let((v (string->integer value)))
+				(if (string=? value (integer->string v))
+				    v
+				    (string->llong value))))
+			     
+			     ((float double decimal)
+			      (string->number value))
+			     
+			     ((date)
+			      (let((year::uint 0)(month::uint 0)(day::uint 0))
+				(pragma
+				 "sscanf($1, \"%d-%d-%d\", &$2, &$3, &$4)"
+				 value year month day)
+				(mktime year month day)))
+			     
+			     ((timestamp)
+			      (let((year::uint 0)
+				   (month::uint 0)
+				   (day::uint 0)
+				   (hour::uint 0)
+				   (minute::uint 0)
+				   (second::uint 0))
+				(pragma
+				 "sscanf($1, \"%4d%2d%2d%2d%2d%2d\", &$2, &$3, &$4, &$5, &$6, &$7)"
+				 value year month day hour minute second)
+				(mktime year month day hour minute second)))
+			     
+			     ((time)
+			      (let((year::uint 0)
+				   (month::uint 0)
+				   (day::uint 0)(hour::uint 0)
+				   (minute::uint 0)(second::uint 0))
+				(pragma "sscanf($1, \"%d:%d:%d\", &$2, &$3, &$4)"
+					value hour minute second)
+				(+fx(*fx 60(+fx(*fx 60 hour)minute))second)))
+			     
+			     ((datetime)
+			      (let((year::uint 0)
+				   (month::uint 0)
+				   (day::uint 0)
+				   (hour::uint 0)
+				   (minute::uint 0)
+				   (second::uint 0))
+				(pragma
+				 "sscanf($1, \"%4d-%2d-%2d %2d:%2d:%2d\", &$2, &$3, &$4, &$5, &$6, &$7)"
+				 value year month day hour minute second)
+				(mktime year month day hour minute second)))
+			     
+			     (else
+			      ;;(decimal)
+			      (error "fetch!" "unsupported FIELD_TYPE" ft)
+			      ))))
+		     lst)
+		    (-fx count 1))))))
+	  '()
+	  ))))
+
+
+(define-method(_dismiss! self::mysql-session)
+  (with-access::mysql-session
+   self (result)
+   (when result
+	 (pragma "mysql_free_result($1)" result)
+	 (set! result (pragma::mysql-res "NULL")))))
+
+(define-method(_dismiss! self::mysql-connection)
+  (with-access::mysql-connection
+   self (impl)
+   (pragma "mysql_close($1)"impl)
+   #unspecified))
+
+;; note: commit-transaction! and rollback-transaction! intentionally unimplemented
+(define-method (begin-transaction!::bool self::mysql-connection . timeout)
+  ;; NO TRANSACTIONS AVAILABLE
+  #f)
+
+(define-method(cancel! self::session)
+  ;; note: mysql does not implements cursors
+  #unspecified)
+
+;;(define-method(has-answer?::bool self::session)
+;;  (unimplemented-method-error "has-answer?" self))
+
+(define-method(bind! self::mysql-session bindings::pair-nil)
+  (with-access::mysql-session
+   self
+   (result statement query)
+   (set! query (rdbms-format statement bindings))))
+
+(define-macro (mysql-set-string-opt key ckey)
+  `(when
+    ,key
+    (let((value::string ,key))
+      (pragma::bool ,(format "mysql_options($1, ~a, $2)" ckey)
+		    conn value))))
+;;(pp(expand-once '(mysql-set-string-opt init-command MYSQL_INIT_COMMAND)))
+
+(define (mysql-connect::mysql-connection
+	 #!key
+	 dbname username password
+	 hostname port socket flags
+
+	 connect-timeout init-command default-file
+	 default-group charset-dir charset-name local-infile
+	 protocol memory-base-name read-timeout write-timeout
+	 use-result use-remote-connection use-embedded-connection
+	 guess-connection client-ip auth 
+	 )
+  (let((conn::mysql
+	(pragma::mysql "(MYSQL*)GC_malloc_atomic(sizeof(MYSQL))")))
+    (pragma "mysql_init($1)"conn)
+
+    ;; FIXME: implement the int* type options (commented out below)
+    ;;    (mysql-setopt connect-timeout uint* MYSQL_OPT_CONNECT_TIMEOUT)
+    (mysql-set-string-opt init-command MYSQL_INIT_COMMAND)
+    (mysql-set-string-opt default-file MYSQL_READ_DEFAULT_FILE)
+    (mysql-set-string-opt default-group MYSQL_READ_DEFAULT_GROUP)
+    (mysql-set-string-opt charset-dir MYSQL_SET_CHARSET_DIR)
+    (mysql-set-string-opt charset-name MYSQL_SET_CHARSET_NAME)
+    ;;    (mysql-setopt local-infile int* MYSQL_OPT_LOCAL_INFILE)
+    ;;    (mysql-setopt protocol int* MYSQL_OPT_PROTOCOL)
+    (mysql-set-string-opt memory-base-name MYSQL_SHARED_MEMORY_BASE_NAME)
+    ;;    (mysql-setopt read-timeout int* MYSQL_OPT_READ_TIMEOUT)
+    ;;    (mysql-setopt write-timeout int* MYSQL_OPT_WRITE_TIMEOUT)
+    
+    ;; These options are not documented in the MySQL docs ???
+    ;;    (mysql-setopt use-result MYSQL_OPT_USE_RESULT)
+    ;;    (mysql-setopt use-remote-connection MYSQL_OPT_USE_REMOTE_CONNECTION)
+    ;;    (mysql-setopt use-embedded-connection MYSQL_OPT_USE_EMBEDDED_CONNECTION)
+    ;;    (mysql-setopt guess-connection MYSQL_OPT_GUESS_CONNECTION)
+    ;;    (mysql-setopt client-ip MYSQL_SET_CLIENT_IP)
+    ;;    (mysql-setopt auth MYSQL_SECURE_AUTH)
+    (unless
+     (pragma::mysql
+      "mysql_real_connect($1,$2,$3,$4,$5,$6,NULL,$7)"
+      conn
+      (if hostname($bstring->string hostname)
+	  (pragma::string "NULL"))
+      (if username($bstring->string username)
+	  (pragma::string "NULL"))
+      (if password($bstring->string password)
+	  (pragma::string "NULL"))
+      (if dbname($bstring->string dbname)
+	  (pragma::string "NULL"))
+      ($bint->int (or port 0))
+      ($bint->int (or flags 0)))
+     (error "mysql-connect"
+	    "Cannot connect to database"
+	    dbname))
+    (instantiate::mysql-connection (impl conn))))
+
+(rdbms-register! "mysql" mysql-connect)
+
+(define-export (mysql-error::string impl::mysql)
+  (pragma::string "(char*)mysql_error($1)" impl))
+
+(define-method (describe self::mysql-session)
+  (with-access::mysql-session
+   self
+   (result)
+   (unless result
+	   (error "mysql-session-describe"
+		  "Invalid cursor state: execute first"
+		  self))
+   (let loop((resultlist '())
+	     (count::int (pragma::int "($1)->field_count - 1"result)))
+     (if(<fx count 0)
+	resultlist
+	(let((field(pragma::mysql-field
+		    "($1)->fields + $2"
+		    result
+		    count)))
+	  (loop
+	   (cons
+	    (list
+	     (pragma::string "$1->name"field)
+	     (pragma::string "$1->table"field)
+	     (pragma::int "$1->type"field)
+	     (pragma::int "$1->length"field)
+	     (pragma::int "$1->max_length"field)
+	     (pragma::bool "$1->flags"field)
+	     (pragma::int "$1->flags"field)
+	     (pragma::int "$1->decimals"field))
+	    resultlist)
+	   (-fx count 1)))))))
+
+(define-export (mysql-character-set-name::string o::mysql)
+  (let ((o::mysql o))
+    (pragma::string
+     "(char*)mysql_character_set_name($1)"
+     o)))
+
+(define-func mysql_field_count int ((mysql m)))
+
+(define-export (mysql-affected-rows::long self::mysql)
+  (pragma::long "(long)mysql_affected_rows($1)" self))
+
+(define-export (mysql-insert-id::long self::mysql)
+  (pragma::long "(long)mysql_insert_id($1)" self))
+
+(define-export (mysql-sqlstate::string self::mysql)
+  (pragma::string "(char*)mysql_sqlstate($1)" self))
+
+(define-export (mysql-warning-count::int self::mysql)
+  (pragma::int "mysql_warning_count($1)" self))
+
+(define-export (mysql-info::string self::mysql)
+  (pragma::string "(char*)mysql_info($1)" self))
+
+;;(define-func mysql_character_set_name (string "const char*") ((mysql o)))
+
+;;(define-inline(make-blob o)
+;;  o)
+;;
+
+;;;*-------------------------------------------------------------------*;
+;;;*  Unimplemented                                                    *;
+;;;*-------------------------------------------------------------------*;
+;;(define(session:has-answer?::bool self::session)
+;;  #t)
+;;
+;;(define(session:cancel! self::session)
+;;  #unspecified)
+;;
+;;;*-------------------------------------------------------------------*;
+;;;*  Non-standard calls                                               *;
+;;;*-------------------------------------------------------------------*;
+;;(define(session:nrows::int self::session)
+;;  (let((result(session-result self)))
+;;    (unless result
+;;	    (error "session:nrows"
+;;		   "Invalid cursor state: not executed" self))
+;;    (pragma::int "mysql_num_rows($1)"result)))
+;;
+
+;; FIXME: check whether this is supported in MySQL 3.x
+
+;; (define-enum (mysql-option "enum mysql_option")
+;;   (connect-timeout MYSQL_OPT_CONNECT_TIMEOUT)
+;;   (compress MYSQL_OPT_COMPRESS)
+;;   (named-pipe MYSQL_OPT_NAMED_PIPE)
+;;   (command MYSQL_INIT_COMMAND)
+;;   (default-file MYSQL_READ_DEFAULT_FILE)
+;;   (default-group MYSQL_READ_DEFAULT_GROUP)
+;;   (charset-dir MYSQL_SET_CHARSET_DIR)
+;;   (charset-name MYSQL_SET_CHARSET_NAME)
+;;   (local-infile MYSQL_OPT_LOCAL_INFILE)
+;;   (protocol MYSQL_OPT_PROTOCOL)
+;;   (memory-base-name MYSQL_SHARED_MEMORY_BASE_NAME)
+;;   (read-timeout MYSQL_OPT_READ_TIMEOUT)
+;;   (write-timeout MYSQL_OPT_WRITE_TIMEOUT)
+;;   (use-result MYSQL_OPT_USE_RESULT)
+;;   (use-remote-connection MYSQL_OPT_USE_REMOTE_CONNECTION)
+;;   (use-embedded-connection MYSQL_OPT_USE_EMBEDDED_CONNECTION)
+;;   (guess-connection MYSQL_OPT_GUESS_CONNECTION)
+;;   (client-ip MYSQL_SET_CLIENT_IP)
+;;   (auth MYSQL_SECURE_AUTH)
+;;   )
+
+;; (define-func mysql_options bool ((mysql mysql)(mysql_option option)(string arg "char*")))

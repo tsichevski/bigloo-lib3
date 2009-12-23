@@ -1,0 +1,423 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ ldap
+ (library common)
+ (include "common.sch")
+ (include "ldap-t.sch")
+ (extern
+  (include "ldap-compat.h")
+
+  (type berval(struct
+	       (len::int "bv_len")
+	       (val::string "bv_val")
+	       )
+	"struct berval")
+  (type berval**(pointer berval*) "berval**")
+
+  (type ldap-mod
+	(struct
+	 (mod_op::int "mod_op")
+	 (mod_type::string "mod_type")
+	 (mod_bvalues::berval** "mod_bvalues")
+	 )"LDAPMod")
+  (type ldap-mod**(pointer ldap-mod*)"LDAPMod**")
+  ;;(type ldap-message(struct)"LDAPMessage")
+  (type ldap-message*(pointer ldap-message)"LDAPMessage**")
+  ;;(type ber-element(struct)"BerElement")
+  (type ber-element*(pointer ber-element)"BerElement**")
+  (macro ldap_modify_s::int(::ldap ::string ::ldap-mod**) "ldap_modify_s")
+  (macro ldap_add_s::int(::ldap ::string ::ldap-mod**) "ldap_add_s")
+
+  ;(macro ldap_search::int(::ldap ::string ::int ::string ::string* ::bool)"ldap_search")
+  (type timeval(struct(tv_sec::int "tv_sec")
+		      (tv_usec::int "tv_usec"))
+	"struct timeval")
+  (ldap_result::int(::ldap ::int ::int ::timeval* ldap-message*)
+		   "ldap_result")
+  (ldap_debug::int "ldap_debug")
+  )
+
+ (export
+  *ldap-trace-level*
+  (ldap-opt-deref . args)
+  (ldap-opt-sizelimit . args)
+  (ldap-opt-timelimit . args)
+  (ldap-opt-host-name . args)
+  (ldap-opt-error-number::int ::ldap . args)
+  (ldap-opt-error-string ::ldap . args)
+  ))
+
+(register-eval-srfi! 'ldap)
+
+(define *ldap-trace-level* 0)
+
+(define-inline (string-or-null::string o)
+  (if(string? o)
+     ($bstring->string o)
+     (pragma::string "NULL")))
+
+(define-static (check-error message::string errno::int #!key dn atts)
+  (case errno
+    ((0 84 48 49)
+     #unspecified)
+    (else
+     (error message
+	    (string-append
+	     (if dn (format "dn: ~a, " dn) "")
+	     (if atts (format "atts: ~a, " atts) "")
+	     (pragma::string "ldap_err2string($1)"errno))
+	    errno))))
+
+(define-inline (string-list->berval** lst::pair-nil)
+  ((list->cpointers berval*)
+   (lambda(s::bstring)
+     (berval*(string-length s)s))
+   lst))
+
+(define-static (add_or_modify::ldap-mod** attlist::pair mod_op::int)
+  ((list->cpointers ldap-mod*)
+   (lambda(att::pair)
+     (ldap-mod*
+      (pragma::int"$1 | LDAP_MOD_BVALUES" mod_op)
+      (car att)
+      (if(null?(cdr att))
+	 (pragma::berval** "NULL")
+	 (string-list->berval** (cdr att)))))
+   attlist))
+    
+(define-export (ldap-modify-add ld::ldap dn::bstring mods)
+  (and(pair? mods)
+      (check-error "ldap-modify-add"
+		   (ldap_modify_s
+		    ld
+		    ($bstring->string dn)
+		    (add_or_modify mods(pragma::int "LDAP_MOD_ADD")))
+		   dn: dn
+		   atts: mods)))
+
+(define-export (ldap-modify-delete ld::ldap dn::bstring mods)
+  (and(pair? mods)
+      (check-error "ldap-modify-delete"
+		   (ldap_modify_s
+		    ld
+		    ($bstring->string dn)
+		    (add_or_modify mods(pragma::int "LDAP_MOD_DELETE")))
+		   dn: dn)))
+
+(define-export (ldap-modify-replace ld::ldap dn::bstring mods)
+  (and(pair? mods)
+      (check-error "ldap-modify-replace"
+		   (ldap_modify_s
+		    ld
+		    ($bstring->string dn)
+		    (add_or_modify mods(pragma::int "LDAP_MOD_REPLACE")))
+		   dn: dn)))
+
+(define-export (ldap-modrdn ld::ldap dn::string newrdn::string
+			    #!optional deleteoldrdn)
+  (check-error
+   "ldap-modrdn"
+   (let ((deleteoldrdn::bool deleteoldrdn))
+     (pragma::int
+      "
+#if HAVE_LONG_LDAP_MODRDN
+  ldap_modrdn_s($1,$2,$3,$4);
+#else
+#  if HAVE_LDAP_MODRDN2
+     ldap_modrdn2_s($1,$2,$3,$4);
+#  else
+     ldap_modrdn_s($1,$2,$3);
+     ldap_delete($1, $2);
+#  endif
+#endif
+"
+		  ld
+		  dn
+		  newrdn
+		  deleteoldrdn))
+   dn: dn))
+
+(define-export (ldap-add ld::ldap dn::bstring mods::pair)
+  (check-error "ldap-add"
+	       (ldap_add_s
+		ld ($bstring->string dn) 
+		(add_or_modify mods 0))
+	       dn: dn
+	       atts: mods))
+
+(define-export (ldap-delete ld::ldap dn::bstring)
+  (check-error "ldap-delete"
+	       (pragma::int "ldap_delete_s($1, $2)"ld ($bstring->string dn))
+	       dn: dn
+	       ))
+
+(define-export (ldap-open::ldap #!optional host port)
+  (let* ((host-or-null::string(if(string? host)
+				 ($bstring->string host)
+				 (pragma::string "NULL")))
+	 (port::int (or port 0))
+	 (ld(pragma::ldap "ldap_open($1, $2)" host-or-null port)))
+    (unless ld
+	    (error "ldap-open" "cannot open" (cons host port)))
+    ld))
+
+(define-export (ldap-init::ldap #!optional host port)
+  (let* ((host-or-null::string
+	  (if (string? host)
+	      host
+	      (pragma::string "NULL")))
+	 (port::int (or port 0))
+	 (ld (pragma::ldap "ldap_init($1, $2)"host-or-null port)))
+    (unless ld
+	    (error "ldap-init" "internal error" (cons host port)))
+    ld))
+
+(define-export (ldap-unbind::bool ld::ldap)
+  (let((errno(pragma::int "ldap_unbind_s($1)" ld)))
+    (check-error "ldap-unbind" errno)
+    (pragma::bool "$1 == LDAP_SUCCESS"errno)))
+
+(define-export (ldap-bind::bool ld::ldap who::bstring cred::bstring)
+  (let((errno(pragma::int "ldap_simple_bind_s($1, $2, $3)"
+			  ld
+			  ($bstring->string who)
+			  ($bstring->string cred))))
+
+    (check-error "ldap-bind" errno dn: who atts: cred)
+    (pragma::bool "$1 == LDAP_SUCCESS"errno)))
+
+(define-export (ldap-search::int ld::ldap
+				 #!key
+				 base
+				 scope
+				 filter
+				 atts
+				 attrsonly)
+  (let ((filter::string (or filter  "objectclass=*"))
+	(attrsonly::bool attrsonly))
+    (begin0
+     (pragma::int
+      "ldap_search($1, $2, $3, $4, $5, $6)"
+      ld
+      (string-or-null base)
+      (case scope
+	((base)(pragma::int "LDAP_SCOPE_BASE"))
+	((onelevel)(pragma::int "LDAP_SCOPE_ONELEVEL"))
+	((subtree #f)(pragma::int "LDAP_SCOPE_SUBTREE"))
+	(else ($bint->int scope)))
+      filter
+      (cond((pair? atts)
+	    (string-list->string* atts))
+	   ((null? atts)
+	    (string-list->string* '("")))
+	   (else (pragma::string* "NULL")))
+      attrsonly)
+     (check-error "ldap-search" (ldap-opt-error-number ld) dn: base atts: atts))))
+
+(define-export (ldap-message-free::int msg::ldap-message)
+  (pragma::int "ldap_msgfree($1)"msg))
+
+(define-export (ldap-count-entries::int ld::ldap msg::ldap-message)
+  (begin0
+   (pragma::int "ldap_count_entries($1, $2)"ld msg)
+   (check-error "ldap-count-entries"(ldap-opt-error-number ld))))
+
+(define-export (ldap-result::ldap-message ld::ldap msgid::int #!optional timeout)
+  (let*((resultp(make-ldap-message* 1))
+	(res::int(ldap_result ld msgid 1
+			      (if timeout
+				  (timeval* timeout 0)
+				  (pragma::timeval* "NULL"))
+			      resultp)))
+;;    (check-error "ldap-result"(ldap-opt-error-number ld))
+    [assert(res)
+	   (or(=fx res(pragma::int "LDAP_RES_SEARCH_RESULT"))
+	      (=fx res(pragma::int "LDAP_RES_SEARCH_ENTRY")))]
+    (ldap-message*-ref resultp 0)))
+
+(define-export (ldap-first-entry ld::ldap msg::ldap-message)
+  (let((mp(pragma::ldap-message "ldap_first_entry($1, $2)"ld msg)))
+    (check-error "ldap-first-entry" (ldap-opt-error-number ld))
+    (and(pragma::bool "$1 != ((LDAPMessage *) NULL)" mp)
+	mp)))
+
+(define-export (ldap-next-entry ld::ldap msg::ldap-message)
+  (let((mp(pragma::ldap-message "ldap_next_entry($1, $2)"ld msg)))
+    (check-error "ldap-first-entry"(ldap-opt-error-number ld))
+    (and(pragma::bool "$1 != ((LDAPMessage *) NULL)" mp)
+	mp)))
+
+(define-export (ldap-get-dn::bstring ld::ldap msg::ldap-message)
+  (let*((dns(pragma::string "ldap_get_dn($1, $2)"ld msg))
+	(dn::bstring dns))
+    (pragma "free($1)"dns)
+    dn))
+
+(define-inline(string*->list sl::string*)
+  (begin0
+   (string*->string-list sl)
+   (pragma "ldap_value_free($1)"sl)))
+
+(define-export (ldap-get-values::pair-nil ld::ldap msg::ldap-message attr::bstring)
+  (let((result(pragma::string* "ldap_get_values($1, $2, $3)"ld msg
+			       ($bstring->string attr))))
+    (check-error "ldap-get-values"(ldap-opt-error-number ld))
+    (string*->list result)))
+
+(define-export (ldap-get-attributes::pair-nil ld::ldap msg::ldap-message)
+  (let*((ber**(make-ber-element* 1))
+	(attname(pragma::string
+	     "ldap_first_attribute($1, $2, $3)"
+	     ld msg ber**))
+	(ber*(ber-element*-ref ber** 0)))
+    (check-error "ldap-get-attributes"(ldap-opt-error-number ld))
+
+    (let loop((attname attname)(accu '()))
+      (if(pragma::bool "$1 == NULL" attname)
+	 (reverse accu)
+	 (let*((bvals(pragma::berval**
+		      "ldap_get_values_len($1, $2, $3)"
+		      ld msg attname))
+	       (attribute
+		(cons attname
+		      (if(berval**-null? bvals)
+			 '()
+			 (begin0
+			  ((cpointer->list
+			    berval*
+			    (lambda(bval)
+			      (pragma::bstring
+			       "(obj_t)string_to_bstring_len($1->bv_val, $1->bv_len)"
+			       bval)))
+			   bvals)
+			  (pragma "ber_bvecfree($1)"bvals))))))
+	   (loop
+	    (begin0
+	     (pragma::string"ldap_next_attribute($1, $2, $3)"ld msg ber*)
+	     (check-error "ldap-get-attributes"(ldap-opt-error-number ld)))
+	    (cons attribute accu)))))))
+
+;*-------------------------------------------------------------------*;
+;*  Cache management primitives                                      *;
+;*-------------------------------------------------------------------*;
+@if have-cache-functions?
+
+(define-export (ldap-enable-cache! ld::ldap timeout::int maxmem::int)
+  (check-error "ldap-enable-cache!"
+	       (pragma::int "ldap_enable_cache($1, $2, $3)" ld timeout maxmem)))
+
+(define-export (ldap-disable-cache! ld::ldap)
+  (pragma "ldap_disable_cache($1)" ld)
+  #unspecified)
+
+(define-export (ldap-destroy-cache! ld::ldap)
+  (pragma "ldap_destroy_cache($1)" ld)
+  #unspecified)
+
+(define-export (ldap-flush-cache! ld::ldap)
+  (pragma "ldap_flush_cache($1)" ld)
+  #unspecified)
+
+(define-export (ldap-uncache-entry! ld::ldap dn::bstring)
+  (pragma "ldap_uncache_entry($1, $2)" ld ($bstring->string dn))
+  #unspecified)
+
+(define-export (ldap-uncache-request! ld::ldap msgid::int)
+  (pragma "ldap_uncache_request($1, $2)" ld msgid)
+  #unspecified)
+
+(define-export (ldap-set-cache-options! ld::ldap opts::int)
+  (pragma "ldap_set_cache_options($1, $2)" ld opts)
+  #unspecified)
+@endif
+
+;*-------------------------------------------------------------------*/
+;*  DN utilities                                                     */
+;*-------------------------------------------------------------------*/
+(define-export (ldap-explode-dn dn::bstring)
+  (reverse(string*->list(pragma::string* "ldap_explode_dn($1, 0)"($bstring->string dn)))))
+
+;*-------------------------------------------------------------------*;
+;*  option                                                           *;
+;*-------------------------------------------------------------------*;
+(define-macro (define-ldap-option name::symbol )
+  (define(scheme->c s::symbol)
+    (let((os(open-output-string))
+	 (is(open-input-string (symbol->string s))))
+      (let loop()
+	(let((c(read-char is)))
+	  (if(eof-object? c)
+	     (get-output-string os)
+	     (begin
+	       (display (if(char=? c #\-)
+			   #\_
+			   (char-upcase c))
+			os)
+	       (loop)))))))
+
+  ;;(scheme->c 'asd-zxf)
+  
+  (let*((optname (string-append "LDAP_OPT_" (scheme->c name)))
+	(need-ld?(memq name '(error-number error-string)))
+	(return-type
+	 (if(memq name '(host-name error-string))
+	    'string
+	    'int))
+	(c-return-type(if(eq? return-type 'string)"char*" "int"))
+	(proc-name(symbol-append 'ldap-opt- name))
+	(proto(if need-ld?
+		  `(,proc-name ld::ldap . args)
+		  `(,proc-name . args)
+		  )))
+    `(define ,proto
+       (pragma ,(string-append c-return-type " valref"))
+       (let((res
+	     (if(null? args)
+		(pragma::int ,(string-append "ldap_get_option($1, " optname ", &valref)")
+			     ,(if need-ld?
+				  'ld
+				  '(pragma::ldap "(LDAP*)NULL")))
+		(begin
+		  (pragma "valref = $1"
+			  (,(symbol-append '$b return-type '-> return-type)
+			   (car args)))
+		  (pragma::int ,(string-append "ldap_set_option($1, " optname ", &valref)")
+			       ,(if need-ld?
+				    'ld
+				    '(pragma::ldap "(LDAP*)NULL")))))
+	     ))
+	 (unless(eq? res (pragma::int "LDAP_OPT_SUCCESS"))
+		(error ,proc-name "unknown error" '()))
+	 (,(symbol-append 'pragma:: return-type) "valref")))))
+;;(pp(expand-once '(define-ldap-option error-number)))
+
+(define-ldap-option deref)
+(define-ldap-option sizelimit)
+(define-ldap-option timelimit)
+(define-ldap-option host-name)
+(define-ldap-option error-number)
+(define-ldap-option error-string)
