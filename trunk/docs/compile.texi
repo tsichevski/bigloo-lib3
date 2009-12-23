@@ -1,0 +1,52 @@
+@node    Compilation issues, , Top, Top
+@chapter Compilation issues
+
+For a generic instructions how to compile and install @code{bigloo-lib}
+see the @code{INSTALL} file in the distribution source tree root or execute
+@code{./configure --help} and take a look at output produced.
+
+@section Static and shared libraries options
+
+To compile and install only the statically linked libraries, use
+@code{--enable-static} option of @code{configure} or no options at all
+(this option is off by default).
+
+To compile and install the dynamically linked libraries, use
+@code{--enable-share} option. @footnote{static libraries will NOT be
+created, if you use this option, you have to reconfigure and rebuild the
+package to create both sets.}
+
+@section Optimization and Debugging options
+
+By default @code{bigloo-lib} is compiled with the following options:
+
+@table @r
+@item Bigloo optimization
+Default
+@item Bigloo debug level
+Default
+@item gcc compilations flags
+-g -O2
+@end table
+
+@code{bigloo-lib} now supports compilation with Bigloo benchmark
+optimization mode. To switch this mode on, execute @code{configure} with
+@code{--enable-bench} option.
+
+In benchmark mode only the static libraries with the usual Bigloo unsafe
+name suffix will be produced (for example @code{libcommon_u.a} instead
+of @code{libcommon.a}).
+
+Old versions of @code{bigloo-lib} could not be compiled with Bigloo
+debugging on. Now this limitation is removed. To add any option to
+Bigloo compiler set the @code{bigloo} environment variable prior
+executing @code{configure}. For example:
+
+@example
+bigloo='bigloo -g4' ./configure @dots{}
+@end example
+
+@section Sub-packages selection and other configuration options
+
+Run @code{./configure --help} for a list of options which enable or
+disable particular sub-packages.

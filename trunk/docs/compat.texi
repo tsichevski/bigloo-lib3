@@ -1,0 +1,176 @@
+@node    compat, dl, gdbm, Bigloo Common Library
+@comment  node-name,  next,           previous,  up
+@section MzScheme compatibility module
+@cindex MzScheme compatibility
+
+This section describes the @code{mzcompat} module, which provides a few
+procedures to facilitate reuse of code written for @code{MzScheme}.
+
+The @code{mzcompat} module is optional, its compilation is disabled by
+default. To enable it, call @code{configure} with @code{--with-compat}
+switch.
+
+To detect whether you have @code{mzcompat} module enabled when in
+interpreter, test @code{'mzscheme-compat} symbol with
+@code{cond-expand}. For example:
+
+@example
+(cond-expand (mzscheme-compat (mzscheme-test))
+	     (else (print "MzScheme compatibility is disabled by configure")))
+@end example
+
+
+@c ======================================================================
+@deffn {macro} case-lambda patterns
+@cindex MzScheme compatibility
+@cindex control flow
+
+The analog of @code{match-lambda} construct. Differs from
+@code{match-lambda} in that the execution flow only depends on number of
+arguments, but not on their types.
+
+Example:
+@example
+(define print-args
+  (case-lambda
+   (()
+    (print "no args was given"))
+   ((a)
+    (print "only one argument was given: " a))
+   (args
+    (print (length args) " arguments were given"))))
+
+(print-args)
+@print{} no args was given
+(print-args 'one)
+@print{} only one argument was given: ONE
+(print-args 'one 'two 'three)
+@print{} 3 arguments were given
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {inline procedure} load-relative-extension fname::bstring
+@cindex MzScheme compatibility
+
+Means nothing in @code{bigloo-lib}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} make-parameter value #!optional filter @result{} procedure
+@cindex MzScheme compatibility
+
+Creates a closure, which being called without arguments returns the
+value @var{value}, being called with one argument @var{arg}, sets the
+variable @code{value} to @var{arg}. If @var{filter} procedure is
+provided, the new value is passed to that procedure, and the value
+returned by @code{filter} is stored in @var{value} variable.
+
+Example:
+
+@example
+(define my-value (make-parameter 0))
+@result{} #<procedure:400edad0.-1>
+(my-value)
+@result{} 0
+(my-value 1)
+(my-value)
+@result{} 1
+
+@end example
+
+The following procedure always converts its argument to string before
+remembering it:
+
+@example
+
+(define my-string-value
+  (make-parameter
+   ""
+   (lambda(o)
+     (cond((string? o)
+	   o)
+	  ((number? o)
+	   (number->string o))
+	  (else(error "my-string-value" "invalid argument"o))))))
+
+(my-string-value 1)
+(pp(my-string-value))
+@print{} #"1"
+@end example
+
+In MzScheme parameters have their own types and are scoped to execution
+threads. Since Bigloo does not provide multi-threading,
+@code{bigloo-lib} parameters eare implemented as ordinary scheme
+procedures.
+
+@end deffn
+
+@c ======================================================================
+@deffn {inline procedure} directory-exists? path::bstring @result{} #unspecified
+@cindex MzScheme compatibility
+
+Aliases Bigloo @code{directory?} procedure
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} make-directory path::bstring #!optional mask::int
+@cindex MzScheme compatibility
+
+Create the new directory @var{path} with access mask @var{mask}. The
+default value of @var{mask} is #o0777.
+
+@end deffn
+
+@c ======================================================================
+@c @deffn {procedure} read-string #!optional count port @result{} int
+@c @cindex MzScheme compatibility
+
+@c Read at most @var{count} characters from @var{port}. If no optional
+@c arguments was given, unlimited number of characters is read from current
+@c input port by default.
+
+@c @end deffn
+
+@c ======================================================================
+@deffn {procedure} current-directory #!optional newdir
+@cindex MzScheme compatibility
+
+Get or set the application process current directory.
+
+@example
+(current-directory)
+@result{} /usr/local/bin
+
+(current-directory "/home/wowa")
+@result{} #unspecified
+
+(current-directory)
+@result{} /home/wowa
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} build-path dir::bstring chunks @result{} #unspecified
+@cindex MzScheme compatibility
+
+Construct a directory name from @var{chunks}. Each chunk
+may be the path by itself, i.e. include the slash character. Chunk
+should not start with slash character, i.e. all sub-paths must be
+relative.
+
+Example:
+
+@example
+(build-path "/a/b/c" "d/e/f" "y")
+@result{} "/a/b/c/d/e/f/y"
+
+(build-path "/a/b/c" "/d/e/f" "y")
+@error{} absolute paths should not be appended: /d/e/f
+@end example
+
+@end deffn

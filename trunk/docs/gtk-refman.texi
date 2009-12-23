@@ -1,0 +1,6072 @@
+@subsection Types
+@subsubsection Introduction to the Type System
+
+Every type in GTK+ is given an unique identifier. These identifiers have a type named @code{gtk-type} (they are sequential integers really).
+
+A few numbers are preassigned to built-in GTK+ types (such an integers,
+strings, booleans etc.). All other type ids are allocated along with the
+first instance of that type.
+
+@c ======================================================================
+@deffn {procedure} gtk-type-name type::gtk-type @result{} string
+Get the GTK+ name of an existing @var{type}.
+
+Note: the name returned is a GTK+ name, not a Bigloo type name, i.e. the
+value @code{"GtkButton"} will be returned for buttons, but not
+@code{"gtk-button"}.
+
+@example
+(gtk-type-name 2)
+@result{} "gchar"
+
+(gtk-type-name(gtk-object-type(gtk-button-new)))
+@result{} "GtkButton"
+@end example
+@end deffn
+
+@deffn {procedure} gtk-type-from-name name::string @result{} gtk-type
+
+Given the name of an existing GTK+ type, return its type id.
+
+@example
+(gtk-type-from-name "gint")
+@result{} 5
+
+(gtk-type-from-name "GtkObject")
+@result{} 21
+
+(gtk-button-new) ;; assure the button type is initialized
+(gtk-type-from-name "GtkButton")
+@result{} 40469
+
+@end example
+@end deffn
+
+@deffn {procedure} gtk-object-type object::gtk-object @result{} gtk-type
+Given an @code{gtk-object} or any ancestor of @code{gtk-object}, ruturn
+the object type identifier
+
+Example: get the type of @code{gtk-button} instance.
+
+@example
+(gtk-object-type(gtk-button-new)) @result{} 40469
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-object-klass o::gtk-object @result{} gtk-object-class
+
+Get GTK+ object class reference by instance. The @code{gtk-object-class}
+structures may be useful for introspection purposes only (to inspect
+object signals etc.).
+
+@example
+(gtk-object-klass(gtk-button-new))
+@result{} #<foreign:GTK-OBJECT-CLASS:84b3078>
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-object-class-type o::gtk-object-class @result{} gtk-type
+
+Get type identifier by GTK+ object class.
+@var{o}
+@example
+(gtk-object-class-type(gtk-object-klass(gtk-button-new)))
+@result{} 40469
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-type-query type::gtk-type @result{} name::string object-size::uint class-size::uint
+@var{type}
+
+The procedure @code{gtk-type-query} queries information about the name
+and sizes of GTK class object. It returns three values:
+
+@itemize @bullet
+
+@item name
+
+the name of the type, by convention closely related to the name of the
+underlying C type. For example, the type name of the @code{GtkObject}
+structure is ``GtkObject'', and the name of the @code{GtkWindowType}
+enumeration is ``GtkWindowType''
+
+@item object-size
+the size in bytes of the C structure for types that have such a structure.
+
+@item class-size
+the size in bytes of the C structure for the class.
+@end itemize
+
+For example, to query parameters of the @code{gtk-box} class, do:
+@example
+(multiple-value-bind
+  (name object-size class-size)
+  (gtk-type-query (gtk-vbox-get-type))
+  (print "name: "name " object-size: " object-size " class-size: " class-size))
+@print{} name: GtkVBox object-size: 68 class-size: 336
+@end example
+
+This procedure is used internally in @code{gtk-class-new} procedure.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-class-new parent-type::gtk-type name::string  @result{} gtk-type
+
+The procedure @code{gtk-class-new} registers a new subclass of the
+existing gtk object class @var{parent-type}, with the named
+@var{name}. Using this procedure, new widget types may be implemented
+entirely in Bigloo Scheme.
+
+For example, to derive a new widget from @code{gtk-vbox}, named @code{MyVBox} do: 
+
+@example
+(define my-vbox-class (gtk-class-new (gtk-vbox-get-type) "MyVBox")))
+(define my-vbox(gtk-object-new my-vbox-class))
+@result{}
+@end example
+For more detailed example see the @code{tictactoe.scm} example.
+
+@end deffn
+
+@subsubsection Basic Concepts
+
+@subsubsection Simple Types
+
+@subsubsection Enumerations and Flags
+
+@c @subsubsection Strings
+
+@c @subsubsection Boxed Types
+
+@subsubsection Callbacks
+
+Any Bigloo procedure with matching prototype may be used as signal or
+event handler in Bigloo.
+
+@subsubsection Composite Types
+
+@c TBD (include all conversion procedures required to call GTK here)
+
+@subsection Objects
+@c ======================================================================
+@deffn {procedure} gtk-object-destroyed object::gtk-object @result{} bool
+Was an object destroyed with @code{gtk-object-destroy}?
+@example
+(define button(gtk-button-new))
+(gtk-object-destroyed button)
+@result{} #f
+(gtk-object-destroy button)
+(gtk-object-destroyed button)
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-object-destroy object::gtk-object
+Ask the @var{object}'s class to destroy the @var{object}.
+@end deffn
+
+@subsection Signals Overview
+@c ======================================================================
+@deffn {procedure} gtk-signal-emit-stop object::gtk-object signal
+
+Stop the emission of the @var{signal} on @var{object}. @var{signal} is
+the string signal name or the integer identifier for the signal, which
+can be determined using the function
+@code{gtk-signal-lookup}. Attempting to stop the emission of a signal
+that isn't being emitted does nothing.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-disconnect object::gtk-object id::int
+
+Disconnects a signal handler from an object. The signal handler is
+identified by the integer @var{id} which is returned by the
+@code{gtk-signal-connect} function.
+
+Example: disable the button action after the first invocation.
+
+@example
+(letrec((but(gtk-button-new "Hello"))
+	(signal-id
+	 (gtk-signal-connect
+	  but "clicked"
+	  (lambda args
+	    (print "Hello, World")
+	    (gtk-signal-disconnect but signal-id)))))
+  @dots{})
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-emit object::gtk-object signal . arguments
+
+Emit the signal specified by the integer or string identifier
+@var{signal} from @var{object}. The signal definition determines the
+parameters passed in the @var{arguments} list along with the type of
+return value.
+
+For example, if the signal is defined as:
+
+@example
+  void (* parent_set) (GtkWidget *widget, GtkWidget *parent);
+@end example
+
+Then a call to emit the ``parent_set'' signal would look like:
+
+@example
+(let((button(gtk-button-new)))
+  (gtk-signal-emit button  "parent_set" *window*))
+@result{} #unspecified
+@end example
+
+Notice that the @code{widget} argument is implicit in that the first
+argument to every signal is a type derived from @code{GtkObject}.
+
+Signals may return values. For example see the
+@code{gtk-signal-new-generic} section.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-connect object::gtk-object name::string function::procedure #!optional after::bool @result{} uint
+
+Connects a signal handling @var{function} to a signal emitting
+@var{object}. @var{function} is connected to the signal @var{name} emitted by
+@var{object}. The arguments and returns type of @var{func} should match
+the arguments and return type of the signal @var{name}.
+
+@code{gtk-signal-connect} returns an integer identifier for the
+connection which can be used to refer to it in the future. Specifically
+it is useful for removing the connection and/or blocking it from being
+used.
+
+Example: connect a click handler to a button. Being invoked, handler
+prints a message and disconnects itself.
+
+@example
+(letrec((but(gtk-button-new "Hello"))
+	(signal-id
+	 (gtk-signal-connect
+	  but "clicked"
+	  (lambda(button)
+	    (print "Hello, World")
+	    (gtk-signal-disconnect button signal-id)))))
+  @dots{})
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-params query::gtk-signal-query @result{} pair-nil
+
+Signal introspection.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-new-generic name::string run-type::gtk-signal-run-type object-type::gtk-type return-type::gtk-type . params @result{} uint
+
+Create a new signal and give it the character string identifier
+@var{name}. @var{name} needs to be unique in the context of
+@var{object-type}'s branch of the class hierarchy. That is,
+@var{object-type} cannot create a signal type with the same name as a
+signal type created by one of its parent types.
+
+@var{run-type} specifies whether the class function should be run before
+(@code{'first}), after (@code{'last}) or both before and after normal
+signal handlers (@code{'both}). Additionally, the @code{'no-recurse}
+value can be specified to specify that the signal should not be
+recursive. By default, emitting the same signal on the same widget will
+cause the signal to be emitted twice. However, if the @code{'no-recurse}
+flag is specified, emitting the same signal on the same widget will
+cause the current signal emission to be restarted. This allows the
+widget programmer to specify the semantics of signal emission on a per
+signal basis. (The @code{'no-recurse} flag is used by the
+@code{gtk-adjustment} widget).
+
+The @var{return-val} and the remaining arguments specify the return
+value and the arguments to the signal handler respectively.
+
+@strong{Note} There is an implicit first argument to every signal
+handler which is the widget the signal has been emitted from.
+
+The variable argument list @var{params} specifies the types of the
+arguments (use @code{gtk-type-from-name} to get gtk type
+identifiers). It is OK to use @code{(gtk-type-from-name "none")} for
+@var{return-val}. (This corresponds to not returning a value).
+
+@example
+(define button(gtk-button-new))
+button
+@result{} #<foreign:gtk-button:84c7150>
+(define guint-type(gtk-type-from-name "guint"))
+guint-type @result{} 6
+(define button-type(gtk-type-from-name "GtkButton"))
+button-type @result{} 40469
+(gtk-signal-new-generic "sum2"
+			'(both)
+			button-type ;; signal object type
+			guint-type  ;; signal return type
+			guint-type  ;; signal 1st arg type
+			guint-type  ;; signal 2st arg type
+			)
+@result{} 82
+(gtk-signal-connect button
+                    "sum2"
+                    (lambda (button n1 n2) (+ n1 n2))))
+@result{} 4
+(gtk-signal-emit button "print-sum" 2 3)
+@result{} 5
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-object-type o::gtk-signal-query @result{} gtk-type
+
+Access the @var{object-type} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-signal-query-object-type
+ (gtk-signal-query
+  (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))))
+@result{} 21
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-signal-id o::gtk-signal-query @result{} uint
+
+Access the @var{signal-id} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-signal-query-signal-id
+ (gtk-signal-query
+  (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))))
+@result{} 1
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-signal-name o::gtk-signal-query @result{} string
+
+Access the @var{signal-name} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-signal-query-signal-name
+ (gtk-signal-query
+  (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))))
+@result{} "destroy"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-is-user-signal o::gtk-signal-query @result{} bool
+
+Access the @var{is-user-signal} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-signal-query-is-user-signal
+ (gtk-signal-query
+  (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))))
+@result{} #f
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-signal-flags o::gtk-signal-query @result{} gtk-signal-run-type
+
+Access the @var{signal-flags} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-signal-query-signal-flags
+ (gtk-signal-query
+  (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))))
+@result{} '(no-hooks both last)
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query-return-val o::gtk-signal-query @result{} gtk-type
+
+Access the @var{return-val} of @code{gtk-signal-query} structure. See
+@code{gtk-signal-query} procedure description for more detail.
+
+@example
+(gtk-type-name
+ (gtk-signal-query-return-val
+  (gtk-signal-query
+   (gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject")))))
+@result{} "void"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-lookup name::string type::gtk-type @result{} uint
+
+Returns the integer identifier for the signal referenced by @var{name}
+and @var{type}. If @var{type} does not define the signal @var{name},
+then the signal is looked for in @var{type}'s parent type recursively.
+
+@example
+(gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject"))
+@result{} 1
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-name signal-id::uint @result{} string
+
+Lookup a signal by signal identifier @var{signal-id}, return signal
+name. This procedure is complementary to the @code{gtk-signal-lookup}
+procedure.
+
+@example
+(gtk-signal-name(gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject")))
+@result{} "destroy"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-signal-query signal-id::uint @result{} gtk-signal-query
+
+Query signal information.
+
+@example
+(let*((signal-id(gtk-signal-lookup "destroy"(gtk-type-from-name "GtkObject")))
+      (signal(gtk-signal-query signal-id)))
+  (print "type: " (gtk-signal-query-object-type signal))
+  (print "signal-id: " (gtk-signal-query-signal-id signal))
+  (print "signal-name: " (gtk-signal-query-signal-name signal))
+  (print "is-user-signal: " (gtk-signal-query-is-user-signal signal))
+  (print "signal-flags: " (gtk-signal-query-signal-flags signal))
+  (print "return-val: " (gtk-signal-query-return-val signal)))
+@print{}type: 21
+@print{}signal-id: 1
+@print{}signal-name: destroy
+@print{}is-user-signal: #f
+@print{}signal-flags: (NO-HOOKS BOTH LAST)
+@print{}return-val: 1
+@print{}1
+@end example
+@end deffn
+
+@subsection Widget Overview
+
+@subsubsection The accel group object
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-remove accel_group::gtk-accel-group accel_key::uint accel_mods::gdk-modifier-type object::gtk-object @result{} #unspecified
+@var{accel_group}
+@var{accel_key}
+@var{accel_mods}
+@var{object}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-add accel_group::gtk-accel-group accel_key::uint accel_mods::gdk-modifier-type accel_flags::gtk-accel-flags object::gtk-object accel_signal::string @result{} #unspecified
+@var{accel_group}
+@var{accel_key}
+@var{accel_mods}
+@var{accel_flags}
+@var{object}
+@var{accel_signal}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-unlock accel_group::gtk-accel-group @result{} #unspecified
+@var{accel_group}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-lock accel_group::gtk-accel-group @result{} #unspecified
+@var{accel_group}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-detach accel_group::gtk-accel-group object::gtk-object @result{} #unspecified
+@var{accel_group}
+@var{object}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-attach accel_group::gtk-accel-group object::gtk-object @result{} #unspecified
+@var{accel_group}
+@var{object}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-group-new  @result{} gtk-accel-group
+@example
+@result{}
+@end example
+@end deffn
+
+
+@subsubsection The accel label widget
+@c ======================================================================
+@deffn {procedure} gtk-accel-label-set-accel-widget accel_label::gtk-accel-label accel_widget::gtk-widget @result{} #unspecified
+@var{accel_label}
+@var{accel_widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-accel-label-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The alignment widget
+
+@c ======================================================================
+@deffn {procedure} gtk-alignment-set alignment::gtk-alignment xalign::float yalign::float xscale::float yscale::float @result{} #unspecified
+@var{alignment}
+@var{xalign}
+@var{yalign}
+@var{xscale}
+@var{yscale}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-alignment-new xalign::float yalign::float xscale::float yscale::float @result{} gtk-widget
+@var{xalign}
+@var{yalign}
+@var{xscale}
+@var{yscale}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The arg object
+
+@c ======================================================================
+@deffn {procedure} gtk-arg-type o::gtk-arg @result{} gtk-type
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-arg-name o::gtk-arg @result{} string
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The arrow widget
+
+@c ======================================================================
+@deffn {procedure} gtk-arrow-set arrow::gtk-arrow arrow_type::gtk-arrow-type shadow_type::gtk-shadow-type @result{} #unspecified
+@var{arrow}
+@var{arrow_type}
+@var{shadow_type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-arrow-new arrow_type::gtk-arrow-type shadow_type::gtk-shadow-type @result{} gtk-widget
+@var{arrow_type}
+@var{shadow_type}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The aspect frame widget
+
+@c ======================================================================
+@deffn {procedure} gtk-aspect-frame-set aspect_frame::gtk-aspect-frame xalign::float yalign::float ratio::float obey_child::bool @result{} #unspecified
+@var{aspect_frame}
+@var{xalign}
+@var{yalign}
+@var{ratio}
+@var{obey_child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-aspect-frame-new label::string xalign::float yalign::float ratio::float obey_child::bool @result{} gtk-widget
+@var{label}
+@var{xalign}
+@var{yalign}
+@var{ratio}
+@var{obey_child}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The bin widget
+
+@subsubsection The box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-box-set-child-packing box::gtk-box child::gtk-widget expand::bool fill::bool padding::int pack_type::gtk-pack-type @result{} #unspecified
+@var{box}
+@var{child}
+@var{expand}
+@var{fill}
+@var{padding}
+@var{pack_type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-reorder-child box::gtk-box child::gtk-widget pos::uint @result{} #unspecified
+@var{box}
+@var{child}
+@var{pos}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-set-spacing box::gtk-box spacing::int @result{} #unspecified
+@var{box}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-set-homogeneous box::gtk-box homogenous::bool @result{} #unspecified
+@var{box}
+@var{homogenous}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-pack-end-defaults box::gtk-box child::gtk-widget @result{} #unspecified
+@var{box}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-pack-start-defaults box::gtk-box child::gtk-widget @result{} #unspecified
+@var{box}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-pack-end box::gtk-box child::gtk-widget #!optional expand fill padding @result{} #unspecified
+@var{box}
+@var{child}
+@var{expand}
+@var{fill}
+@var{padding}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-box-pack-start box::gtk-box child::gtk-widget #!optional expand fill padding @result{} #unspecified
+@var{box}
+@var{child}
+@var{expand}
+@var{fill}
+@var{padding}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The handle box widget
+@c ======================================================================
+@deffn {procedure} gtk-handle-box-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The button box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-child-ipadding widget::gtk-button-box ipad_x::int ipad_y::int @result{} #unspecified
+@var{widget}
+@var{ipad_x}
+@var{ipad_y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-child-size widget::gtk-button-box min_width::int min_height::int @result{} #unspecified
+@var{widget}
+@var{min_width}
+@var{min_height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-layout widget::gtk-button-box layout_style::gtk-button-box-style @result{} #unspecified
+@var{widget}
+@var{layout_style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-spacing widget::gtk-button-box spacing::int @result{} #unspecified
+@var{widget}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-get-layout widget::gtk-button-box @result{} gtk-button-box-style
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-get-spacing widget::gtk-button-box @result{} int
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-child-ipadding-default ipad_x::int ipad_y::int @result{} #unspecified
+@var{ipad_x}
+@var{ipad_y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-box-set-child-size-default min_width::int min_height::int @result{} #unspecified
+@var{min_width}
+@var{min_height}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The button widget
+
+@c ======================================================================
+@deffn {procedure} gtk-button-leave button::gtk-button @result{} #unspecified
+@var{button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-enter button::gtk-button @result{} #unspecified
+@var{button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-clicked button::gtk-button @result{} #unspecified
+@var{button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-released button::gtk-button @result{} #unspecified
+@var{button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-pressed button::gtk-button @result{} #unspecified
+@var{button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-child o::gtk-button @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-in-button o::gtk-button @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-button-button-down o::gtk-button @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The calendar widget
+
+@deffn {procedure} gtk-calendar-thaw calendar::gtk-calendar @result{} #unspecified
+@var{calendar}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-freeze calendar::gtk-calendar @result{} #unspecified
+@var{calendar}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-clear-marks calendar::gtk-calendar @result{} #unspecified
+@var{calendar}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-unmark-day calendar::gtk-calendar day::int @result{} int
+@var{calendar}
+@var{day}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-mark-day calendar::gtk-calendar day::int @result{} int
+@var{calendar}
+@var{day}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-select-day calendar::gtk-calendar day::int @result{} #unspecified
+@var{calendar}
+@var{day}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-select-month calendar::gtk-calendar month::int year::int @result{} int
+@var{calendar}
+@var{month}
+@var{year}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-calendar-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The check button widget
+
+@c ======================================================================
+@deffn {procedure} gtk-check-button-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The curve widget
+
+@c ======================================================================
+@deffn {procedure} gtk-curve-set-curve-type curve::gtk-curve type::gtk-curve-type @result{} #unspecified
+@var{curve}
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-curve-set-range curve::gtk-curve min_x::float max_x::float min_y::float max_y::float @result{} #unspecified
+@var{curve}
+@var{min_x}
+@var{max_x}
+@var{min_y}
+@var{max_y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-curve-set-gamma curve::gtk-curve gamma::float @result{} #unspecified
+@var{curve}
+@var{gamma}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-curve-reset curve::gtk-curve @result{} #unspecified
+@var{curve}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-curve-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The spin button widget
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-set-update-policy spin_button::gtk-spin-button policy::gtk-spin-button-update-policy @result{} #unspecified
+@var{spin_button}
+@var{policy}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-set-value spin_button::gtk-spin-button value::float @result{} #unspecified
+@var{spin_button}
+@var{value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-get-value-as-int spin_button::gtk-spin-button @result{} int
+@var{spin_button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-get-value-as-float spin_button::gtk-spin-button @result{} float
+@var{spin_button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-set-digits spin_button::gtk-spin-button digits::int @result{} #unspecified
+@var{spin_button}
+@var{digits}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-get-adjustment spin_button::gtk-spin-button @result{} gtk-adjustment
+@var{spin_button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-set-adjustment spin_button::gtk-spin-button adjustment::gtk-adjustment @result{} #unspecified
+@var{spin_button}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-spin-button-new adjustment::gtk-adjustment climb_rate::float digits::int @result{} gtk-widget
+@var{adjustment}
+@var{climb_rate}
+@var{digits}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The check menu item widget
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-toggled check_menu_item::gtk-check-menu-item @result{} #unspecified
+@var{check_menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-set-show-toggle menu_item::gtk-check-menu-item always::bool @result{} #unspecified
+@var{menu_item}
+@var{always}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-set-state check_menu_item::gtk-check-menu-item state::bool @result{} #unspecified
+@var{check_menu_item}
+@var{state}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-set-active check_menu_item::gtk-check-menu-item is_active::bool @result{} #unspecified
+@var{check_menu_item}
+@var{is_active}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-check-menu-item-active o::gtk-check-menu-item @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The compound list widget
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-for-each clist::gtk-clist  handle::procedure @result{} #unspecified
+
+The @code{gtk-clist-for-each} calls the @var{handle} procedure for each
+row in @var{clist} with the contents of each row cell as argument. The
+type of each argument depends on the type of corresponding cell
+contents as follows:
+
+@flushleft
+@code{empty}   @result{} @code{#f}
+@code{text}    @result{} @code{bstring}
+@code{pixmap}  @result{} @code{(list pixmap::gtk-pixmap mask::gtk-bitmap)}
+@code{pixtext} @result{}
+  @code{(list text::bstring spacing::uint pixmap::gtk-pixmap mask::gtk-bitmap)}
+@code{widget}  @result{} @code{gtk-widget}
+@end flushleft
+
+The following example prints contents of two-column clist, all the cells
+of which are simple text:
+
+@example
+(gtk-clist-for-each clist
+  (lambda(column1 column2)(print column1 " " column2)))
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-text clist::gtk-clist row::int column::int  @result{} bstring
+@var{row} clist row number, 0-based
+@var{column} clist column number, 0-based
+
+Returns the cell content string. Signals error if the cell is not of
+@code{GtkCellText} type or indices out of bounds.
+
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-auto-sort clist::gtk-clist auto_sort::bool @result{} #unspecified
+@var{clist}
+@var{auto_sort}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-sort clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-sort-type clist::gtk-clist sort_type::gtk-sort-type @result{} #unspecified
+@var{clist}
+@var{sort_type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-sort-column clist::gtk-clist column::int @result{} #unspecified
+@var{clist}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-swap-rows clist::gtk-clist row1::int row2::int @result{} #unspecified
+@var{clist}
+@var{row1}
+@var{row2}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-unselect-all clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-clear clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-undo-selection clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-unselect-row clist::gtk-clist row::int column::int @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-select-row clist::gtk-clist row::int column::int @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-remove clist::gtk-clist row::int @result{} #unspecified
+@var{clist}
+@var{row}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-selectable clist::gtk-clist row::int @result{} bool
+@var{clist}
+@var{row}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-selectable clist::gtk-clist row::int selectable::bool @result{} #unspecified
+@var{clist}
+@var{row}
+@var{selectable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-shift clist::gtk-clist row::int column::int vertical::int horizontal::int @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@var{vertical}
+@var{horizontal}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-row-style clist::gtk-clist row::int @result{} gtk-style
+@var{clist}
+@var{row}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-row-style clist::gtk-clist row::int style::gtk-style @result{} #unspecified
+@var{clist}
+@var{row}
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-cell-style clist::gtk-clist row::int column::int @result{} gtk-style
+@var{clist}
+@var{row}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-cell-style clist::gtk-clist row::int column::int style::gtk-style @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-background clist::gtk-clist row::int color::gdk-color @result{} #unspecified
+@var{clist}
+@var{row}
+@var{color}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-foreground clist::gtk-clist row::int color::gdk-color @result{} #unspecified
+@var{clist}
+@var{row}
+@var{color}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-text clist::gtk-clist row::int column::int text::string @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-cell-type clist::gtk-clist row::int column::int @result{} gtk-cell-type
+@var{clist}
+@var{row}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-row-is-visible clist::gtk-clist row::int @result{} gtk-visibility
+@var{clist}
+@var{row}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-moveto clist::gtk-clist row::int column::int row_align::float column_align::float @result{} #unspecified
+@var{clist}
+@var{row}
+@var{column}
+@var{row_align}
+@var{column_align}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-row-height clist::gtk-clist height::int @result{} #unspecified
+@var{clist}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-max-width clist::gtk-clist column::int max_width::int @result{} #unspecified
+@var{clist}
+@var{column}
+@var{max_width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-min-width clist::gtk-clist column::int min_width::int @result{} #unspecified
+@var{clist}
+@var{column}
+@var{min_width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-width clist::gtk-clist column::int width::int @result{} #unspecified
+@var{clist}
+@var{column}
+@var{width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-optimal-column-width clist::gtk-clist column::int @result{} int
+@var{clist}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-columns-autosize clist::gtk-clist @result{} int
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-auto-resize clist::gtk-clist column::int auto_resize::bool @result{} #unspecified
+@var{clist}
+@var{column}
+@var{auto_resize}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-resizeable clist::gtk-clist column::int resizeable::bool @result{} #unspecified
+@var{clist}
+@var{column}
+@var{resizeable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-visibility clist::gtk-clist column::int visible::bool @result{} #unspecified
+@var{clist}
+@var{column}
+@var{visible}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-justification clist::gtk-clist column::int justification::gtk-justification @result{} #unspecified
+@var{clist}
+@var{column}
+@var{justification}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-column-widget clist::gtk-clist column::int @result{} gtk-widget
+@var{clist}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-widget clist::gtk-clist column::int widget::gtk-widget @result{} #unspecified
+@var{clist}
+@var{column}
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-column-title clist::gtk-clist column::int title::string @result{} #unspecified
+@var{clist}
+@var{column}
+@var{title}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-titles-passive clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-titles-active clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-title-passive clist::gtk-clist column::int @result{} #unspecified
+@var{clist}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-title-active clist::gtk-clist column::int @result{} #unspecified
+@var{clist}
+@var{column}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-titles-hide clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-column-titles-show clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-thaw clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-freeze clist::gtk-clist @result{} #unspecified
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-button-actions list::gtk-clist button::uint button_actions::uint @result{} #unspecified
+@var{list}
+@var{button}
+@var{button_actions}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-use-drag-icons list::gtk-clist use_icons::bool @result{} #unspecified
+@var{list}
+@var{use_icons}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-reorderable clist::gtk-clist reorderable::bool @result{} #unspecified
+@var{clist}
+@var{reorderable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-selection-mode clist::gtk-clist mode::gtk-selection-mode @result{} #unspecified
+@var{clist}
+@var{mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-vadjustment clist::gtk-clist @result{} gtk-adjustment
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-get-hadjustment clist::gtk-clist @result{} gtk-adjustment
+@var{clist}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-vadjustment clist::gtk-clist adjustment::gtk-adjustment @result{} #unspecified
+@var{clist}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-set-hadjustment clist::gtk-clist adjustment::gtk-adjustment @result{} #unspecified
+@var{clist}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-new arg . titles @result{} gtk-widget
+
+Create @code{gtk-clist} type object with optional @var{titles}. There are two methods of calling this procedure.
+
+@itemize
+@item
+with one argument of integer type. The value of this argument is the
+number of columns in a new @code{clist};
+
+@item
+with any positive number of arguments of @code{string} type. In this
+case the number of columns in the new @code{clist} is equal to the
+number of arguments, and their values used as column titles.
+
+@end itemize
+
+Note: this procedure obsoletes @code{guile-gtk}
+@code{gtk-clist-new-with-titles} procedure.
+
+Example1: create 3-column @code{gtk-clist}:
+@example
+(gtk-clist-new 3)
+@end example
+
+Example1: create 2-column @code{gtk-clist} and set the column titles to
+"Column1" and "Column2":
+@example
+(gtk-clist-new "Column1" "Column2")
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-append clist::gtk-clist #!rest columns @result{} #unspecified
+
+Append a row to @var{clist}. The @var{columns} parameters should all be
+ strings forming a new row. The length of @code{columns} should be
+ equal to the number of columns in @var{clist}.
+
+@example
+(gtk-clist-append(gtk-clist-new "Column1" "Column2") "Value1" "Value2")
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-clist-prepend clist::gtk-clist #!rest columns @result{} #unspecified
+
+Prepend a row to @var{clist}. The @var{columns} parameters should all be
+ strings forming a new row. The length of @code{columns} should be
+ equal to the number of columns in @var{clist}.
+
+@example
+(gtk-clist-prepend(gtk-clist-new "Column1" "Column2") "Value1" "Value2")
+@end example
+@end deffn
+
+
+@subsubsection The color selector widget
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-set-opacity colorsel::gtk-color-selection use_opacity::bool @result{} #unspecified
+@var{colorsel}
+@var{use_opacity}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-set-update-policy colorsel::gtk-color-selection policy::gtk-update-type @result{} #unspecified
+@var{colorsel}
+@var{policy}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-new title::string @result{} gtk-widget
+@var{title}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-colorsel o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-main-vbox o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-ok-button o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-reset-button o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-cancel-button o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-dialog-help-button o::gtk-color-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-color-selection-get-color selection::gtk-color-selection @result{} pair
+
+Return current color selection as list of four double values (RGB+opacity).
+
+@example
+(let* ((window(gtk-color-selection-dialog-new "color selection dialog"))
+       (selection(gtk-color-selection-dialog-colorsel window)))
+  (gtk-color-selection-get-color selection))
+@result{} (1.0 1.0 1.0 1.527836969495e-312)
+@end example
+@end deffn
+
+@subsubsection The combo widget
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-disable-activate combo::gtk-combo @result{} #unspecified
+@var{combo}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-item-string combo::gtk-combo item::gtk-item item_value::string @result{} #unspecified
+@var{combo}
+@var{item}
+@var{item_value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-case-sensitive combo::gtk-combo val::bool @result{} #unspecified
+@var{combo}
+@var{val}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-use-arrows-always combo::gtk-combo val::bool @result{} #unspecified
+@var{combo}
+@var{val}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-use-arrows combo::gtk-combo val::bool @result{} #unspecified
+@var{combo}
+@var{val}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-value-in-list combo::gtk-combo val::bool ok_if_empty::bool @result{} #unspecified
+@var{combo}
+@var{val}
+@var{ok_if_empty}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-entry o::gtk-combo @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-button o::gtk-combo @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-popup o::gtk-combo @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-popwin o::gtk-combo @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-list o::gtk-combo @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-combo-set-popdown-strings combo::gtk-combo strings::pair-nil @result{} #unspecified
+@var{combo}
+@var{strings}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The container widget
+
+@c ======================================================================
+@deffn {procedure} gtk-container-unregister-toplevel container::gtk-container @result{} #unspecified
+@var{container}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-register-toplevel container::gtk-container @result{} #unspecified
+@var{container}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-focus container::gtk-container direction::gtk-direction-type @result{} gtk-direction-type
+@var{container}
+@var{direction}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-remove container::gtk-container widget::gtk-widget @result{} #unspecified
+@var{container}
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-add container::gtk-container widget::gtk-widget @result{} #unspecified
+@var{container}
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-border-width container::gtk-container border_width::int @result{} #unspecified
+@var{container}
+@var{border_width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-set-focus-hadjustment container::gtk-container adjustment::gtk-adjustment @result{} #unspecified
+@var{container}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-set-focus-vadjustment container::gtk-container adjustment::gtk-adjustment @result{} #unspecified
+@var{container}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-container-set-border-width container::gtk-container border_width::uint @result{} #unspecified
+@var{container}
+@var{border_width}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The font selector widget
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-set-preview-text fontsel::gtk-font-selection-dialog text::string @result{} #unspecified
+@var{fontsel}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-set-font-name fontsel::gtk-font-selection-dialog fontname::string @result{} bool
+@var{fontsel}
+@var{fontname}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-get-font fontsel::gtk-font-selection-dialog @result{} gdk-font
+@var{fontsel}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-get-font-name fontsel::gtk-font-selection-dialog @result{} string
+@var{fontsel}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-new title::string @result{} gtk-widget
+@var{title}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-main-vbox o::gtk-font-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-action-area o::gtk-font-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-ok-button o::gtk-font-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-apply-button o::gtk-font-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-font-selection-dialog-cancel-button o::gtk-font-selection-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The file selector widget
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-hide-fileop-buttons filesel::gtk-file-selection @result{} #unspecified
+@var{filesel}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-show-fileop-buttons filesel::gtk-file-selection @result{} #unspecified
+@var{filesel}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-get-filename filesel::gtk-file-selection @result{} string
+@var{filesel}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-set-filename filesel::gtk-file-selection filename::string @result{} #unspecified
+@var{filesel}
+@var{filename}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-new title::string @result{} gtk-widget
+@var{title}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-dir-list o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-file-list o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-selection-entry o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-selection-text o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-main-vbox o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-ok-button o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-cancel-button o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-help-button o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-file-selection-action-area o::gtk-file-selection @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The multi-column tree widget
+
+@subsubsection The curve widget
+
+@subsubsection The gamma curve widget
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-table o::gtk-gamma-curve @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-curve o::gtk-gamma-curve @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-gamma o::gtk-gamma-curve @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-gamma-dialog o::gtk-gamma-curve @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-gamma-curve-gamma-text o::gtk-gamma-curve @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The dialog widget
+
+@c ======================================================================
+@deffn {procedure} gtk-dialog-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-dialog-vbox o::gtk-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-dialog-action-area o::gtk-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The drawing area widget
+
+@c ======================================================================
+@deffn {procedure} gtk-drawing-area-size darea::gtk-drawing-area width::int height::int @result{} #unspecified
+@var{darea}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-drawing-area-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The entry widget
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-set-editable entry::gtk-entry editable::bool @result{} #unspecified
+@var{entry}
+@var{editable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-set-visibility entry::gtk-entry visible::bool @result{} #unspecified
+@var{entry}
+@var{visible}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-select-region entry::gtk-entry start::int end::int @result{} #unspecified
+@var{entry}
+@var{start}
+@var{end}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-set-position entry::gtk-entry position::int @result{} #unspecified
+@var{entry}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-prepend-text entry::gtk-entry text::string @result{} #unspecified
+@var{entry}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-append-text entry::gtk-entry text::string @result{} #unspecified
+@var{entry}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-set-text entry::gtk-entry text::string @result{} #unspecified
+@var{entry}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-new-with-max-length max::int @result{} gtk-widget
+@var{max}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-entry-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The editable widget
+
+@code{gtk-editable} -- Base class for text-editing widgets.
+
+The @code{gtk-editable} class is a base class for widgets for editing
+text, such as @code{gtk-entry} and @code{gtk-text}. It cannot be
+instantiated by itself. The editable class contains functions for
+generically manipulating an editable widget, a large number of action
+signals used for key bindings, and several signals that an application
+can connect to to modify the behavior of a widget.
+
+As an example of the latter usage, by connecting the following handler
+to @code{insert-text}, an application can convert all entry into a widget
+into uppercase.
+
+@example
+(letrec((signal-id
+	 (gtk-signal-connect
+	  entry
+	  "insert_text"
+	  (lambda (entry text position)
+	    (gtk-signal-handler-block entry signal-id)
+	    (gtk-editable-insert-text
+	     entry
+	     (string-upcase text)
+	     position)
+	    (gtk-signal-handler-unblock entry signal-id)
+	    (gtk-signal-emit-stop entry "insert_text")
+	    (+fx 1 position)
+	    )
+	  )))
+  #unspecified)
+@end example
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-changed editable::gtk-editable 
+
+The call @code{gtk-editable-changed} is effectively equivalent to the
+call:
+
+@example
+  (gtk-signal-emit editable "changed")
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-copy-clipboard editable::gtk-editable 
+
+The call @code{gtk-editable-copy-clipboard} causes the characters in the
+current selection to be copied to the clipboard. It is effectively
+equivalent to the call:
+
+@example
+  (gtk-signal-emit editable "copy-clipboard")
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-cut-clipboard editable::gtk-editable 
+
+The call @code{gtk-editable-cut-clipboard} causes the characters in the
+current selection to be copied to the clipboard and then deleted from
+the widget.  It is effectively equivalent to the call:
+
+@example
+  (gtk-signal-emit editable "cut-clipboard")
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-delete-selection editable::gtk-editable 
+
+The procedure @code{gtk-editable-delete-selection} deletes the selected
+text, sets the selection start and end positions to 0 (see
+@code{gtk-editable-selection-start-pos} and
+@code{gtk-editable-selection-end-pos}, disclaims the selection, and
+clears the flag accessible thru @code{gtk-editable-has-selection}.
+
+For example: 
+
+@example
+(let((text(gtk-text-new)))
+  (gtk-editable-insert-text text "The quick brown fox jumps over the lazy dog")
+  (gtk-container-add <some container> text)
+  (define(describe-selection)
+    (print "the text: "(gtk-editable-get-chars text))
+    (print "gtk-editable-selection-start-pos: "
+	   (gtk-editable-selection-start-pos text))
+    (print "gtk-editable-selection-end-pos: "
+	   (gtk-editable-selection-end-pos text)))
+  (gtk-editable-set-editable text #t)
+  (gtk-editable-select-region text 10 20)
+  (describe-selection)
+  (gtk-editable-delete-selection text)
+  (describe-selection)
+  )
+
+@print{} the text: The quick brown fox jumps over the lazy dog
+@print{} gtk-editable-selection-start-pos: 10
+@print{} gtk-editable-selection-end-pos: 20
+@print{} the text: The quick jumps over the lazy dog
+@print{} gtk-editable-selection-start-pos: 0
+@print{} gtk-editable-selection-end-pos: 0
+
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-delete-text editable::gtk-editable start::int end::int 
+
+Delete a sequence of characters. The characters that are deleted are those
+characters at positions from @var{start} up to, but not including @var{end}. If
+@var{end} is negative, then the the characters deleted will be those
+characters from @var{start} to the end of the text.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-get-chars editable::gtk-editable #!optional (start 0) (end -1)  @result{} bstring
+
+The procedure @code{gtk-editable-get-chars} retrieves a sequence of
+characters. The characters that are retrieved are those characters at
+positions from @var{start} up to, but not including @var{end}. If
+@var{end} is negative or omitted, then the the characters retrieved will
+be those characters from @var{start} to the end of the text.
+
+For example: 
+@example
+;; Retrieve the whole text
+(gtk-editable-get-chars text)
+
+;; Retrieve the characters at positions from 10 to the end of the text
+(gtk-editable-get-chars text 10)
+
+;; Retrieve the characters at positions from 10 to 20
+(gtk-editable-get-chars text 10 20)
+
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-get-position o::gtk-editable  @result{} uint
+
+The call @code{gtk-editable-get-position} returns the @var{current_pos}
+field of @code{gtk-editable} structure. See also @code{gtk-editable-set-position}.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-get-type  @result{} gtk-type
+
+The procedure @code{gtk-editable-get-type} creates if neccessary, and
+returns the type suitable to create the @code{gtk-editable} objects by
+@code{gtk-object-new}.
+
+For example: 
+@example
+(gtk-object-new(gtk-editable-get-type) editable: #t)
+@result{} #<foreign:gtk-editable:84c8278>
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-has-selection editable::gtk-editable  @result{} bool
+
+The procedure @code{gtk-editable-has-selection} returns @code{#t} is the
+widget @var{editable} has a non-empty selection.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-insert-text editable::gtk-editable text::bstring #!optional (position 0)
+
+The procedure @code{gtk-editable-insert-text} inserts @var{text} at a
+given @var{position} or at the beginning of the edited text if the
+@var{position} argument is omitted
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-paste-clipboard editable::gtk-editable 
+
+The procedure @code{gtk-editable-paste-clipboard} causes the contents of
+the clipboard to be pasted into the given widget at the current cursor
+position. It is effectively equivalent to the call:
+
+@example
+  (gtk-signal-emit editable "paste-clipboard")
+@end example
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-select-region editable::gtk-editable #!optional (start 0) (end 0)
+
+The procedure @code{gtk-editable-select-region} selects a region of
+text. The characters that are selected are those characters at positions
+from @var{start} up to, but not including @var{end}. If @var{end} is
+negative or omitted, then the the characters selected will be those
+characters from @var{start} to the end of the text. If @var{start} is
+omitted either then all the characters in a text are selected.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-selection-end-pos o::gtk-editable  @result{} uint
+
+The procedure @code{gtk-editable-selection-start-pos} returns the
+starting position of the selected characters in the widget.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-selection-start-pos o::gtk-editable  @result{} uint
+
+The procedure @code{gtk-editable-selection-start-pos} returns the
+starting position of the selected characters in the widget.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-set-editable editable::gtk-editable is-editable::bool 
+
+@var{is-editable} @code{#t} if the user is allowed to edit the text in the widget.
+
+The procedure @code{gtk-editable-set-editable} determines if the user
+can edit the text in the editable widget or not.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable-set-position editable::gtk-editable #!optional (position 0)
+
+The procedure @code{gtk-editable-set-position} sets the cursor position
+to @var{position}. The cursor is displayed before the character with the
+given (base 0) index in the widget.  The value must be less than or
+equal to the number of characters in the widget. A value of -1 (default)
+indicates that the position should be set after the last character in
+the entry. Note that this position is in characters, not in bytes.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-editable? obj  @result{} bool
+
+The procedure @code{gtk-editable?} returns @code{#t} if the @var{obj}
+is of @code{gtk-editable} type.
+
+@end deffn
+
+
+@subsubsection The event box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-event-box-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The file selection dialog widget
+
+@subsubsection The fixed widget
+
+@c ======================================================================
+@deffn {procedure} gtk-fixed-move fixed::gtk-fixed widget::gtk-widget x::int y::int @result{} #unspecified
+@var{fixed}
+@var{widget}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-fixed-put fixed::gtk-fixed widget::gtk-widget x::int y::int @result{} #unspecified
+@var{fixed}
+@var{widget}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-fixed-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The frame widget
+
+@c ======================================================================
+@deffn {procedure} gtk-frame-set-shadow-type frame::gtk-frame type::gtk-shadow-type @result{} #unspecified
+@var{frame}
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-frame-set-label-align frame::gtk-frame xalign::float yalign::float @result{} #unspecified
+@var{frame}
+@var{xalign}
+@var{yalign}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-frame-set-label frame::gtk-frame label::string @result{} #unspecified
+@var{frame}
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-frame-new #!optional label @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gamma widget
+
+@subsubsection The horizontal box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hbox-new #!optional homogenous spacing @result{} gtk-widget
+@var{homogenous}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal button box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hbutton-box-set-layout-default layout::gtk-button-box-style @result{} #unspecified
+@var{layout}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-hbutton-box-set-spacing-default spacing::int @result{} #unspecified
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-hbutton-box-get-layout-default  @result{} gtk-button-box-style
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-hbutton-box-get-spacing-default  @result{} int
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-hbutton-box-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal paned widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hpaned-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal ruler widget
+
+@deffn {procedure} gtk-hruler-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal scale widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hscale-new adjustment::gtk-adjustment @result{} gtk-widget
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical scale widget
+@c ======================================================================
+@deffn {procedure} gtk-vscale-new adjustment::gtk-adjustment @result{} gtk-widget
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal scrollbar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hscrollbar-new adjustment::gtk-adjustment @result{} gtk-widget
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The horizontal separator widget
+
+@c ======================================================================
+@deffn {procedure} gtk-hseparator-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The image widget
+
+@subsubsection The input dialog widget
+
+@c ======================================================================
+@deffn {procedure} gtk-input-dialog-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-input-dialog-close-button o::gtk-input-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-input-dialog-save-button o::gtk-input-dialog @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The item widget
+
+@c ======================================================================
+@deffn {procedure} gtk-item-toggle item::gtk-item @result{} #unspecified
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-item-deselect item::gtk-item @result{} #unspecified
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-item-select item::gtk-item @result{} #unspecified
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The label widget
+
+@c ======================================================================
+@deffn {procedure} gtk-label-set-pattern label::gtk-label str::string @result{} #unspecified
+@var{label}
+@var{str}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-label-set-line-wrap label::gtk-label wrap::bool @result{} #unspecified
+@var{label}
+@var{wrap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-label-set-justify label::gtk-label jtype::gtk-justification @result{} #unspecified
+@var{label}
+@var{jtype}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-label-set-text label::gtk-label str::string @result{} #unspecified
+@var{label}
+@var{str}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-label-new str::string @result{} gtk-widget
+@var{str}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-label-parse-uline label::gtk-label name::string @result{} uint
+@var{label}
+@var{name}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The list widget
+
+@c ======================================================================
+@deffn {procedure} gtk-list-remove-items list::gtk-list items::g-list @result{} #unspecified
+@var{list}
+@var{items}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-children o::gtk-list @result{} g-list
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-selection o::gtk-list @result{} g-list
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-undo-selection o::gtk-list @result{} g-list
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-undo-unselection o::gtk-list @result{} g-list
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-last-focus-child o::gtk-list @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-undo-focus-child o::gtk-list @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-htimer o::gtk-list @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-vtimer o::gtk-list @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-anchor o::gtk-list @result{} int
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-drag-pos o::gtk-list @result{} int
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-anchor-state o::gtk-list @result{} gtk-state-type
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-selection-mode o::gtk-list @result{} gtk-selection-mode
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-drag-selection o::gtk-list @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-add-mode o::gtk-list @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-set-selection-mode list::gtk-list mode::gtk-selection-mode @result{} #unspecified
+@var{list}
+@var{mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-child-position list::gtk-list child::gtk-widget @result{} int
+@var{list}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-unselect-child list::gtk-list child::gtk-widget @result{} #unspecified
+@var{list}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-select-child list::gtk-list child::gtk-widget @result{} #unspecified
+@var{list}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-unselect-item list::gtk-list item::int @result{} #unspecified
+@var{list}
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-select-item list::gtk-list item::int @result{} #unspecified
+@var{list}
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-clear-items list::gtk-list start::int end::int @result{} #unspecified
+@var{list}
+@var{start}
+@var{end}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The list item widget
+
+@c ======================================================================
+@deffn {procedure} gtk-list-item-deselect list_item::gtk-list-item @result{} #unspecified
+@var{list_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-item-select list_item::gtk-list-item @result{} #unspecified
+@var{list_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-list-item-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The menu widget
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-detach menu::gtk-menu @result{} #unspecified
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-get-attach-widget menu::gtk-menu @result{} gtk-widget
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-set-active menu::gtk-menu index::int @result{} #unspecified
+@var{menu}
+@var{index}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-get-active menu::gtk-menu @result{} gtk-widget
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-popdown menu::gtk-menu @result{} #unspecified
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-insert menu::gtk-menu child::gtk-widget position::int @result{} #unspecified
+@var{menu}
+@var{child}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-prepend menu::gtk-menu child::gtk-widget @result{} #unspecified
+@var{menu}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-append menu::gtk-menu child::gtk-widget @result{} #unspecified
+
+Append a menu item, created by any of @code{gtk-menu-item-new},
+@code{gtk-check-menu-item-new} or @code{gtk-radio-menu-item-new}.
+
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-ensure-uline-accel-group menu::gtk-menu @result{} gtk-accel-group
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-get-uline-accel-group menu::gtk-menu @result{} gtk-accel-group
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-popup menu::gtk-menu #!optional parent-menu-shell parent-menu-item callback button activate-time @result{} #unspecified
+
+Display the menu onscreen.
+
+Arguments:
+
+@itemize
+@item parent-menu-shell::gtk-widget
+No description. It is safe to use #f.
+@item parent-menu-item::gtk-widget
+No description. It is safe to use #f.
+@item callback::procedure
+Procedure to explicitly define menu onscreen position. It should return
+exactly two scheme integer values: X and Y menu coordinates
+
+Yu'll likely leave it #f to use default positioning.
+
+@item button::int activate-time::int
+
+The number and time of mouse button pressed if this procedure is called
+as result of button press.
+
+@end itemize
+
+In the following example a button is created. Pressing the button pops
+up the menu @code{menu}.  Change the @var{callback} value from #f to
+menu positioning procedure (commented out in this example), the menu
+will appear on screen at X=100, Y=300 position.
+
+@example
+(let((button(gtk-button-new "Press me")))
+  (gtk-signal-connect
+   button "event"
+   (lambda(button event)
+     (and(eq?(gdk-event-type event) 'button-press)
+  (gtk-menu-popup
+    menu #f #f
+    #f ;;(lambda (menu)(values 100 300))
+    (gdk-event-button event)
+    (gdk-event-time event))))))
+@end example
+
+See @code{menu-popup} file in @code{examples} catalog for full example text.
+
+@end deffn
+
+@subsubsection The menu bar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-bar-insert menu_bar::gtk-menu-bar child::gtk-widget position::int @result{} #unspecified
+@var{menu_bar}
+@var{child}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-bar-prepend menu_bar::gtk-menu-bar child::gtk-widget @result{} #unspecified
+@var{menu_bar}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-bar-append menu_bar::gtk-menu-bar child::gtk-widget @result{} #unspecified
+@var{menu_bar}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-bar-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The menu shell widget
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-shell-deactivate menu_shell::gtk-menu-shell @result{} #unspecified
+@var{menu_shell}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-shell-insert menu_shell::gtk-menu-shell child::gtk-widget position::int @result{} #unspecified
+@var{menu_shell}
+@var{child}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-shell-prepend menu_shell::gtk-menu-shell child::gtk-widget @result{} #unspecified
+@var{menu_shell}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-shell-append menu_shell::gtk-menu-shell child::gtk-widget @result{} #unspecified
+@var{menu_shell}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tearoff menu item widget
+@c ======================================================================
+@deffn {procedure} gtk-tearoff-menu-item-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The menu item widget
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-right-justify menu_item::gtk-menu-item @result{} #unspecified
+@var{menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-activate menu_item::gtk-menu-item @result{} #unspecified
+@var{menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-deselect menu_item::gtk-menu-item @result{} #unspecified
+@var{menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-select menu_item::gtk-menu-item @result{} #unspecified
+@var{menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-configure menu_item::gtk-menu-item show_toggle_indicator::bool show_submenu_indicator::bool @result{} #unspecified
+@var{menu_item}
+@var{show_toggle_indicator}
+@var{show_submenu_indicator}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-set-placement menu_item::gtk-menu-item placement::gtk-submenu-placement @result{} #unspecified
+@var{menu_item}
+@var{placement}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-remove-submenu menu_item::gtk-menu-item @result{} #unspecified
+@var{menu_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-set-submenu menu_item::gtk-menu-item submenu::gtk-widget @result{} #unspecified
+@var{menu_item}
+@var{submenu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-menu-item-new #!optional label @result{} gtk-widget
+Create new menu item with optional label.
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-radio-menu-item-new . args @result{} gtk-radio-menu-item
+
+Create new @code{gtk-radio-menu-item}. The first optional @var{args} arguments may provide the information on item group and label. The rest of optional @var{args} are assumed to be keyword arguments and are passed to @code{gtk-object-set} procedure. 
+
+Let's illustrate the various creation methods be example. Creates four items in a group:
+
+@example
+(let*((one (gtk-radio-menu-item-new "One"))        ;; create new item group implicitly
+      (two (gtk-radio-menu-item-new one))          ;; attach a new unlabeled item to the same group as item one
+      (three(gtk-radio-menu-item-new two "Three")) ;; attach a new labeled item to the same group as items one and two
+      (four(gtk-radio-menu-item-new two "Four"     ;; attach a new labeled item to the same group as other items
+        x: 10))                                    ;; and set the item X coordinate to 10
+      ) 
+  @dots{})
+@end example
+@end deffn
+
+@subsubsection The menu shell widget
+
+@subsubsection The misc widget
+
+@c ======================================================================
+@deffn {procedure} gtk-misc-set-padding misc::gtk-misc xpad::int ypad::int @result{} #unspecified
+@var{misc}
+@var{xpad}
+@var{ypad}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-misc-set-alignment misc::gtk-misc xalign::float yalign::float @result{} #unspecified
+@var{misc}
+@var{xalign}
+@var{yalign}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The notebook widget
+@c ======================================================================
+@deffn {procedure} gtk-notebook-tab-pos o::gtk-notebook @result{} gtk-position-type
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-reorder-child notebook::gtk-notebook child::gtk-widget position::int @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-menu-label notebook::gtk-notebook child::gtk-widget menu_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{menu_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-get-menu-label notebook::gtk-notebook child::gtk-widget @result{} gtk-widget
+@var{notebook}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-tab-label notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-get-tab-label notebook::gtk-notebook child::gtk-widget @result{} gtk-widget
+@var{notebook}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-popup-disable notebook::gtk-notebook @result{} #unspecified
+@var{notebook}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-popup-enable notebook::gtk-notebook @result{} #unspecified
+@var{notebook}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-tab-vborder notebook::gtk-notebook tab_vborder::int @result{} #unspecified
+@var{notebook}
+@var{tab_vborder}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-tab-hborder notebook::gtk-notebook tab_hborder::int @result{} #unspecified
+@var{notebook}
+@var{tab_hborder}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-homogeneous-tabs notebook::gtk-notebook homogenous::bool @result{} #unspecified
+@var{notebook}
+@var{homogenous}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-tab-border notebook::gtk-notebook border_width::int @result{} #unspecified
+@var{notebook}
+@var{border_width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-scrollable notebook::gtk-notebook scrollable::bool @result{} #unspecified
+@var{notebook}
+@var{scrollable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-show-border notebook::gtk-notebook show_border::bool @result{} #unspecified
+@var{notebook}
+@var{show_border}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-show-tabs notebook::gtk-notebook show_tabs::bool @result{} #unspecified
+@var{notebook}
+@var{show_tabs}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-tab-pos notebook::gtk-notebook pos::gtk-position-type @result{} #unspecified
+@var{notebook}
+@var{pos}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-prev-page notebook::gtk-notebook @result{} #unspecified
+@var{notebook}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-next-page notebook::gtk-notebook @result{} #unspecified
+@var{notebook}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-set-page notebook::gtk-notebook page_num::int @result{} #unspecified
+@var{notebook}
+@var{page_num}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-page-num notebook::gtk-notebook child::gtk-widget @result{} int
+@var{notebook}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-get-nth-page notebook::gtk-notebook page_num::int @result{} gtk-widget
+@var{notebook}
+@var{page_num}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-get-current-page notebook::gtk-notebook @result{} int
+@var{notebook}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-remove-page notebook::gtk-notebook page_num::int @result{} #unspecified
+@var{notebook}
+@var{page_num}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-insert-page-menu notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget menu_label::gtk-widget position::int @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@var{menu_label}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-insert-page notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget position::int @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-prepend-page-menu notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget menu_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@var{menu_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-prepend-page notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-append-page-menu notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget menu_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@var{menu_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-append-page notebook::gtk-notebook child::gtk-widget tab_label::gtk-widget @result{} #unspecified
+@var{notebook}
+@var{child}
+@var{tab_label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-notebook-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+
+@subsubsection The option menu widget
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-menu o::gtk-option-menu @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-menu-item o::gtk-option-menu @result{} gtk-widget
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-width o::gtk-option-menu @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-height o::gtk-option-menu @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-set-history option_menu::gtk-option-menu index::int @result{} #unspecified
+@var{option_menu}
+@var{index}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-remove-menu option_menu::gtk-option-menu @result{} #unspecified
+@var{option_menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-set-menu option_menu::gtk-option-menu menu::gtk-widget @result{} #unspecified
+@var{option_menu}
+@var{menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-get-menu option_menu::gtk-option-menu @result{} gtk-widget
+@var{option_menu}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-option-menu-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The paned widget
+
+@c ======================================================================
+@deffn {procedure} gtk-paned-gutter-size paned::gtk-paned size::int @result{} #unspecified
+@var{paned}
+@var{size}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-paned-handle-size paned::gtk-paned size::int @result{} #unspecified
+@var{paned}
+@var{size}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-paned-add2 paned::gtk-paned child::gtk-widget @result{} #unspecified
+@var{paned}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-paned-add1 paned::gtk-paned child::gtk-widget @result{} #unspecified
+@var{paned}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The pixmap widget
+
+@deffn {procedure} gtk-pixmap-new filename::string w::gtk-widget @result{} gtk-widget
+Read pixmap file @var{filename}, widget @var{w} must descend from
+realized window.
+@end deffn
+
+@subsubsection The plug widget
+
+@c ======================================================================
+@deffn {procedure} gtk-plug-new socket_id::int @result{} gtk-widget
+@var{socket_id}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-plug-socket-window o::gtk-plug @result{} gdk-window
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-plug-same-app o::gtk-plug @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The preview widget
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-get-cmap  @result{} gdk-colormap
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-get-visual  @result{} gdk-visual
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-set-reserved nreserved::int @result{} #unspecified
+@var{nreserved}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-set-install-cmap install_cmap::bool @result{} #unspecified
+@var{install_cmap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-set-color-cube nred_shades::uint ngreen_shades::uint nblue_shades::uint ngray_shades::uint @result{} #unspecified
+@var{nred_shades}
+@var{ngreen_shades}
+@var{nblue_shades}
+@var{ngray_shades}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-set-expand preview::gtk-preview expand::bool @result{} #unspecified
+@var{preview}
+@var{expand}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-size preview::gtk-preview width::int height::int @result{} #unspecified
+@var{preview}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-preview-new type::gtk-preview-type @result{} gtk-widget
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The progress bar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-get-text-from-value progress::gtk-progress value::float @result{} string
+@var{progress}
+@var{value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-get-current-text progress::gtk-progress @result{} string
+@var{progress}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-activity-mode progress::gtk-progress activity_mode::bool @result{} #unspecified
+@var{progress}
+@var{activity_mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-get-value progress::gtk-progress @result{} float
+@var{progress}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-value progress::gtk-progress value::float @result{} #unspecified
+@var{progress}
+@var{value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-percentage progress::gtk-progress percentage::float @result{} #unspecified
+@var{progress}
+@var{percentage}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-configure progress::gtk-progress value::float min::float max::float @result{} #unspecified
+@var{progress}
+@var{value}
+@var{min}
+@var{max}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-adjustment progress::gtk-progress adjustment::gtk-adjustment @result{} #unspecified
+@var{progress}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-format-string progress::gtk-progress format::string @result{} #unspecified
+@var{progress}
+@var{format}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-text-alignment progress::gtk-progress x_align::float y_align::float @result{} #unspecified
+@var{progress}
+@var{x_align}
+@var{y_align}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-set-show-text progress::gtk-progress show_text::bool @result{} #unspecified
+@var{progress}
+@var{show_text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-bar-update progress_bar::gtk-progress-bar percentage::float @result{} #unspecified
+@var{progress_bar}
+@var{percentage}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-bar-set-activity-blocks progressbar::gtk-progress-bar blocks::int @result{} #unspecified
+@var{progressbar}
+@var{blocks}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-bar-set-activity-step progressbar::gtk-progress-bar step::int @result{} #unspecified
+@var{progressbar}
+@var{step}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-bar-set-discrete-blocks progressbar::gtk-progress-bar blocks::int @result{} #unspecified
+@var{progressbar}
+@var{blocks}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-progress-bar-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The radio button widget
+
+@c ======================================================================
+@deffn {procedure} gtk-radio-button-new-from-widget #!optional samegroup label @result{} gtk-widget
+@var{samegroup}
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The range widget
+
+@c ======================================================================
+@deffn {procedure} gtk-range-set-adjustment range::gtk-range adjustment::gtk-adjustment @result{} #unspecified
+@var{range}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-range-set-update-policy range::gtk-range policy::gtk-update-type @result{} #unspecified
+@var{range}
+@var{policy}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-range-get-adjustment range::gtk-range @result{} gtk-adjustment
+@var{range}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The ruler widget
+
+@c ======================================================================
+@deffn {procedure} gtk-ruler-draw-pos ruler::gtk-ruler @result{} #unspecified
+@var{ruler}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-ruler-draw-ticks ruler::gtk-ruler @result{} #unspecified
+@var{ruler}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-ruler-set-range ruler::gtk-ruler lower::float upper::float position::float max_size::float @result{} #unspecified
+@var{ruler}
+@var{lower}
+@var{upper}
+@var{position}
+@var{max_size}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-ruler-set-metric ruler::gtk-ruler metric::gtk-metric-type @result{} #unspecified
+@var{ruler}
+@var{metric}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The scale widget
+
+@c ======================================================================
+@deffn {procedure} gtk-scale-draw-value scale::gtk-scale @result{} #unspecified
+@var{scale}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scale-value-width scale::gtk-scale @result{} int
+@var{scale}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scale-set-value-pos scale::gtk-scale pos::gtk-position-type @result{} #unspecified
+@var{scale}
+@var{pos}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scale-set-draw-value scale::gtk-scale draw_value::bool @result{} #unspecified
+@var{scale}
+@var{draw_value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scale-set-digits scale::gtk-scale digits::uint @result{} #unspecified
+@var{scale}
+@var{digits}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The scrollbar widget
+
+@subsubsection The scrolled window widget
+
+@c ======================================================================
+@deffn {procedure} gtk-scrolled-window-set-policy scrolled_window::gtk-scrolled-window hscrollbar_policy::gtk-policy-type vscrollbar_policy::gtk-policy-type @result{} #unspecified
+@var{scrolled_window}
+@var{hscrollbar_policy}
+@var{vscrollbar_policy}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scrolled-window-get-vadjustment scrolled_window::gtk-scrolled-window @result{} gtk-adjustment
+@var{scrolled_window}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scrolled-window-get-hadjustment scrolled_window::gtk-scrolled-window @result{} gtk-adjustment
+@var{scrolled_window}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scrolled-window-add-with-viewport scrolled_window::gtk-scrolled-window child::gtk-widget @result{} #unspecified
+@var{scrolled_window}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-scrolled-window-new #!optional hadjustment vadjustment @result{} gtk-widget
+@var{hadjustment}
+@var{vadjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The separator widget
+
+@subsubsection The statusbar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-statusbar-remove statusbar::gtk-statusbar context_id::uint message_id::uint @result{} #unspecified
+@var{statusbar}
+@var{context_id}
+@var{message_id}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-statusbar-get-context-id statusbar::gtk-statusbar context_description::string @result{} uint
+@var{statusbar}
+@var{context_description}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-statusbar-pop statusbar::gtk-statusbar context_id::uint @result{} #unspecified
+@var{statusbar}
+@var{context_id}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-statusbar-push statusbar::gtk-statusbar context_id::uint text::string @result{} uint
+@var{statusbar}
+@var{context_id}
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-statusbar-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The table widget
+
+@c ======================================================================
+@deffn {procedure} gtk-table-set-col-spacings table::gtk-table spacing::int @result{} #unspecified
+@var{table}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-set-row-spacings table::gtk-table spacing::int @result{} #unspecified
+@var{table}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-set-col-spacing table::gtk-table column::int spacing::int @result{} #unspecified
+@var{table}
+@var{column}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-set-row-spacing table::gtk-table row::int spacing::int @result{} #unspecified
+@var{table}
+@var{row}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-attach-defaults table::gtk-table child::gtk-widget left_attach::int right_attach::int top_attach::int bottom_attach::int @result{} #unspecified
+@var{table}
+@var{child}
+@var{left_attach}
+@var{right_attach}
+@var{top_attach}
+@var{bottom_attach}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-attach table::gtk-table child::gtk-widget left_attach::int right_attach::int top_attach::int bottom_attach::int #!optional xoptions yoptions xpadding ypadding @result{} #unspecified
+@var{table}
+@var{child}
+@var{left_attach}
+@var{right_attach}
+@var{top_attach}
+@var{bottom_attach}
+@var{xoptions}
+@var{yoptions}
+@var{xpadding}
+@var{ypadding}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-table-new rows::int columns::int homogenous::bool @result{} gtk-widget
+@var{rows}
+@var{columns}
+@var{homogenous}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tips query widget
+
+@c ======================================================================
+@deffn {procedure} gtk-tips-query-set-labels tips_query::gtk-tips-query label_inactive::string label_no_tip::string @result{} #unspecified
+@var{tips_query}
+@var{label_inactive}
+@var{label_no_tip}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tips-query-set-caller tips_query::gtk-tips-query caller::gtk-widget @result{} #unspecified
+@var{tips_query}
+@var{caller}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tips-query-stop-query tips_query::gtk-tips-query @result{} #unspecified
+@var{tips_query}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tips-query-start-query tips_query::gtk-tips-query @result{} #unspecified
+@var{tips_query}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tips-query-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The text widget
+
+@c ======================================================================
+@deffn {procedure} gtk-text-forward-delete text::gtk-text nchars::uint @result{} #unspecified
+@var{text}
+@var{nchars}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-backward-delete text::gtk-text nchars::uint @result{} #unspecified
+@var{text}
+@var{nchars}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-insert text::gtk-text font fore back chars::string #!optional length @result{} #unspecified
+@var{text}
+@var{font}
+@var{fore}
+@var{back}
+@var{chars}
+@var{length}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-thaw text::gtk-text @result{} #unspecified
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-freeze text::gtk-text @result{} #unspecified
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-get-length text::gtk-text @result{} uint
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-get-point text::gtk-text @result{} uint
+@var{text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-set-point text::gtk-text index::uint @result{} #unspecified
+@var{text}
+@var{index}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-set-adjustments text::gtk-text hadj::gtk-adjustment vadj::gtk-adjustment @result{} #unspecified
+@var{text}
+@var{hadj}
+@var{vadj}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-set-line-wrap text::gtk-text line_wrap::bool @result{} #unspecified
+@var{text}
+@var{line_wrap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-set-word-wrap text::gtk-text word_wrap::bool @result{} #unspecified
+@var{text}
+@var{word_wrap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-set-editable text::gtk-text editable::bool @result{} #unspecified
+@var{text}
+@var{editable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-new #!optional hadj vadj @result{} gtk-widget
+@var{hadj}
+@var{vadj}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-hadj o::gtk-text @result{} gtk-adjustment
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-text-vadj o::gtk-text @result{} gtk-adjustment
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The toggle button widget
+
+@c ======================================================================
+@deffn {procedure} gtk-toggle-button-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toggle-button-get-active toggle_button::gtk-toggle-button @result{} bool
+@var{toggle_button}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toggle-button-set-active toggle_button::gtk-toggle-button is_active::bool @result{} #unspecified
+@var{toggle_button}
+@var{is_active}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toggle-button-active o::gtk-toggle-button @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toggle-button-draw-indicator o::gtk-toggle-button @result{} bool
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tool bar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-set-tooltips toolbar::gtk-toolbar enable::bool @result{} #unspecified
+@var{toolbar}
+@var{enable}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-set-space-size toolbar::gtk-toolbar space_size::int @result{} #unspecified
+@var{toolbar}
+@var{space_size}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-set-style toolbar::gtk-toolbar style::gtk-toolbar-style @result{} #unspecified
+@var{toolbar}
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-set-orientation toolbar::gtk-toolbar orientation::gtk-orientation @result{} #unspecified
+@var{toolbar}
+@var{orientation}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-insert-widget toolbar::gtk-toolbar widget::gtk-widget tooltip_text::string tooltip_private_text::string position::int @result{} #unspecified
+@var{toolbar}
+@var{widget}
+@var{tooltip_text}
+@var{tooltip_private_text}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-prepend-widget toolbar::gtk-toolbar widget::gtk-widget tooltip_text::string tooltip_private_text::string @result{} #unspecified
+@var{toolbar}
+@var{widget}
+@var{tooltip_text}
+@var{tooltip_private_text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-append-widget toolbar::gtk-toolbar widget::gtk-widget tooltip_text::string tooltip_private_text::string @result{} #unspecified
+@var{toolbar}
+@var{widget}
+@var{tooltip_text}
+@var{tooltip_private_text}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-insert-space toolbar::gtk-toolbar position::int @result{} #unspecified
+@var{toolbar}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-prepend-space toolbar::gtk-toolbar @result{} #unspecified
+@var{toolbar}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-append-space toolbar::gtk-toolbar @result{} #unspecified
+@var{toolbar}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-toolbar-new orientation::gtk-orientation style::gtk-toolbar-style @result{} gtk-widget
+@var{orientation}
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tool tips widget
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-force-window tooltips::gtk-tooltips @result{} #unspecified
+@var{tooltips}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-set-colors tooltips::gtk-tooltips background::gdk-color foreground::gdk-color @result{} #unspecified
+@var{tooltips}
+@var{background}
+@var{foreground}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-set-tip tooltips::gtk-tooltips widget::gtk-widget tip_text tip_private::string @result{} #unspecified
+@var{tooltips}
+@var{widget}
+@var{tip_text}
+@var{tip_private}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-set-delay tooltips::gtk-tooltips delay::int @result{} #unspecified
+@var{tooltips}
+@var{delay}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-disable tooltips::gtk-tooltips @result{} #unspecified
+@var{tooltips}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-enable tooltips::gtk-tooltips @result{} #unspecified
+@var{tooltips}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tooltips-new  @result{} gtk-tooltips
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tree widget
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-set-view-lines tree::gtk-tree flag::bool @result{} #unspecified
+@var{tree}
+@var{flag}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-set-view-mode tree::gtk-tree mode::gtk-tree-view-mode @result{} #unspecified
+@var{tree}
+@var{mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-set-selection-mode tree::gtk-tree mode::gtk-selection-mode @result{} #unspecified
+@var{tree}
+@var{mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-child-position tree::gtk-tree child::gtk-widget @result{} int
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-unselect-child tree::gtk-tree child::gtk-widget @result{} #unspecified
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-select-child tree::gtk-tree child::gtk-widget @result{} #unspecified
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-unselect-item tree::gtk-tree item::int @result{} #unspecified
+@var{tree}
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-select-item tree::gtk-tree item::int @result{} #unspecified
+@var{tree}
+@var{item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-clear-items tree::gtk-tree start::int end::int @result{} #unspecified
+@var{tree}
+@var{start}
+@var{end}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-remove-item tree::gtk-tree child::gtk-widget @result{} #unspecified
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-insert tree::gtk-tree child::gtk-widget position::int @result{} #unspecified
+@var{tree}
+@var{child}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-prepend tree::gtk-tree child::gtk-widget @result{} #unspecified
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-append tree::gtk-tree child::gtk-widget @result{} #unspecified
+@var{tree}
+@var{child}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-collapse tree_item::gtk-tree-item @result{} #unspecified
+@var{tree_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-expand tree_item::gtk-tree-item @result{} #unspecified
+@var{tree_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-deselect tree_item::gtk-tree-item @result{} #unspecified
+@var{tree_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-select tree_item::gtk-tree-item @result{} #unspecified
+@var{tree_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-remove-subtree tree_item::gtk-tree-item @result{} #unspecified
+@var{tree_item}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-set-subtree tree_item::gtk-tree-item subtree::gtk-widget @result{} #unspecified
+@var{tree_item}
+@var{subtree}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-tree-item-new label::string @result{} gtk-widget
+@var{label}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The tree item widget
+
+@subsubsection The vertical box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-vbox-new #!optional homogenous spacing @result{} gtk-widget
+@var{homogenous}
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical button box widget
+
+@c ======================================================================
+@deffn {procedure} gtk-vbutton-box-set-layout-default layout::gtk-button-box-style @result{} #unspecified
+@var{layout}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-vbutton-box-set-spacing-default spacing::int @result{} #unspecified
+@var{spacing}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-vbutton-box-get-layout-default  @result{} gtk-button-box-style
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-vbutton-box-get-spacing-default  @result{} int
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-vbutton-box-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The viewport widget
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-set-shadow-type viewport::gtk-viewport type::gtk-shadow-type @result{} #unspecified
+@var{viewport}
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-set-vadjustment viewport::gtk-viewport adjustment::gtk-adjustment @result{} #unspecified
+@var{viewport}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-set-hadjustment viewport::gtk-viewport adjustment::gtk-adjustment @result{} #unspecified
+@var{viewport}
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-get-vadjustment viewport::gtk-viewport @result{} gtk-adjustment
+@var{viewport}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-get-hadjustment viewport::gtk-viewport @result{} gtk-adjustment
+@var{viewport}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-viewport-new hadjustment::gtk-adjustment vadjustment::gtk-adjustment @result{} gtk-widget
+@var{hadjustment}
+@var{vadjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical paned widget
+
+@c ======================================================================
+@deffn {procedure} gtk-vpaned-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical ruler widget
+
+@deffn {procedure} gtk-vruler-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical scrollbar widget
+
+@c ======================================================================
+@deffn {procedure} gtk-vscrollbar-new adjustment::gtk-adjustment @result{} gtk-widget
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The vertical separator widget
+
+@c ======================================================================
+@deffn {procedure} gtk-vseparator-new  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The base widget
+@c ======================================================================
+@deffn {procedure} gtk-grab-remove widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-grab-get-current  @result{} gtk-widget
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-grab-add widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-style o::gtk-widget @result{} gtk-style
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-window o::gtk-widget @result{} gdk-window
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-mapped widget::gtk-widget @result{} bool
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-default-style  @result{} gtk-style
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-default-visual  @result{} gdk-visual
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-default-colormap  @result{} gdk-colormap
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-default-style style::gtk-style @result{} #unspecified
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-default-visual visual::gdk-visual @result{} #unspecified
+@var{visual}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-default-colormap cmap::gdk-colormap @result{} #unspecified
+@var{cmap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-pop-style  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-pop-visual  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-pop-colormap  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-push-style style::gtk-style @result{} #unspecified
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-push-visual visual::gdk-visual @result{} #unspecified
+@var{visual}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-push-colormap cmap::gdk-colormap @result{} #unspecified
+@var{cmap}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-is-ancestor widget::gtk-widget ancestor::gtk-widget @result{} bool
+@var{widget}
+@var{ancestor}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-extension-events widget::gtk-widget @result{} gdk-event-mask
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-events widget::gtk-widget @result{} gdk-event-mask
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-style widget::gtk-widget @result{} gtk-style
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-visual widget::gtk-widget @result{} gdk-visual
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-colormap widget::gtk-widget @result{} gdk-colormap
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-ancestor widget::gtk-widget type::gtk-type @result{} gtk-widget
+@var{widget}
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-toplevel widget::gtk-widget @result{} gtk-widget
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-extension-events widget::gtk-widget events::gdk-event-mask @result{} #unspecified
+@var{widget}
+@var{events}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-events widget::gtk-widget events::gdk-event-mask @result{} #unspecified
+@var{widget}
+@var{events}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-usize widget::gtk-widget height::int width::int @result{} #unspecified
+@var{widget}
+@var{height}
+@var{width}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-uposition widget::gtk-widget x::int y::int @result{} #unspecified
+@var{widget}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-style widget::gtk-widget style::gtk-style @result{} #unspecified
+@var{widget}
+@var{style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-parent widget::gtk-widget parent::gtk-widget @result{} #unspecified
+@var{widget}
+@var{parent}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-sensitive widget::gtk-widget sensitive::bool @result{} #unspecified
+@var{widget}
+@var{sensitive}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-state widget::gtk-widget state::gtk-state-type @result{} #unspecified
+@var{widget}
+@var{state}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-get-name widget::gtk-widget @result{} string
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-name widget::gtk-widget name::string @result{} #unspecified
+@var{widget}
+@var{name}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-grab-default widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-grab-focus widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-popup widget::gtk-widget x::int y::int @result{} #unspecified
+@var{widget}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-reparent widget::gtk-widget new_parent::gtk-widget @result{} #unspecified
+@var{widget}
+@var{new_parent}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-activate widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-event widget::gtk-widget event::gdk-event @result{} bool
+@var{widget}
+@var{event}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-add-accelerator widget::gtk-widget accel_signal::string accel_group::gtk-accel-group accel_key::uint accel_mods::gdk-modifier-type accel_flags::gtk-accel-flags @result{} #unspecified
+@var{widget}
+@var{accel_signal}
+@var{accel_group}
+@var{accel_key}
+@var{accel_mods}
+@var{accel_flags}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-unrealize widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-realize widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-unmap widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-map widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-hide-all widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-show-all widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-hide widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-show widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-unparent widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-destroy widget::gtk-widget @result{} #unspecified
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-unset-flags widget::gtk-widget flags::gtk-widget-flags @result{} #unspecified
+@var{widget}
+@var{flags}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-set-flags widget::gtk-widget flags::gtk-widget-flags @result{} #unspecified
+@var{widget}
+@var{flags}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-state widget::gtk-widget @result{} gtk-state-type
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-widget-flags widget::gtk-widget @result{} gtk-widget-flags
+@var{widget}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The window widget
+@c ======================================================================
+@deffn {procedure} gtk-window-activate-default window::gtk-window @result{} int
+@var{window}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-activate-focus window::gtk-window @result{} int
+@var{window}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-position window::gtk-window position::gtk-window-position @result{} #unspecified
+@var{window}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-policy window::gtk-window allow_shrink::bool allow_grow::bool auto_shrink::bool @result{} #unspecified
+@var{window}
+@var{allow_shrink}
+@var{allow_grow}
+@var{auto_shrink}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-default window::gtk-window default::gtk-widget @result{} #unspecified
+@var{window}
+@var{default}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-focus window::gtk-window focus::gtk-widget @result{} #unspecified
+@var{window}
+@var{focus}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-wmclass window::gtk-window wmclass_class::string wmclass_name::string @result{} #unspecified
+@var{window}
+@var{wmclass_class}
+@var{wmclass_name}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-title window::gtk-window title::string @result{} #unspecified
+@var{window}
+@var{title}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-new #!optional type @result{} gtk-widget
+@var{type}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-window-set-position window::gtk-window position::gtk-window-position @result{} #unspecified
+@var{window}
+@var{position}
+@example
+@result{}
+@end example
+@end deffn
+
+
+
+
+
+@subsection Utility objects
+@subsubsection The accelerator table object
+
+@subsubsection The adjustment object
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-set-value adjustment::gtk-adjustment value::float @result{} #unspecified
+@var{adjustment}
+@var{value}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-clamp-page adjustment::gtk-adjustment lower::float upper::float @result{} #unspecified
+@var{adjustment}
+@var{lower}
+@var{upper}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-value-changed adjustment::gtk-adjustment @result{} #unspecified
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-changed adjustment::gtk-adjustment @result{} #unspecified
+@var{adjustment}
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-new value::float lower::float upper::float step_increment::float page_increment::float page_size::float @result{} gtk-object
+@var{value}
+@var{lower}
+@var{upper}
+@var{step_increment}
+@var{page_increment}
+@var{page_size}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-value o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-lower o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-upper o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-step-increment o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-page-increment o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-adjustment-page-size o::gtk-adjustment @result{} float
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The GC object
+
+@subsubsection The data object
+
+@subsubsection The style object
+
+
+
+@subsection Initialization, exit and other features
+@subsubsection Initializing and exiting bigloo-gtk
+@c ======================================================================
+@deffn {procedure} gtk-input-remove tag::int @result{} #unspecified
+@var{tag}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-events-pending  @result{} int
+@example
+@result{}
+@end example
+@end deffn
+@c ======================================================================
+@deffn {procedure} gtk-init @result{} pair-nil
+
+Init the GTK and GDK environments. You must call this procedure prior
+making any other GTK+ call. The @code{gtk-init} processes the list of
+arguments that were passed to the application (the value returned by
+@code{(command-line)}). The procedure processes some of list elements
+and returns the copy of @var{argv} with all processed arguments removed.
+
+@emph{Note:} the @code{gtk-init} is implemented as a scheme promise, so
+it does all neccessary processing only once.
+
+Example: provided that @code{localhost:0} is valid X display value:
+
+@example
+(gtk-init "my-application" "--display" "localhost:0" "file1" "file2")
+@result{} ("my-application" "file1" "file2")
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-exit #!optional code @result{} #unspecified
+@var{code}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-main-iteration-do val::bool @result{} int
+@var{val}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-main-iteration  @result{} int
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-main-quit  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-main-level  @result{} int
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-main  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-timeout-remove id::uint @result{} #unspecified
+Remove timeout, previously created by identifier @var{id} returned by
+@code{gtk-timeout-add}.
+
+In this example the "Hello" message is printed only once.
+
+@example
+(letrec((id(gtk-timeout-add
+	    1000
+	    (lambda()
+	      (print "Hello")
+	      (gtk-timeout-remove id)))))
+  @dots{})
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-timeout-add interval::uint thunk::procedure @result{} uint
+
+Add a @var{thunk} procedure that will be called every @var{interval}
+milliseconds. Return the timeout identifier suitable for passing to
+@code{gtk-timeout-remove}.
+
+The @var{thunk} must be procedure of no arguments. If this procedure
+returns #f, the timeout is removed just after the first @var{thunk}
+invocation.
+
+Example1: print "Hello" every second.
+
+@example
+(gtk-timeout-add 1000 (lambda()(print "Hello")))
+@result{} 9
+@end example
+
+Example2: print "Hello" only once.
+
+@example
+(gtk-timeout-add 1000 (lambda()(print "Hello") #f))
+@result{} 9
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-idle-remove id::uint @result{} #unspecified
+Remove timeout, previously created by identifier @var{id} returned by
+@code{gtk-idle-add}.
+In this example the "Hello" message is printed only once.
+
+@example
+(letrec((id(gtk-idle-add
+	    (lambda()
+	      (print "Hello")
+	      (gtk-idle-remove id)))))
+  @dots{})
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gtk-idle-add callback::procedure @result{} uint
+
+Add a @var{thunk} procedure that will be called (as GTK+ tutorial says) "when nothing
+else is happening". Return the idle identifier suitable for passing to
+@code{gtk-idle-remove}.
+
+The @var{thunk} must be procedure of no arguments. If this procedure
+returns #f, the idle task is removed just after the first @var{thunk}
+invocation.
+
+Example1: print "Hello" repeatedly.
+
+@example
+(gtk-idle-add 1000 (lambda()(print "Hello")))
+@result{} 9
+@end example
+
+Example2: print "Hello" only once.
+
+@example
+(gtk-idle-add 1000 (lambda()(print "Hello") #f))
+@result{} 9
+@end example
+
+@end deffn
+
+
+@subsubsection Customization of the library
+
+@subsubsection Simplified menu creation
+
+@subsubsection Simplified tree creation
+
+@subsubsection Pop up help mechanism
+
+@subsubsection Resource Files
+@c ======================================================================
+@deffn {procedure} gtk-rc-parse file::string @result{} #unspecified
+@var{file}
+@example
+@result{}
+@end example
+@end deffn
+
+
+@subsubsection Macros defined by all objects
+
+@subsection Using bigloo-gtk
+
+@subsubsection The simplest bigloo-gtk program
+
+@subsubsection Hello world in bigloo-gtk
+
+@subsubsection An enhanced hello world
+
+@subsubsection Making Hello World II robust
+
+@subsection Object internals
+
+@subsection Signal internals
+
+@subsection Widget internals
+
+
+@ignore
+@c ======================================================================
+@deffn {procedure} g-mem-chunk-info  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+
+
+@end ignore

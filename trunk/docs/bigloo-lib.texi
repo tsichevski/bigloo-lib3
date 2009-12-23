@@ -1,0 +1,170 @@
+\input texinfo
+@c @documentlanguage ru
+@c %**start of header
+@setfilename bigloo-lib.info
+@settitle Bigloo libraries
+@c %**end of header
+@setchapternewpage off
+
+@include version.texi
+
+@ifinfo
+This file documents the bigloo-lib, a collection of libraries for
+Bigloo Scheme compiler.
+
+This is Edition @value{EDITION}, last updated @value{UPDATED},of
+@cite{bigloo-lib Manual}, for @code{bigloo-lib}, version
+@value{VERSION}.
+
+Copyright @copyright{} 1999-2003 Vladimir Tsichevski. Sections
+SRFI-1 and SRFI-13 are partly copyrighted by Olin Shivers
+<shivers@@ai.mit.edu>
+@end ifinfo
+
+@titlepage
+@sp 10
+@title{Bigloo Libraries}
+@subtitle{to make Bigloo even more practical}
+@author{Vladimir Tsichevski}
+@c The following two commands start the copyright page.
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1999, 2003 Vladimir Tsichevski. Contents of
+SRFI-1 and SRFI-13 sections are copyrighted by Olin Shivers
+<shivers@@ai.mit.edu>
+@end titlepage
+ 
+@c ------------------------------------------------------------------- @c
+@c    Dir entry                                                        @c
+@c ------------------------------------------------------------------- @c
+@ifinfo
+@dircategory Programming
+@direntry
+* bigloo-lib: (bigloo-lib).    Library for the Bigloo Scheme compiler
+@end direntry
+@end ifinfo
+
+@c ==================================================================
+@node Top, Linking note, (dir), (dir)
+
+@menu
+* Linking note::
+* Test application::
+* Compilation issues::
+* Bigloo Common Library::       
+* Bigloo SQL database interface::
+* HTTP/CGI support::
+* Generic tree interface::
+* XML parser::
+* GTK+::
+* Bigloo LDAP interface::
+* Bigloo OpenGL and gtkglarea interface::
+* Concept Index::               
+* Type Index::             
+* Procedure Index::             
+@end menu
+
+@chapter General info
+
+@include readme.texi
+
+@c ==================================================================
+@node Linking note, Test application, Top, Top
+@unnumbered Linking note
+
+All @code{bigloo-lib} libraries compiled, linked and installed using GNU
+@code{libtool}. @code{libtool} makes its own decision about flags it
+send to the linker. As a result, the path to installed libraries cannot
+be compiled into the libraries, so you usually have to care about this
+by yourself (set either the @code{LD_LIBRARY_PATH} or @code{LD_RUN_PATH}
+environment variable or edit @code{/etc/ld.so.conf} file). See the
+messages @code{libtool} prints during the installation.
+
+@c ==================================================================
+@node Test application, Concept Index, Linking note, Top
+@unnumbered Test application
+
+Every @code{bigloo-lib} sub-package includes a small Scheme interpreter
+named @code{driver}. When installed, this application is renamed after
+the name of library with @code{bigloo-} as a prefix. For example, the
+@code{common/driver} executable is installed by @code{$@{exec_prefix@}/bigloo-common}
+name.
+
+This application has all the sub-package procedures accessible from
+interpreter. It treats all command line arguments as scheme sources and
+tries to load them. Being executed without command line arguments, the
+application just calls @code{(repl)}.
+
+This application aims at two goals. Firstly, it used to run tests after
+compilation (while @code{make check} is executed). Secondly, it helps
+much in a course of development, to quickly test the code just written.
+
+The application also takes these options:
+
+@table @r
+
+@item @code{-I <path>}
+Add @code{path} to path list where the application looks for to files to
+be loaded. This option may occur more than once in a command line.
+
+@item @code{--version}
+prints the subpackage version number and exits.
+
+@item @code{--help}
+prints the usage information and exits.
+
+@end table
+
+@c ==================================================================
+@include compile.texi
+@include common.texi
+@include rdbms.texi
+@include http.texi
+@include node.texi
+@include expat.texi
+@include gtk.texi
+@include ldap.texi
+@include gl.texi
+
+@c ==================================================================
+@node    Concept Index, Type Index, Test application, Top
+@unnumbered Concept Index
+
+@printindex cp
+
+@c ==================================================================
+@node    Type Index, Procedure Index, Concept Index, Top
+@unnumbered Type Index
+
+@printindex tp
+
+@c ==================================================================
+@node    Procedure Index,  , Type Index, Top
+@unnumbered Procedure Index
+
+@printindex fn
+
+@contents
+
+@ifhtml
+<A href="http://sourceforge.net"> 
+<IMG src="http://sourceforge.net/sflogo.php?group_id=3455&amp;type=1"
+width="88" height="31" border="0" alt="SourceForge Logo"></A>
+
+<!-- begin Stattrack code -->
+ <script src="http://www.stattrack.com/stats/code">
+ </script>
+ <script language="JavaScript">
+ <!--
+ printcode(104, 'wowa', 0);
+ //-->
+ </script>
+ <noscript>
+ <a href="http://www.stattrack.com/?wowa" target="_top">
+ <img src="http://www.stattrack.com/cgi-bin/stats/image.cgi?user=wowa&j=0&m=33&p=0" width=88 height=31 alt="StatTrack.com - Free Stats for your WebSite!" border=0></a>
+ </noscript>
+ <!-- end Stattrack code -->
+@end ifhtml
+
+@bye
+

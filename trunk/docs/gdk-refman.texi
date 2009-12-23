@@ -1,0 +1,518 @@
+@subsection GDK Reference Manual
+
+@subsubsection The gdk event object
+@deffn {procedure} gdk-event-type event::gdk-event @result{} gdk-event-type
+@end deffn
+@deffn {procedure} gdk-event-window event::gdk-event @result{} gdk-window
+@end deffn
+@deffn {procedure} gdk-event-send-event event::gdk-event @result{} bool
+@end deffn
+@deffn {procedure} gdk-event-visibility-state event::gdk-event @result{} gdk-visibility-state
+@end deffn
+@deffn {procedure} gdk-event-time event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-x event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-y event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-pressure event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-xtilt event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-ytilt event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-button event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-button-state event::gdk-event @result{} bool
+@end deffn
+@deffn {procedure} gdk-event-is-hint event::gdk-event @result{} bool
+@end deffn
+@deffn {procedure} gdk-event-source event::gdk-event @result{} gdk-input-source
+@end deffn
+@deffn {procedure} gdk-event-deviceid event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-x-root event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-y-root event::gdk-event @result{} double
+@end deffn
+@deffn {procedure} gdk-event-key-state event::gdk-event @result{} bool
+@end deffn
+@deffn {procedure} gdk-event-keyval event::gdk-event @result{} uint
+@end deffn
+@deffn {procedure} gdk-event-string event::gdk-event @result{} string
+@end deffn
+@deffn {procedure} gdk-event-subwindow event::gdk-event @result{} gdk-window
+@end deffn
+@deffn {procedure} gdk-event-notify-detail event::gdk-event @result{} gdk-notify-type
+@end deffn
+@deffn {procedure} gdk-event-in event::gdk-event @result{} bool
+@end deffn
+@deffn {procedure} gdk-event-configure-x event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-configure-y event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-configure-width event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-event-configure-height event::gdk-event @result{} int
+@end deffn
+@deffn {procedure} gdk-window-get-id window::gdk-window @result{} int
+@end deffn
+
+@subsubsection The gdk color object
+
+@deffn {procedure} gdk-color-red o::gdk-color @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-color-green o::gdk-color @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-color-blue o::gdk-color @result{} uint
+@var{o}
+@example
+@result{}
+@end example
+@end deffn
+
+@deffn {procedure} gdk-color-parse spec::string #!optional color::gdk-color @result{} gdk-color
+
+The @code{gdk-color-parse} procedure looks up the string name of a
+color, given in @var{spec} argument, with respect to the screen
+associated with the default colormap.  On return it initializes the
+object given in a @var{color} argument with the exact color value. Use
+of uppercase or lowercase does not matter. If the @var{color} is not
+specified, the new instance of type @code{gdk-color} is allocated
+through @code{gdk-color-alloc}. If the color name is not resolved, an
+exception is raised.
+
+@example
+(gdk-color-parse "red") @result{} #<foreign:GDK-COLOR:fe471d10>
+@end example
+@end deffn
+
+@subsubsection The gdk font object
+
+@c ======================================================================
+@deffn {procedure} gdk-font-unref font::gdk-font @result{} #unspecified
+@var{font}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-font-ref font::gdk-font @result{} #unspecified
+@var{font}
+@example
+@result{}
+@end example
+@end deffn
+
+@deffn {procedure} gdk-font-load name::string @result{} gdk-font
+@var{name}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gdk drawing procedures
+
+@c ======================================================================
+@deffn {procedure} gdk-draw-string window::gdk-window font::gdk-font gc::gdk-gc x::int y::int string::string @result{} #unspecified
+@var{window}
+@var{font}
+@var{gc}
+@var{x}
+@var{y}
+@var{string}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-draw-arc window::gdk-window gc::gdk-gc filled::bool x::int y::int width::int height::int angle1::int angle2::int @result{} #unspecified
+@var{window}
+@var{gc}
+@var{filled}
+@var{x}
+@var{y}
+@var{width}
+@var{height}
+@var{angle1}
+@var{angle2}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-draw-rectangle window::gdk-window gc::gdk-gc filled::bool x::int y::int width::int height::int
+@var{window}
+@var{gc}
+@var{filled}
+@var{x}
+@var{y}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-draw-line window::gdk-window gc::gdk-gc x1::int y1::int x2::int y2::int @result{} #unspecified
+@var{window}
+@var{gc}
+@var{x1}
+@var{y1}
+@var{x2}
+@var{y2}
+@example
+@result{}
+@end example
+@end deffn
+
+@deffn {procedure} gdk-draw-pixmap drawable::gdk-window gc::gdk-gc src::gdk-window xsrc::int ysrc::int xdest::int ydest::int width::int height::int @result{} #unspecified
+@var{drawable}
+@var{gc}
+@var{src}
+@var{xsrc}
+@var{ysrc}
+@var{xdest}
+@var{ydest}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gdk pixmap object
+
+@deffn {procedure} gdk-pixmap-new window width::int height::int #!optional depth @result{} gdk-window
+@var{window}
+@var{width}
+@var{height}
+@var{depth}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gdk window object
+
+@c ======================================================================
+@deffn {procedure} gdk-window-get-parent window::gdk-window @result{} gdk-window
+@var{window}
+@example
+@result{}
+@end example
+@end deffn
+
+@deffn {procedure} gdk-window-clear-area-e window::gdk-window x::int y::int width::int height::int @result{} #unspecified
+@var{window}
+@var{x}
+@var{y}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-window-clear-area window::gdk-window x::int y::int width::int height::int @result{} #unspecified
+@var{window}
+@var{x}
+@var{y}
+@var{width}
+@var{height}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-window-clear window::gdk-window @result{} #unspecified
+@var{window}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-window-new parent::gdk-window #!key @result{} gdk-window
+
+The procedure @code{gdk-window-new} creates a new @code{gdk-window}
+object. The main purpose of this procedure is creating new types of
+widgets which require its own window.
+
+The following keyed arguments may be passed to this procedure:
+
+@itemize @bullet
+@item title::string
+
+The title of a new window.
+@c FIXME: explain what is it for
+
+@item x::short
+@item y::short
+
+Upper left corner coordinates of the new window, parent-relative. If
+omitted, the values set to zero.
+
+@item width::short    
+@item height::short
+
+The dimentions of the new window. If
+omitted, the values set to 1.
+
+@item cursor::gdk-cursor
+The cursor of the new window.
+
+@item colormap::gdk-colormap
+The colormap of the new window.
+
+@item visual::gdk-visual
+
+The visual of the new window.  If omitted, this value is set to the
+visual returned by @code{gdk_visual_get_system}.
+
+@item wmclass-name::string
+@item wmclass-class::string
+
+Name and class attributes for WM.
+
+@item override-redirect::bool
+
+Set the value X-windows @code{CWOverrideRedirect} attribute for a new
+window.
+
+@item input-only?::bool
+
+Must be set only in special circumstances when events need to be stolen
+from another window or windows. Input only windows have no visible
+output, so they are handy for placing over top of a group of windows in
+order to grab the events (or filter the events) from those windows.
+    
+@item window-type::gdk-window-type
+
+The new window type. Must be one of:
+
+@itemize @bullet
+@item toplevel
+
+Windows which interact with the window manager.
+
+@item child
+Windows which are children of some other type of window.  (Any other
+type of window). Most windows are child windows.
+
+@item dialog
+A special kind of toplevel window which interacts with the window
+manager slightly differently than a regular toplevel window. Dialog
+windows should be used for any transient window.
+
+@item temp
+
+???
+
+@end itemize
+
+If omitted, the window type set to @code{child}.
+
+@item event-mask::gdk-event-mask
+
+The event mask of a new window. Must be a combination of
+@code{exposure}, @code{pointer-motion}, @code{pointer-motion-hint},
+@code{button-motion}, @code{button1-motion}, @code{button2-motion},
+@code{button3-motion}, @code{button-press}, @code{button-release},
+@code{key-press}, @code{key-release}, @code{enter-notify},
+@code{leave-notify}, @code{focus-change}, @code{structure},
+@code{structure}, @code{property-change}, @code{visibility-notify},
+@code{proximity-in}, @code{proximity-out}, @code{substructure}, or just
+@code{all-events} to allow any event propagation.
+
+@end itemize
+
+In the following example a new window for a @var{widget} is created. The
+new window inherites all parent's attributes, excepr the width and
+height. Besides, the new window responds on the @code{button-press}
+event.
+
+@example
+(let((parent(gtk-widget-get-parent-window widget)))
+  (gdk-window-new parent
+    title: "MyWindow"
+    width: 200
+    height: 200
+    visual: (gdk-window-get-visual parent)
+    colormap: (gdk-window-get-colormap parent)
+    event-mask: (gdk-window-get-events parent)))
+@result{} 
+@end example
+@end deffn
+@c ======================================================================
+@deffn {procedure} gdk-window-new-from-parent parent::gdk-window #!key
+
+The procedure @code{gdk-window-new-from-parent} is a convenience
+substitution of @code{gdk-window-new}. Is accepts same arguments, but by
+default inherits th @code{width}, @code{height}, @code{visual},
+@code{colormap} and @code{event-mask} of the parent window.
+
+The example in @code{gdk-window-new} section may be rewritten as follows:
+
+@example
+(let((parent(gtk-widget-get-parent-window widget)))
+  (gdk-window-new parent
+    title: "MyWindow"
+    width: 200
+    height: 200))
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gdk GC (graphic context) object
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-line-attributes gc::gdk-gc line_width::int line_style::gdk-line-style cap_style::gdk-cap-style join_style::gdk-join-style @result{} #unspecified
+@var{gc}
+@var{line_width}
+@var{line_style}
+@var{cap_style}
+@var{join_style}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-exposures gc::gdk-gc exposures::bool @result{} #unspecified
+@var{gc}
+@var{exposures}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-subwindow gc::gdk-gc mode::gdk-subwindow-mode @result{} #unspecified
+@var{gc}
+@var{mode}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-clip-origin gc::gdk-gc x::int y::int @result{} #unspecified
+@var{gc}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-ts-origin gc::gdk-gc x::int y::int @result{} #unspecified
+@var{gc}
+@var{x}
+@var{y}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-fill gc::gdk-gc fill::gdk-fill @result{} #unspecified
+@var{gc}
+@var{fill}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-function gc::gdk-gc function::gdk-function @result{} #unspecified
+@var{gc}
+@var{function}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-font gc::gdk-gc font::gdk-font @result{} #unspecified
+@var{gc}
+@var{font}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-background gc::gdk-gc color::gdk-color @result{} #unspecified
+@var{gc}
+@var{color}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-set-foreground gc::gdk-gc color::gdk-color @result{} #unspecified
+@var{gc}
+@var{color}
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-gc-new window::gdk-window @result{} gdk-gc
+@var{window}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection The gdk colormap object
+
+@deffn {procedure} gdk-colormap-alloc-color colormap::gdk-colormap color::gdk-color writeable::bool best_match::bool @result{} bool
+@var{colormap}
+@var{color}
+@var{writeable}
+@var{best_match}
+@example
+@result{}
+@end example
+@end deffn
+
+@subsubsection gdk miscellaneous procedures
+
+@c ======================================================================
+@deffn {procedure} gdk-beep  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdk-flush  @result{} #unspecified
+@example
+@result{}
+@end example
+@end deffn
+
+

@@ -1,0 +1,109 @@
+This section describes the interface between the GNU Readline Library
+and Bigloo scheme. It permits access to the features found in GNU
+Readline such as completion and line editing.
+
+@subsection Basic Behavior
+
+@c ======================================================================
+@deffn {procedure} readline #!optional prompt 
+@var{prompt}
+
+The procedure @code{readline} prints a prompt @var{prompt} and then
+reads and returns a single line of text from the user.  If @var{prompt}
+was omitted or the empty string, no prompt is displayed. The line
+returned has the final newline removed, so only the text remains.  If
+@code{readline} encounters an @code{EOF} while reading the line, and the
+line is empty at that point, then @code{#eof-object} is returned.
+Otherwise, the line is ended just as if a newline had been typed.
+
+For example: 
+@example
+(readline ">>> ")
+@print{} >>> 
+@end example
+@end deffn
+
+@code{readline} returns the text of the line read.  A blank line
+returns the empty string.  If EOF is encountered while reading a line,
+and the line is empty, scheme #[eof-object] is returned.  If an EOF is read with a
+non-empty line, it is treated as a newline.
+
+@subsection Custom Functions
+@subsection Readline Variables
+TBD
+
+@subsection Readline Convenience Functions
+@subsubsection Selecting a Keymap
+
+Key bindings take place on a "keymap".  The keymap is the
+association between the keys that the user types and the functions that
+get run.  You can make your own keymaps, copy existing keymaps, and tell
+Readline which keymap to use.
+
+@c ======================================================================
+@deffn {procedure} rl-make-bare-keymap  @result{} keymap
+
+The procedure @code{rl-make-bare-keymap} returns a new, empty
+keymap. The caller should free it by calling @code{rl-discard-keymap}
+when done.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} rl-copy-keymap source::keymap  @result{} keymap
+
+The procedure @code{rl-copy-keymap} returns a new @code{keymap} which is
+a copy of @var{source}.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} rl-make-keymap  @result{} keymap
+
+The procedure @code{rl-make-keymap} returns a new keymap with the
+printing characters bound to @code{rl-insert}, the lowercase Meta
+characters bound to run their equivalents, and the Meta digits bound to
+produce numeric arguments.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} rl-discard-keymap keymap::keymap 
+
+The procedure @code{rl-discard-keymap} frees the storage associated with
+@var{keymap}
+
+@end deffn
+
+@c ======================================================================
+@subsection Custom Completers
+
+@deffn {procedure} set-rl-completion-entry-function! #!optional generator 
+@var{generator}
+
+The procedure @code{set-rl-completion-entry-function!} sets or resets
+the completions generator functions. The @var{generator} argument must
+be either a procedure taking a string to complete, and returning a
+list of possible completions for that string.
+
+If the @var{generator} is omitted, the default filename completer is
+used as generator function.
+
+In the following simple example all global names available in scheme
+interpreter will be used as readline completions:
+
+@example
+(set-rl-completion-function!
+ (lambda (s)
+   (map
+    symbol->string
+    (apropos (string-append "^" s)))))
+
+(readline "scheme> ")
+@end example
+@end deffn
+
+@c rest of doc templates are in the readline.texi.template file
+

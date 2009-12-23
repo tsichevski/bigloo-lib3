@@ -1,0 +1,10 @@
+AC_INIT(bigloo-lib.texi)
+AM_INIT_AUTOMAKE(bigloolib-docs, 0.20alpha)
+
+#m4_include([../bigloo-lib.m4])
+
+AC_OUTPUT([					\
+  Makefile					\
+  bigloo-lib-version.texi			\
+  bigloolib-docs.spec				\
+])

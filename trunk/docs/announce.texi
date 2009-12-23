@@ -1,0 +1,19 @@
+@include version.texi
+
+Hi Schemers,
+
+I'm pleased to announce the release @value{VERSION} of bigloo-lib.
+
+Vladimir Tsichevski.
+
+@unnumbered Changes from 0.20 version
+
+The product is compatible with the current (2.6e) version of
+Bigloo. Some old bugs have been fixed, some new introduced :-).
+
+For package-specific details see ChangeLog files in each package
+subdirectory.
+
+@chapter README
+
+@include readme.texi

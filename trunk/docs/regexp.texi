@@ -1,0 +1,258 @@
+@node    regex, gdbm, Bigloo Common Introduction, Bigloo Common Library
+@comment  node-name,  next,           previous,  up
+@section regex
+@cindex Regular Expressions (Basic)
+
+This section describes the @code{regex} module, which provides an
+interface to C runtime @code{regex} functions.
+
+The @code{regex} module is optional, i.e. you can disable its
+compilation by using @code{--without-regexp} flag for
+@code{configure}. Also note that @code{configure} script can detect that
+regexps are broken on your system and disable this feature.
+
+To help you detect whether you have regexps while in interpreter, the
+@code{'regexp} symbol is defined through the @code{register-eval-srfi!}
+construct, so you may test it with @code{cond-expand}. For example, the
+@code{common} library test script conditionally includes the
+@code{regexp-test} call:
+
+@example
+(cond-expand (regexp (regexp-test))
+	     (else (print "regexps are disabled by configure")))
+@end example
+
+@subsection Regexp Matching
+
+The procedures described here, are intended for end-user
+applications. They are compatible to those provided by MzScheme.
+
+@c ==================================================================
+@deffn {procedure} regexp rexp-or-string #!optional flags::regcomp-flags @result{} regexp
+
+If a @code{regex} object was passed as the @var{rexp-or-string}
+argument, just return it.
+
+If a string was passed as the @var{rexp-or-string} argument, allocates a
+new @code{regexp} object and compiles @var{rexp-or-string} into regular
+expression object with @code{regcomp}, passing the optional @code{flags}
+arguments along. Signals an error if something went wrong during the
+compilation.
+
+It is an error if the @var{rexp-or-string} was neither @code{regexp} nor string.
+
+Simple @code{regexp} example:
+
+@example
+(regexp "q") @result{} #<foreign:REGEXP:21490>
+(regexp "(") @error{} "( ) or \( \) imbalance -- ("
+@end example
+
+Simple vs. case insensitive match example:
+
+@example
+(define rexp(regexp "qwerty"))
+(regexp-match rexp "QWERTY")
+@result{} #f
+
+(define rexp(regexp "qwerty" 'icase))
+(regexp-match rexp "QWERTY")
+@result{} (QWERTY)
+@end example
+
+Basic vs. Extended regexp match example:
+
+@example
+(define rexp(regexp "a|b" 'basic))
+(regexp-match rexp "a|b")
+@result{} ("a|b")
+
+(define rexp(regexp "a|b")) ;; 'extended flag set by default
+(regexp-match rexp "a|b")
+@result{} ("a")
+@end example
+
+Using of @code{nosub} flag example:
+
+@example
+(define rexp(regexp "qwerty" 'nosub))
+(regexp-match rexp "qwerty")
+@result{} ()
+@end example
+
+@end deffn
+
+@c ==================================================================
+@deffn {procedure} regexp-match rexp-or-string str::bstring #!optional offset::int eflags::regexec-flags @result{} #f or pair
+
+Return @code{#f} if string @var{str} does not match
+@var{pattern}. Otherwise return the list object. Unless the @code{nosub}
+flag was given, the list has at least one element, the whole match
+substring found. The rest elements are partial sub-matches. The
+@var{pattern} argument must be either @code{regexp} or scheme string. In
+later case pattern is compiled into temporary @code{regexp} object,
+which is automatically released.
+
+Example:
+
+@example
+(regexp-match "q" "asdf")
+@result{} #f
+(regexp-match "q" "qwerty")
+@result{} (q)
+(regexp-match "([a-z]+)([0-9]+)" "qwerty1234")
+@result{} (qwerty1234 qwerty 1234)
+@end example
+
+The optional argument @var{offset} allows to skip first @var{offset} characters from the beginning of matched string, for example:
+
+@example
+(regexp-match "[a-z]+" "qwerty")  ;; offset=0
+@result{} (qwerty)
+(regexp-match "[a-z]+" "qwerty" 2)
+@result{} (erty)
+@end example
+
+The optional @code{eflag} arguments may be any of the following symbols
+:
+
+@table @r
+@item notbol
+The match-beginning-of-line operator always fails to match (but see the
+compilation flag @code{newline} above). This flag may be used when
+different portions of a string are passed to @code{regexp-match} and the
+beginning of the string should not be interpreted as the beginning of
+the line.
+
+@item noteol
+The match-end-of-line operator always fails to match (but see the
+compilation flag @code{newline} above)
+@end table
+
+@example
+(define rexp(regexp "^qwerty"))
+(regexp-match rexp "qwerty")  ;; BOL matches as usual
+@result{} ("qwerty")
+
+(regexp-match-positions rexp "qwerty" 0 'notbol)
+@result{} #f                  ;; BOL match suppressed
+@end example
+
+@end deffn
+
+@c ==================================================================
+@deffn {procedure} regexp-match-positions pattern rexp-or-string str::bstring #!optional offset::int @result{} #f or pair
+
+Same as @code{regexp-match}, but returns the matched substrings position
+inside the source string instead of substrings itself, for example:
+
+@example
+(regexp-match-positions "q" "asdf")
+@result{} #f
+(regexp-match-positions "q" "qwerty")
+@result{} ((0 . 1))
+(regexp-match-positions "([a-z]+)([0-9]+)" "qwerty1234")
+@result{} ((0 . 10) (0 . 6) (6 . 10))
+@end example
+
+@code{regexp-match-positions} does not imply copying of strings, thus it
+is extremely useful when applyed to long strings.
+
+@end deffn
+
+@c ==================================================================
+@deffn {procedure} regexp-replace* pattern src::bstring insert::bstring @result{} bstring
+
+Return copy of @var{src} string where all occurrences of @var{pattern}
+are replaces by @var{insert} string.
+
+@example
+(regexp-replace* "[a-z]" "1a2b3c" " Letter ")
+@result{} "1 Letter 2 Letter 3 Letter "
+@end example
+
+@emph{Note:} no context replacements are currently implemented. For example:
+
+@example
+(regexp-replace* "[a-z]" "1a2b3c" " Letter &")
+@result{} "Letter &2 Letter &3 Letter &"
+@end example
+
+but not "1 Letter a2 Letter b3 Letter c", as one may expect.
+
+@end deffn
+
+@c ==================================================================
+@subsection C runtime API
+
+Procedures described here are direct interfaces to corresponding C
+runtime calls. You woudn't want to use them in end-user applications.
+
+@c ==================================================================
+@deffn {procedure} regcomp preg::regexp rexp-or-string #!optional flags::regcomp-flags  @result{} regcomp-error
+
+Compile @var{pattern} string into previously allocated @var{preg} regexp
+structure. Once compiled, the @code{regexp} object may be reused
+multiple time.
+
+The optional @code{flags} arguments may be any of the following symbols
+in any sequence (see @code{regcomp} manual page) :
+
+@table @r
+
+@item basic
+Use POSIX Basic Regular Expression syntax when interpreting regex.  If
+not set, POSIX Extended Regular Expression syntax is used. See manual
+page @code{regex(7)} for details.
+
+@item icase
+Do not differentiate case.  Subsequent @code{regexec} searches using this
+pattern buffer will be case insensitive @footnote{it seems that locale
+is not thoroughly supported by C library regexps. Case-insensitive
+matching works fine for ASCII but fails, for instance, for Russian code
+sets}.
+
+@item nosub
+Support for substring addressing of matches is not required.  The list
+resulted from successful match will be always empty. Use it if you only
+want to know whether the match was found.
+
+@item newline
+Match-any-character operators don't match a newline.
+
+A non-matching list (@code{[^...]}) not containing a newline does not
+match a newline.
+
+Match-beginning-of-line operator (@code{^}) matches the empty string
+immediately after a newline, regardless of whether the @var{flags}
+argument of @code{regexp-match} or @code{regexp-match}, contains
+@code{notbol}.
+
+Match-end-of-line operator (@code{$}) matches the empty string
+immediately before a newline, regardless of whether the @var{flags}
+argument of @code{regexp-match} or @code{regexp-match} contains
+@code{noteol}.
+
+@end table
+
+@end deffn
+
+@deffn {procedure} regerror errorid::regcomp-error rexp::regexp @result{} bstring
+
+Given the error code, returned by @code{regcomp} or @code{regexec},
+return the error description.
+
+@example
+(regerror 'erange (regexp " "))
+@result{} "invalid endpoint in range"
+@end example
+
+@end deffn
+
+@c ==================================================================
+@deffn {procedure} regfree rexp::regexp @result{} #unspecified
+
+Free the memory allocated to the @var{rexp} by the @code{regcomp}.
+
+@end deffn
+

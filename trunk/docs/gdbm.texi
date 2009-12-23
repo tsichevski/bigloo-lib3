@@ -1,0 +1,277 @@
+@node    gdbm, compat, regex, Bigloo Common Library
+@comment  node-name,  next,           previous,  up
+@section The GNU DBM interface
+@cindex GDBM
+
+As stated in GNU @code{dbm} documentation:
+
+GNU @code{dbm} (@code{gdbm})is a library of database functions that use
+extendible hashing and works similar to the standard UNIX @code{dbm}
+functions.  These routines are provided to a programmer needing to
+create and manipulate a hashed database.
+
+The basic use of @code{gdbm} is to store key/data pairs in a data file.
+Each key must be unique and each key is paired with only one data item.
+The keys can not be directly accessed in sorted order.
+
+@subsection Opening and closing the database
+
+@c ======================================================================
+@deffn {procedure} gdbm-open filename::string #!optional flags::pair-nil #!key block-size::int mode::int onerror::procedure @result{} gdbm-file
+
+The procedure @code{gdbm-open} opens or creates @code{gdbm} database file @var{filename}.
+
+The parameters are:
+
+@table @asis
+
+@item filename
+The name of the file to open.
+
+@item #!optional flag::pair-nil
+If @code{flags} includes the @code{reader} symbol only, the user wants
+to just read the database and any call to @code{gdbm-store} or
+@code{gdbm-delete} will fail.  Many readers can access the database at
+the same time. If @code{flags} includes the @code{writer} symbol, the
+user wants both read and write access to the database and requires
+exclusive access. If @code{flags} includes the @code{wrcreat}, the user
+wants both read and write access to the database and if the database
+does not exist, create a new one. If @code{flags} includes the
+@code{newdb}, the user want a new database created, regardless of
+whether one existed, and wants read and write access to the new
+database.  The following may also be added to the @var{flags}: the
+@code{sync} symbol, which causes all database operations to be
+synchronized to the disk, and the @code{nolock} symbol, which prevents
+the library from performing any locking on the database file.
+
+@item #!key block-size
+It is used during initialization to determine the size of various
+constructs. It is the size of a single transfer from disk to
+memory. This parameter is ignored if the file has been previously
+initialized. The minimum size is 512.  If the value is omitted or less
+than 512, the file system blocksize is used, otherwise the value of
+@code{block-size} is used.
+
+@item  #!key  mode
+File mode (see @code{chmod(2)} and @code{open(2)} man pages) if the file
+is created).
+
+@item #!key onerror
+A procedure for @code{gdbm} to call if it detects a fatal error. The only
+parameter of this function is a string.
+
+This feature is is not implemented yet.
+
+@end table
+
+The return value is the object needed by all other functions to access
+that @code{gdbm} file.
+
+For example: 
+@example
+(let((conn(gdbm-open "test.db")))
+  @dots{}
+  (gdbm-close conn))
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdbm-close gdbm::gdbm-file 
+
+The procedure @code{gdbm-close} closes the @code{gdbm} file and frees
+all memory associated with it. It also updates the reader/writer count
+on the file.
+
+@end deffn
+
+@subsection Storing and fetching data
+
+@c ======================================================================
+@deffn {procedure} gdbm-store gdbm::gdbm-file key::bstring value::bstring #!optional replace? 
+
+The procedure @code{gdbm-store} inserts or replaces records in the
+database.
+
+The @var{key} argument is the key data in a form of Bigloo string
+object. The @var{value} argument holds the data to be associated with
+the key.
+
+If the @var{replace?} argument is not given, then if any data was already associated with the key, no action is performed, and the procedure returns @code{#t}.
+
+If the @var{replace?} argument evaluates to scheme true value, the old
+data associated with the key, if any, is always replaced by the new one.
+
+For example: 
+@example
+;; Create a new GDBM storage file named `test.db'
+(define gdbm (gdbm-open "test.db" '(wrcreat)))
+
+;; store the key "key" associated with the "value" string. The false
+;; return value means no data was previously associated with the word
+;; "key"
+(gdbm-store gdbm "key" "value")
+@result{} #f
+
+;; Try to store a new value for same key, no replacement is
+;; allowed. The true return value means no action was taken since data
+;; is already associated with this key
+(gdbm-store gdbm "key" "newvalue")
+@result{} #t
+
+;; This assures no replacement occured
+(gdbm-fetch gdbm "key")
+@result{} "value"
+
+;; Replace the value in a database. Note the optional `replace?'
+;; argument is now #t
+(gdbm-store gdbm "key" "newvalue" #t)
+
+;; Check the replacement was successfull
+(gdbm-fetch gdbm "key")
+@result{} "newvalue"
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gdbm-delete gdbm::gdbm-file key::bstring @result{} bool
+
+Delete the record associated with the @var{key} if any. Return @code{#f}
+if the record wasn't found, @code{#t} otherwise.
+
+For example: 
+@example
+(gdbm-store gdbm "newkey" "newvalue")
+
+(gdbm-delete gdbm "newkey")
+@result{} #f
+
+(gdbm-delete gdbm "newkey")
+@result{} #t
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdbm-fetch gdbm::gdbm-file key::bstring 
+
+Look up the data associated with the @var{key}. Return the data string
+found or @code{#f} if the key wasn't found in a database.
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gdbm-exists gdbm::gdbm-file key::bstring 
+
+Unlike the @code{gdbm-fetch} procedure, this procedure does not retrieve
+any data, and simply returns true of false, depending on whether the
+@code{key} exists, or not.
+
+@end deffn
+
+@subsection Enumerating database entries
+
+@c ======================================================================
+@deffn {procedure} gdbm-firstkey gdbm::gdbm-file 
+@deffnx {procedure} gdbm-nextkey gdbm::gdbm-file key::bstring 
+
+Enumerate database records.
+
+Example: print all database records.
+
+@example
+(let loop ((key(gdbm-firstkey gdbm)))
+  (when key
+	(print key " -> "(gdbm-fetch gdbm key))
+	(loop (gdbm-nextkey gdbm key))))
+@end example
+@end deffn
+
+
+@subsection Miscellanea
+
+@c ======================================================================
+@deffn {procedure} gdbm-reorganize gdbm::gdbm-file
+
+Try to shrink the database after multiple deletions were done. See GDBM
+documentation for details.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdbm-sync gdbm::gdbm-file 
+
+The procedure @code{gdbm-sync} assures all data flushed to the
+disk. Instead you may use the @code{sync} flag when opening the
+database with @code{gdbm-open}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdbm-setopt gdbm::gdbm-file option::gdbm-setopt-flags value 
+@var{conn}
+@var{option}
+@var{value}
+
+The procedure @code{gdbm-setopt} sets certain options on an already open
+database. The valid options are:
+
+@table @asis
+
+@item cachesize
+Set the size of the internal bucket cache.  This option may only be set
+once on each @code{gdbm} descriptor, and is set automatically to 100
+upon the first access to the database.
+
+@item fastmode
+Set fast mode to either on or off.  This allows fast mode to be toggled
+on an already open and active database.
+
+@item syncmode
+Turn on or off file system synchronization operations.
+
+@item centfree
+Set central free block pool to either on or off.  The default is off,
+which is how previous versions of @code{Gdbm} handled free blocks.  If
+set, this option causes all subsequent free blocks to be placed in the
+@emph{global} pool, allowing (in theory) more file space to be reused
+more quickly.
+
+@item coalesceblks
+Set free block merging to either on or off.  The default is off, which
+is how previous versions of @code{Gdbm} handled free blocks.  If set,
+this option causes adjacent free blocks to be merged.  This can become a
+CPU expensive process with time, though, especially if used in
+conjunction with @code{centfree}.
+@end table
+
+Example: force a database to use a cache of 10, after opening it
+with @code{gdbm-open}.
+
+@example
+(gdbm-setopt gdbm 'cachesize 10)
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} gdbm-fdesc gdbm::gdbm-file  @result{} int
+
+The procedure @code{gdbm-fdesc} returns the file descriptor of the database.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} gdbm-version  @result{} string
+
+The procedure @code{gdbm-version} returns the underlying GDBM library
+version description.
+
+For example: 
+@example
+(gdbm-version)
+@result{} This is GDBM version 1.8.0, as of May 19, 1999.
+@end example
+@end deffn
+

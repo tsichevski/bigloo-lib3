@@ -1,0 +1,9 @@
+@node    Bigloo OpenGL and gtkglarea interface, , Top, Top
+@chapter Bigloo OpenGL and gtkglarea interface
+
+Home page for gtkglarea is located at
+@url{http://www.student.oulu.fi/~jlof/gtkglarea}. The package
+gtkglarea package may be obtained from
+@url{ftp://ftp.gnome.org/pub/GNOME/sources/gtkglarea}. Currently the
+main maintainer of the package is Mr. Peter Ivanyi"
+@email{peteri@@carme.sect.mce.hw.ac.uk}.

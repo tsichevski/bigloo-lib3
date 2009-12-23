@@ -1,0 +1,51 @@
+@node    dl, SRFI-1 support, compat, Bigloo Common Library
+@section Dynamic linking library
+@cindex Dynamic linking
+
+This section describes the @code{dl} module, which provides an interface
+to @code{libdl.so} system library.
+
+With the use of this module, you can load shared objects dynamically and
+retrieve values of the symbols registered in that objects.
+
+@subsection Types
+@c ======================================================================
+@deftp {foreign} dl
+
+An open shared object handle as returned by @code{dlopen}
+
+@end deftp
+
+@c ======================================================================
+@deftp {foreign} dlsym
+
+A symbol object as returned by @code{dlsym}.
+
+@end deftp
+
+@deftp {enum} dlopen-flags
+
+A set of possible values for the @var{mode} argument of @code{dlopen}
+procedure.
+
+@end deftp
+
+@subsection Procedures
+
+@deffn {procedure} dlopen #!optional (path "") #!rest dlopen-flags @result{} dl
+
+The procedure @code{dlopen} loads a dynamic library from the file
+@var{path} and returns an opaque "handle" for the dynamic library. The
+@var{dlopen-flags} argument is a list of flags. Each flag must be one of
+the following scheme symbols: @code{lazy}, @code{now} or
+@code{global}. See the @code{dlopen} man page for the meaning of these
+arguments.
+
+@end deffn
+
+@deffn {procedure} dlsym handle::dl name::string @result{} dlsym
+
+TBD
+
+@end deffn
+

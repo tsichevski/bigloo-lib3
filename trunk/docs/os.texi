@@ -1,0 +1,409 @@
+@c ======================================================================
+@deffn {procedure} environ  @result{} pair-nil
+
+Obtain the current environment as a list of name/value pairs. For example:
+
+@example
+(pp(environ))
+@print{} ((#"_" . #"/usr/local/bin/bigloo-common")
+ (#"CONFIG_SITE" . #"/home/wowa/.autoconf")
+ (#"HOME" . #"/home/wowa")
+ (#"TERM" . #"emacs")
+ (#"OSTYPE" . #"solaris2.7")
+@dots{}
+@end example
+
+Probably you'll need this procedure for debugging only. Use
+@code{getenv} and @code{setenv} Bigloo procedures instead.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} setenv name::string value::string
+
+The @code{setenv} procedure makes the value of the environment variable
+@var{name} equal to @var{value} by altering an existing variable or
+creating a new one.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} unsetenv name::string
+
+The @code{unsetenv} procedure function deletes the variable @var{name} from the
+environment.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} errno #!optional new-value @result{} int
+
+Return the value of @code{libc} @var{errno} variable. If the
+@var{new-value} parameter is present, set the value of @var{errno} to
+@var{new-value}.
+
+@example
+(errno) @result{} 0
+;; try an illegal operation
+(open "nonexistentfile")
+@print{} *** ERROR:bigloo:open:
+file opening error -- nonexistentfile
+
+;; read error code and reset errno
+(errno 0) @result{} 2
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} mmap length #!key fd prot flags offset
+@result{} bstring
+
+The @code{mmap} procedure asks to map @var{length} bytes starting at
+offset offset from the file (or other object) specified by @var{fd} into
+memory.
+
+@table @code
+
+@item length::int
+The number of bytes to map. Since the @code{mmap} result is returned in
+form of Bigloo @code{bstring}, the length really passed to @code{libc}
+@code{mmap()} includes the @code{bstring} object overhead too.
+
+@item #!key fd
+Descriptor of file to map. Since the result always includes the overhead
+of @code{bstring} object, this @code{mmap} implementation is practical
+useless if you want to map anything but dummy devices such a
+@code{/dev/zero}.
+
+If @code{fd} argument is omitted, the @code{/dev/zero} device is used to
+get a file descriptor.
+
+@item #!key prot
+List of protection flag symbols. The valid values are:
+
+@table @code
+@item exec
+Pages may be executed.
+@item read
+Pages may be read.
+@item write
+Pages may be written.
+@item none
+Pages may not be accessed.
+@end table
+
+@item #!key flags
+List of @code{mmap} options. The valid values are @code{fixed},
+@code{shared} and @code{private}. The values @code{denywrite},
+@code{executable} and @code{anonymous} are also valid but have no effect
+on systems other than Linux. See the @code{mmap} manual pages for
+details.
+
+@item #!key offset
+Byte offset from beginning of file to be mapped.
+
+@end table
+
+This procedure may be useful if you want to temporary allocate the huge
+amount of memory which should be released and returned to operating
+system. Besides, the memory allocated with @code{mmap} is not accessed
+until you really use it, so the allocation is very fast.
+
+In the following example we will illustrate this feature.  First we
+measure how much memory the application process consumes, using the
+@code{ps} command:
+
+@example
+bash$ ps u 17012
+USER       PID %CPU %MEM   VSZ  RSS TTY      STAT START   TIME COM
+wowa     17012  2.1  5.7  7108 2236 ttyp4    S    20:32   0:00 /us
+@end example
+
+Then we mmap 16M of memory:
+
+@example
+(define mem (mmap #x1000000))
+@end example
+
+As we may expect the process virtual memory increases now by 16M:
+@example
+USER       PID %CPU %MEM   VSZ  RSS TTY      STAT START   TIME COM
+wowa     17012  0.1  5.8 23496 2260 ttyp4    S    20:32   0:00 /us
+@end example
+
+Now we do the unmap:
+
+@example
+(munmap mem)
+@end example
+
+And measure the process memory again:
+
+@example
+USER       PID %CPU %MEM   VSZ  RSS TTY      STAT START   TIME COM
+wowa     17012  0.0  5.7  7108 2252 ttyp4    S    20:32   0:00 /us
+@end example
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} munmap mem::bstring
+
+Release memory mapped by @code{mmap}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} stat what @result{} stat
+
+Return information about the specified file. The argument @code{what}
+should be either the name of the file or open file descriptor.
+
+The result is of type @code{stat}, for which the following read accessor procedures are defined:
+
+@table @code
+@item stat-mode
+file protection mode flag list. See below.
+@item stat-uid
+User ID of the file's owner
+@item stat-gid
+Group ID of the file's group
+@item stat-size
+File size in bytes
+@item stat-atime::double
+Time of last access
+@item stat-mtime::double
+Time of last data modification
+@item stat-ctime::double
+Time of last file status change
+@end table
+
+The meaning of abovementioned stat-mode flag list is as follows:
+
+@flushleft
+@code{fsock} @result{} file is a socket
+@code{flnk} @result{} file is a symbolic link
+@code{freg} @result{} file is a regular file
+@code{fblk} @result{} file is a block device
+@code{fdir} @result{} file is a directory
+@code{fchr} @result{} file is a character device
+@code{fifo} @result{} file is a fifo
+@code{suid} @result{} file has the UID bit set
+@code{sgid} @result{} file has the GID bit set
+@code{svtx} @result{} file has the sticky bit set
+@code{rusr} @result{} file owner has read permission
+@code{wusr} @result{} file owner has write permission
+@code{xusr} @result{} file owner has execute permission
+@code{rgrp} @result{} file group has read permission
+@code{wgrp} @result{} file group has write permission
+@code{xgrp} @result{} file group has execute permission
+@code{roth} @result{} file others have read permission
+@code{woth} @result{} file others have write permisson
+@code{xoth} @result{} file others have execute permission
+@end flushleft
+
+@example
+(let((st(stat "/etc/passwd"))
+     (pt(lambda(seconds)(strftime(localtime seconds)))))
+  (print "User ID:         " (stat-uid st))
+  (print "Group ID:        " (stat-gid st))
+  (print "Size:            " (stat-size st))
+  (print "Flags:           " (stat-mode st))
+  (print "Accessed:        " (pt(stat-atime st)))
+  (print "Data modified:   " (pt(stat-mtime st)))
+  (print "Status modified: " (pt(stat-ctime st))))
+@print{} User ID:         0
+@print{} Group ID:        0
+@print{} Size:            2110
+@print{} Flags:           (roth rgrp wusr rusr freg)
+@print{} Accessed:        10/01/01 18:54:05
+@print{} Data modified:   09/21/01 17:21:52
+@print{} Status modified: 09/21/01 17:21:52
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} isatty fd::int @result{} bool
+
+Test for a terminal device. Argument what should be open file
+descriptor. Example:
+
+@example
+(isatty(open "/dev/tty"))
+@result{} #t
+(isatty(open "/etc/passwd"))
+@result{} #f
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} open file-name::string . oflag @result{} int
+
+Open file name @var{file-name}, return the integer file descriptor.
+
+The optional @var{oflag} arguments may be any of the following symbols:
+@code{rdonly}, @code{wronly}, @code{rdwr}, @code{append},
+@code{nonblock}, @code{creat}, @code{trunc}, @code{excl} or
+@code{noctty}. See @code{open(2)} manual page for the meaning of the
+flag values.
+
+Example:
+
+@example
+(let*((fd(open "/etc/passwd"))
+      (bytes(fdread fd 100)))
+  (close fd)
+  bytes)
+@print{} root:XXXXXXXXX:0:0:root:/root:/bin/bash
+@print{} bin:*:1:1:bin:/bin:
+@print{} daemon:*:2:2:daemon:/sbin:
+@print{} adm:*:3:4
+
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} close fd::int @result{} int
+
+Close a file descriptor, so that it no longer refers to any file and may
+be reused.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} fdread fd::int arg @result{} bstring
+
+Read using the open file descriptor @var{fd} by calling @code{libc}
+@code{read()} function.
+
+If argument @var{arg} is a string, it used to receive the bytes read,
+and the length of that string used as byte count. Otherwise is should be
+an integer number of bytes to read, and a fresh buffer will be allocated
+for each operation call.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} fdwrite fd::int str::bstring @result{} int
+
+Try to write the @var{str} to specified file descriptor. Return the
+number of bytes really wrote.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} getppid  @result{} int
+@end deffn
+
+@code{getppid} returns the process ID of the parent of the current
+process.
+
+@c ======================================================================
+@deffn {procedure} getpid  @result{} int
+
+@code{getpid} returns the process ID of the current process.  (This is
+often used by routines that generate unique temporary file names.)
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} getlogin  @result{} bstring or #f
+
+The @code{getlogin} procedure returns a pointer to the login name as
+found in @code{/var/adm/utmp}.  It may be used in conjunction when the
+same user ID is shared by several login names. See @code{getlogin(3c)}
+manual page for details.
+
+If @code{getlogin} is called within a process that is not attached to a
+terminal, it returns @code{#f}. In later case use the @code{cuserid}
+procedure instead.
+
+As example of how the @code{getlogin} works, we first run the utility
+from non-terminal @code{xemacs} window, and then from the @code{rlogin}
+shell:
+
+@example
+bigloo-common
+1:=> (getlogin)
+@result{} #f
+1:=> 
+bash-2.03$ rlogin localhost
+Password: 
+Last login: Thu May  4 15:19:55 from localhost
+bash-2.03$ bigloo-common
+bigloo-common
+1:=> (getlogin)
+(getlogin)
+@result{} wowa
+1:=> 
+bash-2.03$ 
+
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} getpwnam what::symbol #!optional name @result{} #unspecified
+
+The @code{getpwnam} procedure is used to obtain password entries. The @var{what} arguments controls which entry will be returned by the procedure. The valid values of @var{what} are:
+
+@table @r
+@item name
+user's login name (@code{string})
+@item uid
+user's uid (@code{integer})
+@item gid
+user's gid (@code{integer})
+@item gecos
+typically user's full name (@code{string})
+@item dir
+user's home dir (@code{string})
+@item shell
+user's login shell (@code{string})
+@end table
+
+The optional @var{name} argument may be integer user ID or string user
+name of the user in question. If omitted, the name of current user as
+returned by @code{cuserid} is used.
+
+@example
+(getpwnam 'shell)
+@result{} "/usr/bin/bash"
+(getpwnam 'dir "adm")
+@result{} "/var/adm"
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} cuserid  @result{} bstring
+The @code{cuserid} procedure generates a character-string representation
+of the login name under which the owner of the current process is logged
+in.
+
+@example
+(cuserid)
+@result{} wowa
+@end example
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} strxfrm src::bstring @result{} bstring
+
+The @code{strxfrm} procedure transforms the @code{src} string into a
+form such that the result of @code{memcmp} on two strings that have been
+transformed with @code{strxfrm} is the same as the result of
+locale-sensitive string-comparing procedures (@code{string=?},
+@code{string<?} etc.) on the two strings before their
+transformation. (See @code{setlocale}).
+
+@example
+(setlocale 'all "ru_RU.KOI8-R")
+(pp(strxfrm "qwerty"))
+@print{} #"\304\210\304\232\303\244"
+(setlocale 'all "C")
+(pp(strxfrm "qwerty"))
+@print{} #"qwerty"
+@end example
+@end deffn
+
