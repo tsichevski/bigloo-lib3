@@ -1,0 +1,11 @@
+2004-11-10  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Create a new intermediate node class (tree-node) for nodes
+	having parent, child nodes and attribute nodes. Inherit sgml-node,
+	ldap-node from this new class.
+
+(node-set-parent-recursive! node)
+
+Recursively set parent for all node children.
+
+Use this machanism to create trees
