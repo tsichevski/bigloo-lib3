@@ -1,0 +1,1643 @@
+@c ======================================================================
+@subsection xml-xpath API
+@c ======================================================================
+@anchor{xml-xpath API}
+
+@deftp {foreign} xml-xpath-object
+
+Objects of type @code{xml-xpath-object} are created as result of
+evaluation of xpath expressions.
+
+@end deftp
+
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+@deffn {procedure} xml-xpath-eval str::string ctx::xml-xpath-context  @result{} xml-xpath-object or #f
+@deffnx {procedure} xml-xpath-eval-expression str::string ctxt::xml-xpath-context  @result{} xml-xpath-object
+@deffnx {procedure} xml-xpath-eval-expr ctxt::xml-xpath-parser-context 
+@deffnx {procedure} xml-xpath-compiled-eval comp::xml-xpath-comp-expr ctx::xml-xpath-context  @result{} xml-xpath-object
+
+The @code{xml-xpath-eval} evaluates the XPath Location Path in the
+given context.
+
+The @code{xml-xpath-eval-expression} evaluates any XPath expression in
+the given context.
+
+The @code{xml-xpath-compiled-eval} evaluates an XPath expression,
+precompiled with @code{xml-xpath-compile} or
+@code{xml-xpath-ctxt-compile}.
+
+Both return the @code{xml-xpath-object} resulting from the evaluation
+or scheme FALSE value.
+
+The @code{xml-xpath-eval-expr} pushes the result on the context stack
+instead of returning it.
+
+
+Example. Locate and display the child name d @code{c} of the root
+element named @code{a}:
+
+@example
+(let*((doc (xml-parse-memory "<a><b/><c/><d/></a>"))
+      (ctxt (xml-xpath-new-context doc)))
+  (display (xml-xpath-eval "/a/c" ctxt)))
+@print{} <c/>
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-object-copy val::xml-xpath-object  @result{} xml-xpath-object
+
+Allocate a new copy of a given object.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-free-object obj::xml-xpath-object 
+
+Free up an @code{xml-xpath-object}. See also @uref{xml-gc-mem-setup}.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-xpath-object-type o::xml-xpath-object  @result{} xml-xpath-object-type
+@deffnx {procedure} xml-xpath-object-nodesetval o::xml-xpath-object  @result{} xml-node-set or #f
+@deffnx {procedure} xml-xpath-object-boolval o::xml-xpath-object  @result{} bool
+@deffnx {procedure} xml-xpath-object-floatval o::xml-xpath-object  @result{} double
+@deffnx {procedure} xml-xpath-object-stringval o::xml-xpath-object  @result{} string
+
+These procedures return field values of @code{xml-xpath-object}.
+
+Examples: 
+
+@example
+(define doc (xml-parse-memory "<a><b/><c/><d/></a>"))
+(define ctxt (xml-xpath-new-context doc))
+
+;; Create an object with string content
+(let((xpobj (xml-xpath-eval "\"qwerty\"" ctxt)))
+  (pp (xml-xpath-object-stringval xpobj))
+  (xml-xpath-free-object xpobj))
+@print{} "qwerty"
+@end example
+@end deffn
+
+@deftp {foreign} xml-xpath-context
+
+@end deftp
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-context-node o::xml-xpath-context  @result{} xml-node
+@deffnx {procedure} xml-xpath-context-set-node o::xml-xpath-context v::xml-node 
+
+Get/set the @code{node} slot of an @code{xml-xpath-context}. The
+@code{node} slot used as the default node argument for xpath
+functions.
+
+For example: 
+
+@example
+;; Create a tree of depth 3
+(define doc (xml-parse-memory "<a><b><c/></b></a>"))
+(define ctxt (xml-xpath-new-context doc))
+
+;; Locate the "/a/b" node and set it as the current node
+(xml-xpath-context-set-node
+ ctxt
+ (xml-node-set-ref
+  (xml-xpath-object-nodesetval
+   (xml-xpath-eval "/a/b" ctxt))
+  0))
+
+;; Eval path as relative
+(display (xml-xpath-eval "c" ctxt))
+@print{} <c/>
+@end example
+@end deffn
+
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+@deffn {procedure} xml-xpath-new-context node::xmlobj #!optional doc::xml-doc @result{} xml-xpath-context
+
+Create a new @code{xml-xpath-context} object for the @var{doc}
+document with the @var{node} as the current context node. If the
+@var{doc} wasn't specified, the @var{node}s document is used.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-error o::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-parser-context-error} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-context o::xml-xpath-parser-context  @result{} xml-xpath-context
+
+The procedure @code{xml-xpath-parser-context-context} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-value o::xml-xpath-parser-context  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-parser-context-value} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-value-nr o::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-parser-context-value-nr} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-value-max o::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-parser-context-value-max} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-xptr o::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-parser-context-xptr} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parser-context-ancestor o::xml-xpath-parser-context  @result{} xml-node
+
+The procedure @code{xml-xpath-parser-context-ancestor} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-type-name o::xml-xpath-type  @result{} string
+
+The procedure @code{xml-xpath-type-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-type? o::obj  @result{} bool
+
+The procedure @code{xml-xpath-type?} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-variable-name o::xml-xpath-variable  @result{} string
+
+The procedure @code{xml-xpath-variable-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-variable-value o::xml-xpath-variable  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-variable-value} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-variable? o::obj  @result{} bool
+
+The procedure @code{xml-xpath-variable?} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-funct-name o::xml-xpath-funct  @result{} string
+
+The procedure @code{xml-xpath-funct-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-funct? o::obj  @result{} bool
+
+The procedure @code{xml-xpath-funct?} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-comp-expr? o::obj  @result{} bool
+
+The procedure @code{xml-xpath-comp-expr?} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-is-empty ns::xml-node-set  @result{} bool
+
+The procedure @code{xml-xpath-node-set-is-empty} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-create val::xml-node  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-set-create} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-free-node-set-list obj::xml-xpath-object 
+
+The procedure @code{xml-xpath-free-node-set-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-free-node-set obj::xml-node-set 
+
+The procedure @code{xml-xpath-free-node-set} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-cmp-nodes node1::xml-node node2::xml-node  @result{} int
+
+The procedure @code{xml-xpath-cmp-nodes} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-cast-number-to-boolean val::double  @result{} bool
+@deffnx {procedure} xml-xpath-cast-string-to-boolean val::string  @result{} bool
+@deffnx {procedure} xml-xpath-cast-node-set-to-boolean ns::xml-node-set  @result{} int
+@deffnx {procedure} xml-xpath-cast-to-boolean val::xml-xpath-object  @result{} bool
+@deffnx {procedure} xml-xpath-cast-boolean-to-number val::int  @result{} double
+@deffnx {procedure} xml-xpath-cast-string-to-number val::string  @result{} double
+@deffnx {procedure} xml-xpath-cast-node-to-number node::xml-node  @result{} double
+@deffnx {procedure} xml-xpath-cast-node-set-to-number ns::xml-node-set  @result{} double
+@deffnx {procedure} xml-xpath-cast-to-number val::xml-xpath-object  @result{} double
+@deffnx {procedure} xml-xpath-cast-boolean-to-string val::int  @result{} string
+@deffnx {procedure} xml-xpath-cast-number-to-string val::double  @result{} string
+@deffnx {procedure} xml-xpath-cast-node-to-string node::xml-node  @result{} string
+@deffnx {procedure} xml-xpath-cast-node-set-to-string ns::xml-node-set  @result{} string
+@deffnx {procedure} xml-xpath-cast-to-string val::xml-xpath-object  @result{} string
+@deffnx {procedure} xml-xpath-convert-boolean val::xml-xpath-object  @result{} xml-xpath-object
+@deffnx {procedure} xml-xpath-convert-number val::xml-xpath-object  @result{} xml-xpath-object
+@deffnx {procedure} xml-xpath-convert-string val::xml-xpath-object  @result{} xml-xpath-object
+
+Examples: 
+
+@example
+(let*((doc (xml-parse-memory "<a><b data='the-value'/></a>"))
+      (ctxt (xml-xpath-new-context doc)))
+  (xml-xpath-cast-to-string (xml-xpath-eval "/a/b/@@data" ctxt)))
+@result{} the-value
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {convenience procedure} xml-xpath-test str::string ctx::xml-xpath-context  @result{} bool
+
+Evaluate an expression, test it with @code{xml-xpath-cast-to-boolean},
+and free the expression.
+
+Example (incomplete):
+
+@example
+(xml-xpath-test "$real.ext = ''")
+@result{} #t
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-init 
+
+The procedure @code{xml-xpath-init} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-free-context ctxt::xml-xpath-context 
+
+The procedure @code{xml-xpath-free-context} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-order-doc-elems doc::xml-doc  @result{} long
+
+The procedure @code{xml-xpath-order-doc-elems} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-eval-predicate ctxt::xml-xpath-context res::xml-xpath-object  @result{} int
+
+The procedure @code{xml-xpath-eval-predicate} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-compile str::string  @result{} xml-xpath-comp-expr
+@deffnx {procedure} xml-xpath-ctxt-compile ctxt::xml-xpath-context str::string  @result{} xml-xpath-comp-expr
+@deffnx {procedure} xml-xpath-free-comp-expr comp::xml-xpath-comp-expr 
+
+The procedures @code{xml-xpath-compile} and
+@code{xml-xpath-ctxt-compile} pre-compile XPath expressions.
+
+The result of compilation should be evaluated with the
+@code{xml-xpath-compiled-eval}.
+
+The compiled expression object should be eventually pfreed with
+@code{xml-xpath-free-comp-expr}.
+
+For example: 
+@example
+(let*((doc (xml-parse-memory "<a><b text='bbb' data='aaa'/></a>"))
+      (ctxt (xml-xpath-new-context doc))
+      (cexpr (xml-xpath-compile "concat(/a/b/@@data, \".\", /a/b/@@text)")))
+  (xml-xpath-cast-to-string (xml-xpath-compiled-eval cexpr ctxt)))
+@result{} aaa.bbb
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpatherror ctxt::xml-xpath-parser-context file::string line::int no::int 
+
+The procedure @code{xml-xpatherror} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-err ctxt::xml-xpath-parser-context error::int 
+
+The procedure @code{xml-xpath-err} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-debug-dump-object *output::file cur::xml-xpath-object depth::int 
+
+The procedure @code{xml-xpath-debug-dump-object} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-debug-dump-comp-expr *output::file comp::xml-xpath-comp-expr depth::int 
+
+The procedure @code{xml-xpath-debug-dump-comp-expr} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-contains cur::xml-node-set val::xml-node  @result{} int
+
+The procedure @code{xml-xpath-node-set-contains} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-difference nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-difference} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-intersection nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-intersection} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-distinct-sorted nodes::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-distinct-sorted} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-distinct nodes::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-distinct} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-has-same-nodes nodes1::xml-node-set nodes2::xml-node-set  @result{} int
+
+The procedure @code{xml-xpath-has-same-nodes} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-leading-sorted nodes::xml-node-set node::xml-node  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-leading-sorted} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-leading-sorted nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-leading-sorted} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-leading nodes::xml-node-set node::xml-node  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-leading} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-leading nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-leading} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-trailing-sorted nodes::xml-node-set node::xml-node  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-trailing-sorted} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-trailing-sorted nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-trailing-sorted} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-trailing nodes::xml-node-set node::xml-node  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-trailing} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-trailing nodes1::xml-node-set nodes2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-trailing} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-register-ns ctxt::xml-xpath-context prefix::string ns-uri::string  @result{} int
+
+The procedure @code{xml-xpath-register-ns} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-ns-lookup ctxt::xml-xpath-context prefix::string  @result{} string
+
+The procedure @code{xml-xpath-ns-lookup} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-registered-ns-cleanup ctxt::xml-xpath-context 
+
+The procedure @code{xml-xpath-registered-ns-cleanup} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-register-variable ctxt::xml-xpath-context name::string value::obj
+
+Create and initialize a new context variable. The @var{value} argument
+must be either an @code{xml-xpath-object} or a scheme object which can
+be converted to an @code{xml-xpath-object} with the procedure
+@code{xml-xpath-new-object}.
+
+For example:
+@example
+;; Create a simple document
+(define doc (xml-parse-memory "<a/>"))
+
+;; Obtain xpath context for it
+(define ctxt (xml-xpath-new-context doc))
+
+;; Register a new xml-xpath-variable, initialize it with a string
+(xml-xpath-register-variable ctxt "var" "qwerty")
+
+;; Evaluate and print variable reference
+(pp (xml-xpath-object-stringval (xml-xpath-eval "$var" ctxt)))
+@print{} "qwerty"
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-register-variable-ns ctxt::xml-xpath-context name::string ns-uri::string value::xml-xpath-object  @result{} int
+
+The procedure @code{xml-xpath-register-variable-ns} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-registered-funcs-cleanup ctxt::xml-xpath-context 
+
+The procedure @code{xml-xpath-registered-funcs-cleanup} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-variable-lookup ctxt::xml-xpath-context name::string  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-variable-lookup} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-variable-lookup-ns ctxt::xml-xpath-context name::string ns-uri::string  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-variable-lookup-ns} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-registered-variables-cleanup ctxt::xml-xpath-context 
+
+The procedure @code{xml-xpath-registered-variables-cleanup} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-new-parser-context str::string ctxt::xml-xpath-context  @result{} xml-xpath-parser-context
+
+The procedure @code{xml-xpath-new-parser-context} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-free-parser-context ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-free-parser-context} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-new-object val::obj  @result{} xml-xpath-object
+@deffnx {procedure} xml-xpath-new-value-tree val::xml-node  @result{} xml-xpath-object
+
+Create and initialize a new @code{xml-xpath-object} from the argument
+value. The argument must be either @code{string}, @code{double},
+@code{boolean} or @code{xml-node}.
+
+Examples: 
+
+@example
+(xml-xpath-object-stringval (xml-xpath-new-object "Hello"))
+@result{} Hello
+
+(xml-xpath-object-floatval (xml-xpath-new-object 2.5))
+@result{} 2.5
+
+(xml-xpath-object-boolval (xml-xpath-new-object #t))
+@result{} #t
+
+(xml-xpath-object-nodesetval (xml-xpath-new-object (xml-new-node"a" #f (xml-new-doc))))
+@result{} #<foreign:xml-node-set:848f928>
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-add cur::xml-node-set val::xml-node 
+
+The procedure @code{xml-xpath-node-set-add} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-add-unique cur::xml-node-set val::xml-node 
+
+The procedure @code{xml-xpath-node-set-add-unique} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-add-ns cur::xml-node-set node::xml-node ns::xml-ns 
+
+The procedure @code{xml-xpath-node-set-add-ns} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-sort set::xml-node-set 
+
+The procedure @code{xml-xpath-node-set-sort} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-root ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-root} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parse-name ctxt::xml-xpath-parser-context  @result{} string
+
+The procedure @code{xml-xpath-parse-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-parse-nc-name ctxt::xml-xpath-parser-context  @result{} string
+
+The procedure @code{xml-xpath-parse-nc-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-string-eval-number str::string  @result{} double
+
+The procedure @code{xml-xpath-string-eval-number} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-evaluate-predicate-result ctxt::xml-xpath-parser-context res::xml-xpath-object  @result{} int
+
+The procedure @code{xml-xpath-evaluate-predicate-result} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-register-all-functions ctxt::xml-xpath-context 
+
+The procedure @code{xml-xpath-register-all-functions} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-merge val1::xml-node-set val2::xml-node-set  @result{} xml-node-set
+
+The procedure @code{xml-xpath-node-set-merge} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-del cur::xml-node-set val::xml-node 
+
+The procedure @code{xml-xpath-node-set-del} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-node-set-remove cur::xml-node-set val::int 
+
+The procedure @code{xml-xpath-node-set-remove} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-new-node-set-list val::xml-node-set  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-new-node-set-list} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-wrap-node-set val::xml-node-set  @result{} xml-xpath-object
+
+The procedure @code{xml-xpath-wrap-node-set} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-equal-values ctxt::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-equal-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-not-equal-values ctxt::xml-xpath-parser-context  @result{} int
+
+The procedure @code{xml-xpath-not-equal-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-compare-values ctxt::xml-xpath-parser-context inf::int strict::int  @result{} int
+
+The procedure @code{xml-xpath-compare-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-value-flip-sign ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-value-flip-sign} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-add-values ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-add-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-sub-values ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-sub-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-mult-values ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-mult-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-div-values ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-div-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-mod-values ctxt::xml-xpath-parser-context 
+
+The procedure @code{xml-xpath-mod-values} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-is-node-type name::string  @result{} bool
+
+The procedure @code{xml-xpath-is-node-type} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-self ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-self} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-child ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-child} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-descendant ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-descendant} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-descendant-or-self ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-descendant-or-self} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-parent ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-parent} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-ancestor-or-self ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-ancestor-or-self} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-following-sibling ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-following-sibling} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-following ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-following} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-namespace ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-namespace} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-attribute ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-attribute} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-preceding ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-preceding} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-ancestor ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-ancestor} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-next-preceding-sibling ctxt::xml-xpath-parser-context cur::xml-node  @result{} xml-node
+
+The procedure @code{xml-xpath-next-preceding-sibling} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-last-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-last-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-position-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-position-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-count-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-count-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-id-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-id-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-local-name-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-local-name-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-namespace-ur-ifunction ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-namespace-ur-ifunction} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-string-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-string-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-string-length-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-string-length-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-concat-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-concat-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-contains-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-contains-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-starts-with-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-starts-with-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-substring-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-substring-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-substring-before-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-substring-before-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-substring-after-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-substring-after-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-normalize-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-normalize-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-translate-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-translate-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-not-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-not-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-true-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-true-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-false-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-false-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-lang-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-lang-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-number-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-number-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-sum-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-sum-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-floor-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-floor-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-ceiling-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-ceiling-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-round-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-round-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-xpath-boolean-function ctxt::xml-xpath-parser-context nargs::int 
+
+The procedure @code{xml-xpath-boolean-function} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+

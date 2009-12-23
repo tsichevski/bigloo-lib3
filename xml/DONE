@@ -1,0 +1,41 @@
+2004-12-16  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* выяснить, можно ли предварительно скомпилировать xpath
+	выражение, не выполняя его. Делается функциями xmlXPathCompile()
+	xmlXPathCtxtCompile()
+
+
+2004-12-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* реализовать перенаправление функций аллокирования функцией
+	xmlMemSetup(). Не тестировалось.
+
+2004-12-15  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* посмотреть, как аллокируются объекты в libxml2. Можно ли
+	использовать функции от сборщика мусора и забыть проя вное
+	освобождение объектов. Да, можно. Для этого предназначена функция
+	xmlMemSetup()
+
+2004-12-14  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* xpath.defs: приделать функцию печати к xml-nodeset,
+	xml-xpath-object так же: как и для xml-node
+
+2004-12-09  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* Узнать, как создавать документы с CRLF (DOS-овского типа), или
+	хотя бы генерировать base64 с такими переносами строк. Неактуально
+	- можно использовать бинарные данные, закодированные в одну
+	строку.
+
+2004-12-09  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* Проблема с xmlobj: это имя воспринимается одновременно и как C
+	имя. Надо поправить декларации.
+
+2004-11-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* Переделать структуру Makefile на autoconf/automake.
+
+

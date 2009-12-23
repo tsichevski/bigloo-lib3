@@ -1,0 +1,83 @@
+@c ======================================================================
+@deffn {procedure} xml-save-to-buffer buffer::xml-buffer encoding::string options::int  @result{} xml-save-ctxt
+@var{buffer}
+@var{encoding}
+@var{options}
+
+The procedure @code{xml-save-to-buffer} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-save-doc ctxt::xml-save-ctxt doc::xml-doc  @result{} long
+@var{ctxt}
+@var{doc}
+
+The procedure @code{xml-save-doc} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-save-tree ctxt::xml-save-ctxt node::xml-node  @result{} long
+@var{ctxt}
+@var{node}
+
+The procedure @code{xml-save-tree} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-save-flush ctxt::xml-save-ctxt  @result{} int
+@var{ctxt}
+
+The procedure @code{xml-save-flush} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-save-close ctxt::xml-save-ctxt  @result{} int
+@var{ctxt}
+
+The procedure @code{xml-save-close} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-node-dump-output buf::xml-output-buffer cur::xmlobj #!key level doc encoding 
+@var{buf}
+@var{cur}
+
+The procedure @code{xml-node-dump-output} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+

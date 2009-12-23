@@ -1,0 +1,78 @@
+;; -*-scheme-*-
+;; попытка разобрать, как делается вызов именованного шаблона
+
+(define (xslt-call-template
+	 ctxt::xslt-transform-context
+	 node::xml-node ;; the target node
+	 inst::xml-node ;; the call definition
+	 comp::xslt-style-pre-comp)
+
+    xmlNode cur = NULL
+    xsltStackElem params = NULL, param
+
+    if (ctxt->insert == NULL)
+	return
+    if (comp == NULL) {
+	xsltTransformError(ctxt, NULL, inst,
+	     "xsl:call-template : compilation failed\n")
+	return
+    }
+
+    xsltStackElem params = NULL, param
+
+    if (ctxt->insert == NULL)
+	return
+    if (comp == NULL) {
+	xsltTransformError(ctxt, NULL, inst,
+	     "xsl:call-template : compilation failed\n")
+	return
+    }
+
+    The template must have been precomputed
+    if (comp->templ == NULL) {
+	comp->templ = xsltFindTemplate(ctxt, comp->name, comp->ns)
+	if (comp->templ == NULL) {
+	    if (comp->ns != NULL) {
+	        xsltTransformError(ctxt, NULL, inst,
+			"xsl:call-template : template %s:%s not found\n",
+			comp->ns, comp->name)
+	    } else {
+	        xsltTransformError(ctxt, NULL, inst,
+			"xsl:call-template : template %s not found\n",
+			comp->name)
+	    }
+	    return
+	}
+    }
+
+#ifdef WITH_XSLT_DEBUG_PROCESS
+    if ((comp != NULL) && (comp->name != NULL))
+	XSLT_TRACE(ctxt,XSLT_TRACE_CALL_TEMPLATE,xsltGenericDebug(xsltGenericDebugContext,
+			 "call-template: name %s\n", comp->name))
+#endif
+
+    cur = inst->children
+    while (cur != NULL) {
+	if (ctxt->state == XSLT_STATE_STOPPED) break
+	if (IS_XSLT_ELEM(cur)) {
+	    if (IS_XSLT_NAME(cur, "with-param")) {
+		param = xsltParseStylesheetCallerParam(ctxt, cur)
+		if (param != NULL) {
+		    param->next = params
+		    params = param
+		}
+	    } else {
+		xsltGenericError(xsltGenericDebugContext,
+		     "xsl:call-template: misplaced xsl:%s\n", cur->name)
+	    }
+	} else {
+	    xsltGenericError(xsltGenericDebugContext,
+		 "xsl:call-template: misplaced %s element\n", cur->name)
+	}
+	cur = cur->next
+    }
+    Create a new frame using the params first
+    xsltApplyOneTemplate(ctxt, node, comp->templ->content, comp->templ, params)
+    if (params != NULL)
+	xsltFreeStackElemList(params)
+

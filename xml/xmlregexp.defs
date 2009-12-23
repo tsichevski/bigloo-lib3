@@ -1,0 +1,59 @@
+;;-*-scheme-*-
+(module
+ xmlregexp
+ (extern
+  (include "libxml/xmlregexp.h")
+  )
+ )
+
+(define-object xmlRegexp ())
+
+; Summary: regular expressions handling
+; Description: basic API for libxml regular expressions handling used
+;  for XML Schemas and validation.
+
+; xmlRegexp:
+
+; A libxml regular expression, they can actually be far more complex
+; thank the POSIX regex expressions.
+
+; xmlRegExecCtxt:
+
+; A libxml progressive regular expression evaluation context
+
+; typedef struct _xmlRegExecCtxt xmlRegExecCtxt;
+; typedef xmlRegExecCtxt *xmlRegExecCtxt;
+
+; The POSIX like API
+
+(define-func xmlRegexpCompile xmlRegexp ((string regexp)))
+(define-func xmlRegFreeRegexp void ((xmlRegexp regexp)))
+(define-func xmlRegexpExec int ((xmlRegexp comp)(string value)))
+ 
+;;(define-func xmlRegexpPrint void (file output)(xmlRegexp regexp))
+ 
+(define-func xmlRegexpIsDeterminist int ((xmlRegexp comp)))
+
+; Callback function when doing a transition in the automata
+; typedef void (*xmlRegExecCallbacks) (xmlRegExecCtxt exec,
+;  string token,
+;  void *transdata,
+;  void *inputdata);
+
+; ; The progressive API
+
+; xmlRegExecCtxt 
+;  xmlRegNewExecCtxt (xmlRegexp comp,
+;  xmlRegExecCallbacks callback,
+;  void *data);
+; void 
+;  xmlRegFreeExecCtxt (xmlRegExecCtxt exec);
+; int 
+;  xmlRegExecPushString(xmlRegExecCtxt exec,
+;  string value,
+;  void *data);
+; int 
+;  xmlRegExecPushString2(xmlRegExecCtxt exec,
+;  string value,
+;  string value2,
+;  void *data);

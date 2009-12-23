@@ -1,0 +1,35 @@
+2007-10-18  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* bigloo-xml.defs: xslt parameters handling added.
+
+2007-04-20  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* transform.defs (xslt-run-stylesheet-user::int): the function
+	added
+
+2005-03-06  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* xparser.defs: support was added for the xmlReadFile. This
+	function lets the user to add some options to an XML parser.
+
+2005-03-01  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* xmlutils.texi: a new module added. This module implements
+	miscellanious procedures which have no counterparts in libxml2
+
+2005-02-21  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* xtree.defs (xmlDoc): the `encoding' slot read/write accessors
+	were added.
+
+2005-02-15  Vladimir Tsichevski  <wowa1@online.ru>
+
+	* bigloo-xml.defs (main): utility usage changed: an add-on option
+	for stylesheet added
+
+	*  xmlglobals.defs added
+
+2004-11-25  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	*  project started
+

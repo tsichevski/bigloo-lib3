@@ -1,0 +1,6 @@
+
+   The `bigloo-xml' is a Bigloo library to manipulate XML documents,
+and transform it using XSLT.
+
+   The `bigloo-xml' uses libxml2 and libxslt libraries to do the job.
+

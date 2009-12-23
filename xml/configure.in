@@ -1,0 +1,67 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(bigloo-xml.defs)
+AC_CONFIG_MACRO_DIR([m4])
+
+AM_INIT_AUTOMAKE(bigloo-xml, 0.10)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+m4_include([libxml2.m4])
+m4_include([libxslt.m4])
+m4_include([bigloo-xml.m4])
+m4_include([bigloo-lib.m4])
+m4_include([common.m4])
+
+AM_PROG_LIBTOOL
+
+AC_HEADER_STDC
+
+dnl Checks for library functions.
+AC_FUNC_ALLOCA
+AC_FUNC_MMAP
+
+pkgdatadir='${prefix}/share/bigloo-xml'
+
+AC_CHECK_PROG(texi2html,texi2html, yes)
+if test "$texi2html" = "yes"; then
+   html_target=bigloo-xml.html
+   html_ru_target=bigloo-xml-ru.html
+fi
+AC_SUBST(html_target)
+AC_SUBST(html_ru_target)
+
+AC_CHECK_PROG(texi2dvi,texi2dvi, yes)
+AC_CHECK_PROG(cyrtexinfo,cyrtexinfo, yes)
+if test "$texi2dvi" = "yes" -a "$cyrtexinfo" = "yes"; then
+   dvi_target=bigloo-xml.dvi
+   dvi_ru_target=bigloo-xml-ru.dvi
+fi
+AC_SUBST(dvi_target)
+AC_SUBST(dvi_ru_target)
+
+AC_CHECK_PROG(texi2pdf,texi2pdf, yes)
+if test "$texi2pdf" = "yes"; then
+   pdf_target=bigloo-xml.pdf
+   pdf_ru_target=bigloo-xml-ru.pdf
+fi
+AC_SUBST(pdf_target)
+AC_SUBST(pdf_ru_target)
+
+#AC_PROG_LIBTOOL
+
+AC_CONFIG_FILES([				\
+  Makefile					\
+  bigloo-xml.spec				\
+  bxml.init					\
+  config.texi
+],
+[])
+
+AC_OUTPUT
+
+

@@ -1,0 +1,109 @@
+@node Getting started, Advanced topics, Introduction, Top
+@comment  node-name,  next,  previous,  up
+
+@c ==================================================================
+@menu
+* Create an XML document:: intro to base methods of XML tree creation
+* Use XPath:: 
+* Transform with XSLT::
+@end menu
+
+@c ==================================================================
+@node Create an XML document, Use XPath, Getting started, Getting started
+@comment  node-name,  next,  previous,  up
+
+In @cite{bigloo-xml}, the XML documents are presented by
+@code{xml-doc} Bigloo scheme foreign type.
+
+This section shoortly outlines basic methods of creating an XML
+document.
+
+There are two basic methods to create an @code{xml-doc} object in
+@cite{bigloo-xml}:
+
+@itemize @bullet
+@item 
+Parse a string containing XML text or an XML file;
+
+@item 
+Create an XML document programmatically.
+
+@end itemize
+
+@subsection Parse file or string
+
+To parse XML text in a scheme string just pass it to
+@code{xml-parse-memory}:
+
+@example
+(xml-parse-memory "<a name='b'><c type='d'/></a>")
+@result{}
+#<foreign:xml-doc:848ec30>
+@end example
+
+To assure the document was parsed properly, dump it back to a string
+with @code{xml-doc->string}:
+
+@example
+(define doc (xml-parse-memory "<a name='b'><c type='d'/></a>"))
+(xml-doc->string doc)
+@result{} <?xml version="1.0"?>
+<a name="b"><c type="d"/></a>
+
+@end example
+
+Suppose now you have an XML file named @code{test.xml}, containing the
+same string as the file content. To create an XML document from this
+file, call the @code{xml-parse-file} procedure, passing the file name
+as an argument:
+
+@example
+(xml-parse-file "test.xml")
+@result{} #<foreign:xml-doc:84c1aa0>
+@end example
+
+or, you can use @code{xml-read-file} which allown passing some options as well:
+
+@example
+(xml-read-file "test.xml" options: '(nocdata))
+@result{} #<foreign:xml-doc:84c1aa0>
+@end example
+
+
+@subsection Use API to create a tree
+
+We can also create an XML document from scratch using the
+@code{xml-new-doc} procedure:
+
+@example
+(xml-doc->string (xml-new-doc))
+@result{} <?xml version="1.0"?>
+
+@end example
+
+Next, you need to add a document root element:
+
+@example
+(define doc (xml-new-doc))
+(define root (xml-new-node "article"))
+(xml-doc-set-root-element doc root)
+(xml-new-prop root "name" "value")
+
+(xml-doc->string doc)
+@result{} <?xml version="1.0"?>
+@result{} <article name="value"/>
+
+@end example
+
+@c ==================================================================
+@node Use XPath, Transform with XSLT, Create an XML document, Getting started
+@comment  node-name,  next,  previous,  up
+
+TODO
+
+@c ==================================================================
+@node Transform with XSLT, , Use XPath, Getting started
+@comment  node-name,  next,  previous,  up
+
+TODO
+

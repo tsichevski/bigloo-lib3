@@ -1,0 +1,1083 @@
+@node API Reference, Concept index, Advanced topics, Top
+@comment  node-name,  next,  previous,  up
+
+@c ==================================================================
+@menu
+* xmlobj API::
+* xml-node API::
+* xml-attribute API::
+* xml-attr-decl API::
+* xml-ns API::
+* xml-element-decl API::
+* xml-dtd API::
+* xml-doc API::
+* xml-buffer API::
+* xml-output-buffer API::
+* xml-parser API::
+* xml-xpath API::
+* encoding API::
+* Convenience procedures::
+* Memory management::
+@end menu
+
+@c ======================================================================
+@subsection xml-buffer API
+@c ======================================================================
+@anchor{xml-buffer API}
+
+@deftp {foreign} xml-buffer
+
+In @code{bigloo-xml} objects of type @code{xml-buffer} are used for
+XML tree serialization.
+
+@end deftp
+
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+@deffn {procedure} xml-buffer-create #!optional size @result{} xml-buffer
+
+The procedure @code{xml-buffer-create} creates a fresh
+@code{xml-buffer} object. If the optional @var{size} was absent, the
+current value of the @code{xml-default-buffer-size} is used as the
+number of bytes to allocate.
+
+For example: 
+
+@example
+;; Create an xml-buffer of default size
+(xml-buffer-create)
+@result{} #<foreign:xml-buffer:84b1c20>
+
+;; Explicitly define the buffer size
+(xml-buffer-size (xml-buffer-create 1024)) 
+@result{} 1026
+@end example
+
+Note the extra two bytes allocated by the @code{xml-buffer-create} to
+store trailing zero character.
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-default-buffer-size #!optional value  @result{} int
+
+Get/set default size of xml-buffer.
+
+For example: 
+
+@example
+;; Get current value of buffer size
+(xml-default-buffer-size)
+@result{} 4096
+
+;; Set a larger value, the function returns
+;; the previous value
+(xml-default-buffer-size 8192)
+@result{} 4096
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-buffer-resize buf::xml-buffer size::uint  @result{} bool
+@deffnx {procedure} xml-buffer-grow buf::xml-buffer len::uint  @result{} int
+
+Grow the available space of an XML buffer.
+
+
+The procedure @code{xml-buffer-resize} reallocates the buffer
+@code{xml-buffer}, it returns #f on error.
+
+The procedure @code{xml-buffer-grow} assures the buffer has enough
+space for extra @var{len} bytes, it returns the new available space or
+-1 in case of error.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} xml-buffer-free buf::xml-buffer 
+
+Release resources related to an @code{xml-buffer}.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} xml-buffer-set-allocation-scheme buf::xml-buffer scheme::xml-buffer-allocation-scheme 
+
+Working with XML buffer allocation schemas is not supported in this
+version of @code{bigloo-xml}.
+@end deffn
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-buffer-length buf::xml-buffer  @result{} int
+@deffnx {procedure} xml-buffer-size o::xml-buffer  @result{} uint
+@deffnx {procedure} xml-buffer-alloc o::xml-buffer  @result{} xml-buffer-allocation-scheme
+
+These procedures return attributes of the @code{xml-buffer} object:
+the size currently used by serialized data, the size of allocated
+buffer and the allocation scheme respectively.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Inserting/deleting content
+@c ======================================================================
+@deffn {procedure} xml-buffer-content buf::xml-buffer  @result{} string
+
+Return the content of the buffer as a string.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-buffer-add buf::xml-buffer str::bstring @result{} int
+@deffnx {procedure} xml-buffer-add-head buf::xml-buffer str::bstring @result{} int
+
+The procedures @code{xml-buffer-add}, @code{xml-buffer-add-head} add
+text to an @code{xml-buffer}.
+
+@c These procedures return 0 successful, a positive error code number
+@c otherwise and -1 in case of internal or API error.
+
+For example: 
+
+@example
+;; Create a new xml-buffer
+(define buf (xml-buffer-create))
+
+;; Check its content, still it is empty
+(pp (xml-buffer-content buf))
+@print{} ""
+
+;; Add some text
+(xml-buffer-add buf "Hello, World")
+
+;; Print a new content
+(pp (xml-buffer-content buf))
+@print{} "Hello, World"
+
+;; Add more text, it will be appended
+(xml-buffer-add buf "Append this")
+(pp (xml-buffer-content buf))
+@print{} "Hello, WorldAppend this"
+
+;; Now prepend some more text
+(xml-buffer-add-head buf "Prepend this")
+(pp (xml-buffer-content buf))
+@print{} "Prepend thisHello, WorldAppend this"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-buffer-shrink buf::xml-buffer len::uint  @result{} int
+
+Remove the @var{len} at the beginning of an XML buffer. Returns the
+number of characters removed, or -1 in case of failure.
+
+For example: 
+
+@example
+(define buf (xml-buffer-create))
+(xml-buffer-add buf "Hello, World")
+
+;; Strip heading two characters
+(xml-buffer-shrink buf 2)
+@result{} 2
+(pp (xml-buffer-content buf))
+@print{} "llo, World"
+
+;; Attempt to remove too more, do nothing
+;; and return -1
+(xml-buffer-shrink buf 1000)
+@result{} -1
+(pp (xml-buffer-content buf))
+@print{} "llo, World"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-buffer-empty buf::xml-buffer 
+
+The procedure @code{xml-buffer-empty} empties a buffer.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Dumping
+@c ======================================================================
+@deffn {procedure} xml-buffer-dump buf::xml-buffer output  @result{} int
+
+The procedure @code{xml-buffer-dump} dumps an XML buffer to a
+file. The @var{output} argument must be either an @code{output-port}
+or file name. @code{xml-buffer-dump} returns the number of characters
+written.
+
+For example: 
+
+@example
+;; Create a new xml-buffer
+(define buf (xml-buffer-create))
+
+;; Add some text
+(xml-buffer-add buf "Hello, World")
+
+;; Print the content of the buffer
+(pp (xml-buffer-content buf))
+@print{} "Hello, World"
+
+(xml-buffer-dump buf "out.xml")
+@result{} 12
+(pp (file-contents "out.xml"))
+@print{} "Hello, World"
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-keep-blanks-default new-val::bool  @result{} bool
+@deffnx {procedure} xml-indent-tree-output #!optional value  @result{} bool
+
+These procedures affect the XML tree parse and dump behaviours.
+
+Calling the @code{xml-keep-blanks-default} with the TRUE value,
+indicates that the parser should keep all blanks nodes found in the
+content.  This feature is activated by default.
+
+Setting the @code{xml-indent-tree-output} to TRUE, indicates that the
+XML serializer should indent the output tree by default. This feature
+is enabled by default.
+
+See also @code{xml-node-dump}.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-dump buf::xml-buffer cur::xml-node #!optional level doc  @result{} int
+
+The procedure @code{xml-node-dump} dumps an XML subtree.  Note that
+indent @var{level} switch node indenting only if
+@var{xml-indent-tree-output} is set to TRUE.  or
+@code{xml-keep-blanks-default} was called with FALSE value.
+
+Returns the number of bytes written to the buffer or -1 in case of
+error.
+
+For example: 
+
+@example
+(define doc (xml-parse-memory "<a name='b'><c type='d'/></a>"))
+(define node (xml-doc-get-root-element doc))
+
+;; Dump XML tree without formatting
+(let((buf (xml-buffer-create)))
+  (xml-node-dump buf node)
+  (xml-buffer-content buf))
+@result{} <a name="b"><c type="d"/></a>
+
+;; Dump XML tree with formatting, indenting starts
+;; from the first column
+(let((buf (xml-buffer-create)))
+  (xml-node-dump buf node 0)
+  (xml-buffer-content buf))
+@result{} 
+<a name="b">
+  <c type="d"/>
+</a>
+
+;; Dump XML tree with formatting, indenting starts
+;; from the 5th tab stop. All lines except the
+;; first one are indented.
+(let((buf (xml-buffer-create)))
+  (xml-node-dump buf node 5)
+  (xml-buffer-content buf))
+@result{} 
+<a name="b">
+            <c type="d"/>
+          </a>
+@end example
+@end deffn
+
+@c ======================================================================
+@subsection xml-output-buffer API
+@c ======================================================================
+@anchor{xml-output-buffer API}
+
+@deftp {foreign} xml-output-buffer
+
+Objects of type @code{xml-output-buffer} wrap @code{xml-buffer}
+objects and handle character encoding/decoding.
+
+@end deftp
+
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+@deffn {procedure} xml-alloc-output-buffer #!optional encoder::xml-char-encoding-handler  @result{} xml-output-buffer
+
+The procedure @code{xml-alloc-output-buffer} creates a new
+@code{xml-output-buffer}. If the @var{encoder} is passed to the
+@code{xml-alloc-output-buffer}, then the output will be encoded, and
+the @code{xml-output-buffer-conv} function should be used to get the
+encoded result.
+
+For example: 
+@example
+;; create a document with cyrillic characters
+(define doc
+  (xml-parse-memory
+  "<?xml version=\"1.0\" encoding=\"koi8-r\"?><a>Ù≈À”¬‘ ◊ ÎÔÈ8</a>"))
+
+;; Prepare encoder to iso8859-5 cyrillic character set,
+;; the argument to xml-find-char-encoding-handler
+;; will be used encode characters
+(define buf
+  (xml-alloc-output-buffer
+    (xml-find-char-encoding-handler "iso8859-5")))
+
+;; Dump the document. Note: the encoding: keyword argument
+;; will be used for xml declaration only.
+(xml-node-dump-output buf doc encoding: "iso8859-5")
+
+;; Get the `raw' buffer content. Note, it is in UTF8
+(xml-buffer-content(xml-output-buffer-buffer buf))
+@result{} <?xml version="1.0" encoding="iso8859-5"?>
+<a>–ü—Ä–∏–≤–µ—Ç –∏–∑ –ê—Ñ—Ä–∏–∫–∏</a>
+
+;; Force the encoding. The result is in the `conv' slot
+(xml-output-buffer-flush buf)
+
+;; Get the encoded buffer content. It is in iso8859-5 now
+(xml-buffer-content(xml-output-buffer-conv buf))
+@result{} <?xml version="1.0" encoding="iso8859-5"?>
+<a>ø‡ÿ“’‚ ÿ¬◊ ∞‰‡ÿ⁄ÿ</a>
+
+;; Free both input and output buffers
+(xml-output-buffer-close buf)
+@end example
+@end deffn
+
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-output-buffer-buffer o::xml-output-buffer @result{} xml-buffer or #f
+@deffnx {procedure} xml-output-buffer-conv o::xml-output-buffer @result{} xml-buffer or #f
+
+The procedure @code{xml-output-buffer-buffer} returns the `raw' or
+unencoded buffer of @code{xml-output-buffer}.
+
+The procedure @code{xml-output-buffer-conv} returns the `output' or
+encoded buffer of @code{xml-output-buffer}. If no encoding was
+specified in @code{xml-alloc-output-buffer}, the this procedure
+returns #f.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Encoding
+@c ======================================================================
+@deffn {procedure} xml-output-buffer-flush out::xml-output-buffer  @result{} int
+The procedure @code{xml-output-buffer-flush} does the encoding. All
+data in the @code{buffer} slot is encoded and appended to the
+@code{conv} slot. The @code{buffer} slot is then cleaned.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Destroying
+@c ======================================================================
+@deffn {procedure} xml-output-buffer-close out::xml-output-buffer  @result{} int
+The procedure @code{xml-output-buffer-close} destroys both
+@code{buffer} and @code{conv} buffers of @code{xml-output-buffer}.
+
+@end deffn
+@c ======================================================================
+@subsection xml-parser API
+@c ======================================================================
+@anchor{xml-parser API}
+@include xparser.texi
+
+@c ======================================================================
+@subsection xmlobj API
+@c ======================================================================
+@anchor{xmlobj API}
+
+@deftp {foreign} xmlobj
+
+The @code{xmlobj} is an abstract supertype for other XML tree building
+block types: namely @code{xml-node}, @code{xml-attribute},
+@code{xml-attr-decl}, @code{xml-element-decl}, @code{xml-dtd}, and
+@code{xml-doc}.
+
+@end deftp
+
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+It was noted earlier that @code{xmlobj} is abstract type, so no
+objects of that type can be created.
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xmlobj-doc o::xmlobj  @result{} xml-doc
+
+Return the document this @code{xmlobj} belongs to.
+
+@end deffn
+@c ======================================================================
+@deffn {procedure} xmlobj-type o::xmlobj  @result{} xml-element-type
+
+Return the type identifier, according to the following table:
+
+@table @bullet
+@item element-node
+@item attribute-node
+@item text-node
+@item cdata-section-node
+@item entity-ref-node
+@item entity-node
+@item pi-node
+@item comment-node
+@item document-node
+@item document-frag-node
+@item notation-node
+@item html-document-node
+@item dtd-node
+@item element-decl
+@item attribute-decl
+@item entity-decl
+@item namespace-decl
+@item xinclude-start
+@item xinclude-end
+@item docb-document-node
+@end table
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xmlobj-name o::xmlobj  @result{} string
+@deffnx {procedure} xmlobj-set-name cur::xmlobj name::string 
+
+Get or set the name of the object. The meaning of that name depends of
+node type. For element nodes that is the GI of the element. For XML
+entity is is the name of the entity.
+
+@c This procedure has effect only for the following node types:
+@c ELEMENT_NODE ATTRIBUTE_NODE PI_NODE ENTITY_REF_NODE ENTITY_NODE
+@c DTD_NODE DOCUMENT_NODE ELEMENT_DECL ATTRIBUTE_DECL ENTITY_DECL
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xmlobj-children o::xmlobj  @result{} xml-node
+@deffnx {procedure} xmlobj-last o::xmlobj  @result{} xml-node
+@deffnx {procedure} xmlobj-parent o::xmlobj  @result{} xml-node
+@deffnx {procedure} xmlobj-next o::xmlobj  @result{} xml-node
+@deffnx {procedure} xmlobj-prev o::xmlobj  @result{} xml-node
+
+These procedures navigate thru XML trees. The procedures
+@code{xmlobj-children} and @code{xmlobj-last} point to the first and
+last child nodes. Children nodes are connected in the double-linked
+list. The @code{xmlobj-next} and @code{xmlobj-prev} point to the next
+and to the previous sibling node respectively.
+
+All these methods may return #f, for example @code{xmlobj-children}
+return #f the node has no children etc.
+
+For example, to print all the children of the document root, starting
+from the first child:
+
+@example
+(define doc (xml-parse-memory "<a><c/><d/><e/></a>"))
+;; Locate the 'a' element
+(define node (xml-doc-get-root-element doc))
+
+(let loop ((child (xmlobj-children node)))
+  (when child
+	(display* child #\newline)
+	(loop (xmlobj-next child))))
+
+@print{} <c/><d/><e/>
+@end example
+
+Now print same elements in reverse order:
+
+@example
+(let loop ((child (xmlobj-last node)))
+  (when child
+	(display* child #\newline)
+	(loop (xmlobj-prev child))))
+
+@print{}
+@end example
+
+@end deffn
+
+@c ======================================================================
+@subsection xml-node API
+@c ======================================================================
+@anchor{xml-node API}
+
+@deftp {foreign} xml-node extends xmlobj
+
+The @code{xml-node} objects have all attributed defined for
+@code{xmlobj} type. Except than these attributes @code{xml-node}s have
+namespace, properties and text content.
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@deffn {procedure} xml-new-node name::string #!optional ns::xml-ns @result{} xml-node
+@deffnx {procedure} xml-new-child parent::xml-node name::string #!optional content::string ns::xml-ns @result{} xml-node
+
+The @code{xml-new-node} creates a new unattached @code{xml-node}. If
+an optional @var{ns} argument was given, it is used to set the node
+namespace.
+
+The procedure @code{xml-new-child} appends a new child element to the
+end of the children list of @code{xml-node}. The new element is added
+at the end of @var{parent} children list. The parent node type should
+be either @code{xml-element}, @code{xml-document},
+@code{xml-html-document} or @code{xml-document-frag}.
+
+If @var{ns} is absent, the newly created element inherits the
+namespace of @var{parent}.
+
+If @var{content} is given, a child list containing the TEXTs and
+ENTITY_REFs node will be created.
+
+@c NOTE: @content is supposed to be a piece of XML CDATA, so it allows entity
+@c       references. XML special chars must be escaped first by using
+@c       xmlEncodeEntitiesReentrant(), or xmlNewTextChild() should be used.
+
+The following example shows how to use both procedures to create and
+attach a document root element.
+
+@example
+;; Create a root element with xml-new-node
+;; and attach it with xml-doc-set-root-element
+(define doc (xml-new-doc))
+(define root (xml-new-node "root"))
+(xml-doc-set-root-element doc root)
+
+;; Create and attach a root element in one step
+;; with xml-new-child. Explicitly create and attach a
+;; custom namespace for that element. Add a new descendant
+;; that inherit this namespace automatically
+
+(define doc (xml-new-doc))
+(define root (xml-new-child doc "root"))
+(define ns (xml-new-ns "ns2" root "http://mynamespace.org"))
+(xml-set-ns root ns)
+(xml-new-child root "child")
+(display doc)
+
+@print{}<?xml version="1.0"?>
+<ns2:root xmlns:ns2="http://mynamespace.org"><ns2:child/></ns2:root>
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-add-child parent::xml-node cur::xml-node  @result{} xml-node
+
+Add a new node to @var{parent}, at the end of the child (or property) list
+merging adjacent TEXT nodes (in which case @code{cur} is freed).
+If the new node is ATTRIBUTE, it is added into properties instead of children.
+If there is an attribute with equal name, it is first destroyed. 
+
+@end deffn
+
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-node-ns o::xml-node  @result{} xml-ns or #f
+
+Return the node namespace list if or #f.
+
+In the following example the full list of namespaces associated with a
+node is printed.
+
+@example
+;; Parse an XML file produced by Microsoft Word 2003
+(define doc (xml-parse-file "word.xml"))
+(define node (xml-doc-get-root-element doc))
+
+;; Print all namespaces (prefixes and full URIs)
+;; defined in the root node
+(let loop ((child (xml-node-ns node)))
+  (when child
+	(print (xml-ns-prefix child)":"(xml-ns-href child))
+	(loop (xml-ns-next child))))
+@print{}
+w:http://schemas.microsoft.com/office/word/2003/wordml
+v:urn:schemas-microsoft-com:vml
+@dots{}
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-set-ns node::xml-node #!optional ns::xml-ns
+
+Set or reset the namespace of an @code{xml-node}.
+
+For example: 
+
+@example
+(define doc (xml-new-doc))
+(define root (xml-new-child doc "root"))
+(define ns (xml-new-ns "ns" root "http://mynamespace.org"))
+(display doc)
+@print{} <?xml version="1.0"?>
+<root xmlns:ns="http://mynamespace.org"/>
+(xml-set-ns root ns)
+
+;; The root element is now qualified
+(display doc)
+@print{} <?xml version="1.0"?>
+<ns:root xmlns:ns="http://mynamespace.org"/>
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-prop node::xml-node name::string value::string #!optional ns::xml-ns @result{} xml-attribute
+@deffnx {procedure} xml-set-prop node::xml-node name::string value::string  #!optional ns::xml-ns @result{} xml-attribute
+@deffnx {procedure} xml-unset-prop node::xml-node name::string #!optional ns::xml-ns @result{} bool
+
+Create/set/destroy an attribute carried by a node.
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-node-get-content cur::xml-node  @result{} string
+@deffnx {procedure} xml-node-set-content cur::xml-node content::bstring
+@deffnx {procedure} xml-node-add-content cur::xml-node content::bstring 
+
+Get/set/append to the content of a node.
+
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-properties o::xml-node  @result{} xml-attribute
+
+Get first node attribute if any.
+
+For example: 
+
+@example
+;; Create an element with two attributes
+(define doc (xml-parse-memory "<a name='b' type='d'/>"))
+(define node (xml-doc-get-root-element doc))
+
+;; Print attributes in the name=value form
+(let loop ((child (xml-node-properties node)))
+  (when child
+	(print (xmlobj-name child) "="
+	       (xml-node-get-content(xmlobj-children child)))
+	(loop (xmlobj-next child))))
+@print{}
+name=b
+type=d
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-get-prop node::xml-node name::string @result{} bstring or #f
+
+The procedure @code{xml-get-prop} searches for a node property named
+@var{name}.
+
+For example: 
+@example
+(define doc
+  (xml-parse-memory "<test name=\"value\"/>"))
+(define rootelt (xml-doc-get-root-element doc))
+
+;; Search a `name' attribute
+(xml-get-prop rootelt "name")
+@result{} "value"
+
+;; Search an attribute which is not set
+(xml-get-prop rootelt "otherattribute")
+@result{} #f
+
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-get-line-no o::xml-node  @result{} ushort
+
+Get the line number of a node. To make the XML parser count line
+numbers, execute @code{(xml-line-numbers-default #t)}.
+
+For example: 
+
+@example
+;; Enable line number counting
+(xml-line-numbers-default #t)
+
+;; Parse a document that spant more than one line
+(define doc (xml-parse-memory "<a>\n<c/>\n<d/>\n<e/>\n</a>"))
+
+;; Get the root node
+(define node (xml-doc-get-root-element doc))
+
+;; Print node names along with line numbers
+;; for all children of the root node
+(let loop ((child (xmlobj-children node)))
+  (when child
+	(print  (xmlobj-name child) " => " (xml-get-line-no child))
+	(loop (xmlobj-next child))))
+@print{}
+text => 1
+c => 2
+text => 2
+d => 3
+text => 3
+e => 4
+text => 4
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-node-get-space-preserve cur::xml-node  @result{} int
+@deffnx {procedure} xml-node-set-space-preserve cur::xml-node val::int 
+
+TODO
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-node-get-lang cur::xml-node  @result{} string
+@deffnx {procedure} xml-node-set-lang cur::xml-node lang::string 
+
+TODO
+
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-node-get-base doc::xml-doc cur::xml-node  @result{} string
+@deffnx {procedure} xml-node-set-base cur::xml-node uri::string 
+
+TODO
+
+@end deffn
+
+
+@c ======================================================================
+@subsection xml-attribute API
+@c ======================================================================
+@anchor{xml-attribute API}
+
+@deftp {foreign} xml-attribute
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@c ======================================================================
+@subsection xml-attr-decl API
+@c ======================================================================
+@anchor{xml-attr-decl API}
+
+@deftp {foreign} xml-attr-decl
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@c ======================================================================
+@subsection xml-element-decl API
+@c ======================================================================
+@anchor{xml-element-decl API}
+
+@deftp {foreign} xml-element-decl
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@c ======================================================================
+@subsection xml-ns API
+@c ======================================================================
+@anchor{xml-ns API}
+
+@deftp {foreign} xml-ns
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+@deffn {procedure} xml-new-ns prefix::string #!optional  node::xml-element href::string @result{} xml-ns
+
+The procedure @code{xml-new-ns} creates a new namespace an optionally
+adds it to an @code{xml-node}.
+
+This function raises an error if the node argument was given and the
+prefix is equal to @code{xml} or to an existing one present on this node.
+
+The @var{href} may be omitted. In this case the incomplete namespace
+will be created. This namespace may be used to create new nodes, but
+it will not occur as namespace declaration.
+
+Examples:
+@example
+;; Create an unattached xml-ns object
+(xml-new-ns "ns")
+@result{} #<foreign:xml-ns:848e580>
+
+;; Create a new document, 
+(define doc (xml-new-doc))
+(define root (xml-new-child doc "root"))
+;; Attach a namespace to the root element
+(xml-new-ns "ns1" root)
+@result{} #<foreign:xml-ns:848e5e0>
+
+;; Try to attach namespace with same prefix
+(xml-new-ns "ns1" root)
+@error{}
+*** ERROR:bigloo:xml-new-ns:
+Illegal arguments -- (ns1 #<foreign:xml-node:848e180> #f)
+
+;; Attach a fully qualified namespace
+(xml-new-ns "ns2" root "http://mynamespace.org")
+@result{} #<foreign:xml-ns:848e580>
+
+;; Dump the document, only the fully qualified
+;; namespaces are declared
+(display doc)
+@print{}
+<?xml version="1.0"?>
+<root xmlns:ns2="http://mynamespace.org"/>
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-new-ns-prop-eat-name node::xml-node ns::xml-ns name::string value::string  @result{} xml-attribute
+@var{node}
+@var{ns}
+@var{name}
+@var{value}
+
+The procedure @code{xml-new-ns-prop-eat-name} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-ns-next o::xml-ns 
+
+The procedure @code{xml-ns-next} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-ns-type o::xml-ns  @result{} xml-element-type
+@var{o}
+
+The procedure @code{xml-ns-type} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-ns-href o::xml-ns  @result{} string
+@var{o}
+
+The procedure @code{xml-ns-href} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@deffn {procedure} xml-ns-prefix o::xml-ns  @result{} string
+@var{o}
+
+The procedure @code{xml-ns-prefix} 
+
+For example: 
+@example
+@result{}
+@end example
+@end deffn
+
+
+@c ======================================================================
+@subsection xml-dtd API
+@c ======================================================================
+@anchor{xml-dtd API}
+
+@deftp {foreign} xml-dtd
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@c ======================================================================
+@subsection xml-doc API
+@c ======================================================================
+@anchor{xml-doc API}
+
+@deftp {foreign} xml-doc
+
+@end deftp
+@c ======================================================================
+@subsubsection Creation and destroying
+@c ======================================================================
+
+@c ======================================================================
+@subsubsection Accessing
+@c ======================================================================
+@deffn {procedure} xml-doc-get-root-element doc::xml-doc  @result{} xml-node or #f
+
+Find the root element of the document, if exists (the docuuments children is a list
+containing possibly comments, PIs, etc ...).  Returns the
+@code{xml-node} for the root or scheme FALSE value.
+
+The procedure @code{xml-doc-get-root-element} 
+
+For example, a new-born empty document has no root element:
+@example
+(define doc (xml-new-doc))
+(xml-doc-get-root-element doc)
+@result{} #f
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-doc-set-root-element doc::xml-doc root::xml-node  @result{} xml-node or #f
+
+Set the root element of the document. Returns the old root element if
+any was found or scheme FALSE value.
+
+For example: 
+@example
+;; Create an empty document node
+(define doc (xml-new-doc "1.0"))
+;; Look up the root node, it doesn't exist still
+(xml-doc-get-root-element doc)
+@result{} #f
+
+;; Create an element named "root",
+;; set it as the document root element
+(xml-doc-set-root-element doc (xml-new-node "root"))
+@result{} #f
+
+;; Request the root node again, now it exists
+(xml-doc-get-root-element doc)
+@result{} #<foreign:xml-node:848e618>
+@end example
+@end deffn
+
+@c ======================================================================
+@deffn {procedure} xml-get-int-subset doc::xml-doc  @result{} xml-dtd of #f
+
+Get the DTD of a document. Return the @code{xml-dtd} object or scheme
+FALSE.
+
+@end deffn
+
+@c ======================================================================
+@subsubsection Output
+@c ======================================================================
+@deffn {procedure} xml-doc-save doc::xml-doc filename::string #!key encoding indent  @result{} int
+
+Save an @code{xml-doc} to a file. The @var{encoding} argument should
+be a valid encoding name string. If the @var{encoding} argument was
+missing, the document's encoding will be used.
+
+If the @var{indent} argument was given with true value, the result
+will be indented. See also @code{xml-keep-blanks-default} and
+@code{xml-indent-tree-output}.
+
+For example: 
+
+@example
+(define doc (xml-parse-memory "<a name='b'><c type='d'/></a>"))
+
+;; Dump XML doc without indenting
+(xml-doc-save doc "out.xml")
+@result{} <a name="b"><c type="d"/></a>
+
+;; Dump XML tree with indenting
+(xml-doc-save doc "out.xml" indent: #t)
+@result{} 
+<a name="b">
+  <c type="d"/>
+</a>
+
+;; Dump XML tree with non-default encoding
+(xml-doc-save doc "out.xml" encoding: "koi8-r")
+@result{} 
+<?xml version="1.0" encoding="koi8-r"?>
+<a name="b"><c type="d"/></a>
+@end example
+@end deffn
+@c ======================================================================
+
+@include xpath.texi
+@include encoding.texi
+
+@c ======================================================================
+@subsection Memory management
+@c ======================================================================
+@anchor{Memory management}
+@c ======================================================================
+@deffn {procedure} xml-gc-mem-setup 
+
+The procedure @code{xml-gc-mem-setup} switches Boehm GC memory
+handling on. After this procedure has been called, the xmlFree@dots{}
+calls are no more required to free the memory allocated by bigloo-xml
+objects.
+
+This procedure should be called prior all other calls to bigloo-xml.
+
+@end deffn
+
+@include xmlutils.texi
+

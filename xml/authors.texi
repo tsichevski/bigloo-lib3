@@ -1,0 +1,2 @@
+@cite{bigloo-xml} was designed and implemented by Vladimir Tsichevski
+(@url{wowa1@@online.ru}).

@@ -1,0 +1,78 @@
+;;-*-scheme-*-
+(module
+ xmlsave
+ (import xtree xmlregexp xmlio encoding)
+ (library common)
+ (include "common.sch")
+ (extern
+  (include "libxml/xmlsave.h")
+  )
+ )
+
+;; typedef enum {
+;;     XML_SAVE_FORMAT     = 1<<0	/* format save output */
+;; } xmlSaveOption
+
+
+(define-object xmlSaveCtxt ())
+
+;; xmlSaveCtxt
+;; 		xmlSaveToFd		(int fd,
+;; 					 const char *encoding,
+;; 					 int options)
+;; xmlSaveCtxt
+;; 		xmlSaveToFilename	(const char *filename,
+;; 					 const char *encoding,
+;; 					 int options)
+
+; (define-func xmlSaveToBuffer xmlSaveCtxt
+;   ((xmlBuffer buffer)
+;    (string encoding "char *")
+;    (int options)))
+
+;; xmlSaveCtxt
+;; 		xmlSaveToIO		(xmlOutputWriteCallback iowrite,
+;; 					 xmlOutputCloseCallback ioclose,
+;; 					 void *ioctx,
+;; 					 const char *encoding,
+;; 					 int options)
+
+(define-func xmlSaveDoc long ((xmlSaveCtxt ctxt)(xmlDoc doc)))
+
+(define-func xmlSaveTree long
+  ((xmlSaveCtxt ctxt)
+   (xmlNode node)))
+
+(define-func xmlSaveFlush int ((xmlSaveCtxt ctxt)))
+
+(define-func xmlSaveClose int ((xmlSaveCtxt ctxt)))
+;; int
+;; 		xmlSaveSetEscape	(xmlSaveCtxt ctxt,
+;; 					 xmlCharEncodingOutputFunc escape)
+;; int
+;; 		xmlSaveSetAttrEscape	(xmlSaveCtxt ctxt,
+;; 					 xmlCharEncodingOutputFunc escape)
+
+(define-export (xml-node-dump-output
+		buf::xml-output-buffer
+		cur::xmlobj
+		#!key
+		level
+		doc
+		encoding)
+  (let* ((buf::xml-output-buffer buf)
+	 (doc::xml-doc (or doc (xmlobj-doc cur)))
+	 (cur::xml-node cur)
+	 (level::int (or level (pragma::int "0")))
+	 (format::bool level)
+	 (encoding::string (or encoding (xml-doc-encoding doc))))
+    (pragma
+     "xmlNodeDumpOutput($1, $2, $3, $4, $5, (char*)$6)"
+     buf
+     doc
+     cur
+     level
+     format
+     encoding)
+    #unspecified))
+

@@ -1,0 +1,71 @@
+# -*-rpm-spec-*-
+%define version	@VERSION@
+%define release	1
+%define name 	bigloo-xml
+%define realname  bigloo-xml
+
+Summary:	Bigloo scheme bindings for the libxml2 library
+License:	Binary
+Name:    	%{name}
+Version: 	%{version}
+Release: 	%{release}
+Copyright: 	LGPL
+Vendor:		Vladimir Tsichevski <wowa1@online.ru>
+Group:		Development tools
+URL:		wowa1@online.ru
+Source0: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Requires:	expat >= 1.95
+BuildRequires:	expat-devel >= 1.95, bigloo >= 2.6e, bigloo-lib >= 0.20
+
+%description
+
+   The `bigloo-xml' is a command-line tool that can help in developing
+packages for `BMC Patrol' <http://www.bmc.com>. `bigloo-xml' manages a
+project as a single unit, supports the whole project life-cycle.
+
+   On input, `bigloo-xml' reads an XML file as the only source of
+project-related information, and then processes it in batch mode. The
+format of that file is suitable both for manual creation, and for
+processing by any XML-processing tool as well.
+
+   On output `bigloo-xml' produces a complete set of files, which are ready
+for loading to `PATROL(C) Agent' with `PATROL(C) Developer Console'.
+
+   `bigloo-xml' automates many repeating development tasks by means of a
+number of built-in filters. `bigloo-xml' embeds a high-level programming
+language Scheme, which allows an advanced developer to create his/her
+own custom filters.
+
+%prep
+
+%setup
+./configure --enable-bench --prefix=/usr
+
+%build
+make
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+make install DESTDIR=%{buildroot}
+gzip $RPM_BUILD_ROOT/usr/info/*.info
+
+%clean
+rm -rf %{buildroot}
+
+%post
+
+%postun
+
+%files
+%files
+/usr/bin/bigloo-xml
+%{_infodir}/*info*
+%{_infodir}/dir
+%{_sharedir}/bigloo-xml/*
+
+%changelog
+%changelog
+* Mon Nov 25 2004 Vladimir Tsichevski <wowa1@online.ru> 
+- Initial build.
