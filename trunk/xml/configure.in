@@ -57,7 +57,7 @@ AC_SUBST(pdf_ru_target)
 AC_CONFIG_FILES([				\
   Makefile					\
   bigloo-xml.spec				\
-  bxml.init					\
+  xml.init					\
   config.texi
 ],
 [])

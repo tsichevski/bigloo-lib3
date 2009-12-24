@@ -3,21 +3,21 @@
 include $(top_srcdir)/Makefile.rules
 
 PACKAGE			= bigloo-xml
-SUBPACKAGE		= bxml
+SUBPACKAGE		= xml
 
-EXTRA_LIBRARIES		= libbxml-@bigloo_revision@.a libbxml_u-@bigloo_revision@.a
-libbxml_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
-libbxml_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
-libbxml_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
+EXTRA_LIBRARIES		= libxml-@bigloo_revision@.a libxml_u-@bigloo_revision@.a
+libxml_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
+libxml_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
+libxml_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
 
-libbxml_u_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
-libbxml_u_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
-libbxml_u_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
+libxml_u_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
+libxml_u_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
+libxml_u_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
 
-lib_LTLIBRARIES		= libbxml_s-@bigloo_revision@.la
-libbxml_s_@bigloo_revision@_la_SOURCES	= $(lib_SOURCES)
-libbxml_s_@bigloo_revision@_la_LIBADD	= $(lib_LTOBJECTS)
-libbxml_s_@bigloo_revision@_la_DEPENDENCIES = $(lib_LTOBJECTS)
+lib_LTLIBRARIES		= libxml_s-@bigloo_revision@.la
+libxml_s_@bigloo_revision@_la_SOURCES	= $(lib_SOURCES)
+libxml_s_@bigloo_revision@_la_LIBADD	= $(lib_LTOBJECTS)
+libxml_s_@bigloo_revision@_la_DEPENDENCIES = $(lib_LTOBJECTS)
 
 SCM		= xmlutils
 DEFS_SRC	= xmlio xmlsave xmlmemory xtree xmlregexp xpath xparser \
@@ -47,7 +47,7 @@ bin_SCRIPTS	=
 EXTRA_DIST = test.scm test.sch
 
 CONFIG_CLEAN_FILES = bigloo-xml.spec config.guess config.sub configure \
-	COPYING INSTALL install-sh ltmain.sh missing aclocal.m4 bxml.init \
+	COPYING INSTALL install-sh ltmain.sh missing aclocal.m4 xml.init \
 	config.texi
 
 info_TEXINFOS	= bigloo-xml.texi
