@@ -25,8 +25,8 @@
 
 (module test
 	(include "test.sch")
-	(library bxml)
+	(library xml)
 )
 
-*bxml-version*
+*xml-version*
 
