@@ -31,17 +31,17 @@ AC_OUTPUT([					\
   xml/Makefile					\
   xml/config.texi				\
   xml/bxml.init					\
-  gd/Makefile					\
   ldap/Makefile					\
   node/Makefile					\
   http/Makefile					\
   rdbms/Makefile				\
   rdbms/rdbms.init				\
-  expat/Makefile				\
-  bgtk/Makefile					\
-  bgtk/bgtk.init				\
-  gl/Makefile					\
-  gl/gl.init					\
   docs/Makefile					\
   docs/bigloo-lib-version.texi			\
 ])
+#  gd/Makefile					\
+#  expat/Makefile				\
+#  bgtk/Makefile					\
+#  bgtk/bgtk.init				\
+#  gl/Makefile					\
+#  gl/gl.init					\
