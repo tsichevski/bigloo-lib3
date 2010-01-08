@@ -267,11 +267,13 @@ AC_SEARCH_LIBS(dlopen, dl,
 AC_SUBST(dl_option)
 AC_SUBST(dl_targets)
 
+echo ac_pwd ${ac_pwd}
+
 if test -z "$cgen" ; then
-  if test -f "${top_srcdir}/cgen.scm" ; then
+  if test -f "${ac_pwd}/cgen.scm" ; then
     # we are building the common package
     cgen=./cgen${EXEEXT}
-  elif test -f ${top_dir}/common/cgen.scm ; then
+  elif test -f ${ac_pwd}/common/cgen.scm ; then
     # we are building entire bigloo-lib package at once
     cgen=../common/cgen${EXEEXT}
   else
