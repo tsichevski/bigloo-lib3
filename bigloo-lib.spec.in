@@ -4,10 +4,10 @@ Name:    	bigloo-lib
 Version: 	@VERSION@
 Release: 	1
 License: 	LGPL
-Vendor:		Vladimir Tsichevski <wowa1@online.ru>
+Vendor:		Vladimir Tsichevski <tsichevski@gmail.com>
 Source: 	http://download.sourceforge.net/bigloo-lib/bigloo-lib-@VERSION@.tar.gz
 Group:		Development
-Packager:	Vladimir Tsichevski <wowa@jet.msk.su>
+Packager:	Vladimir Tsichevski <tsichevski@gmail.com>
 BuildRoot:	/var/tmp/bigloo-lib
 #BuildRequires:	bigloo,openldap-devel,expat
 
