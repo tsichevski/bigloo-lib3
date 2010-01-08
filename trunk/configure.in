@@ -30,7 +30,7 @@ AC_OUTPUT([					\
   common/common.init				\
   xml/Makefile					\
   xml/config.texi				\
-  xml/bxml.init					\
+  xml/xml.init					\
   ldap/Makefile					\
   node/Makefile					\
   http/Makefile					\

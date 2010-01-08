@@ -168,8 +168,8 @@ TOOL_LIB_SUFFIX           = @tool_lib_suffix@
 
 transform=s,^driver$$,bigloo-$(SUBPACKAGE),
 
-driver.scm:
-	@bigloo_executable@ -i ../make-driver $(SUBPACKAGE) $(USE_LIBS) > foo && mv foo $@
+# driver.scm:
+# 	@bigloo_executable@ -i ../make-driver $(SUBPACKAGE) $(USE_LIBS) > foo && mv foo $@
 
 #======================================================================
 # bigloo-common as rpm
