@@ -33,16 +33,15 @@
   )
  (export
   (http-emit-header code::int message::bstring attributes::pair-nil)
-  (http-ok #!optional)
+  (http-ok #!optional (attributes '()))
   (http-redirect url::bstring)
   (http-redirect-relative uri::bstring)
-  (http-authorization-required-answer #!optional)
+  (http-authorization-required-answer #!optional (realm "default"))
   (current-http-content-type . args)
   (client-charset . args)
   (current-expiration-seconds . args)
   *already-emitted*
   )
- (eval(export-all))
  )
 
 ;*-------------------------------------------------------------------*;

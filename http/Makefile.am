@@ -5,19 +5,19 @@ include $(top_srcdir)/Makefile.rules
 PACKAGE=bigloo-http
 SUBPACKAGE=http
 
-EXTRA_LIBRARIES		= libhttp.a libhttp_u.a 
-libhttp_a_SOURCES	= $(lib_SOURCES)
-libhttp_a_LIBADD	= $(lib_OBJECTS)
-libhttp_a_DEPENDENCIES = $(lib_OBJECTS)
+EXTRA_LIBRARIES		= libhttp-@bigloo_revision@.a libhttp_u-@bigloo_revision@.a 
+libhttp_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
+libhttp_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
+libhttp_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
 
-libhttp_u_a_SOURCES	= $(lib_SOURCES)
-libhttp_u_a_LIBADD	= $(lib_OBJECTS)
-libhttp_u_a_DEPENDENCIES = $(lib_OBJECTS)
+libhttp_u_@bigloo_revision@_a_SOURCES	= $(lib_SOURCES)
+libhttp_u_@bigloo_revision@_a_LIBADD	= $(lib_OBJECTS)
+libhttp_u_@bigloo_revision@_a_DEPENDENCIES = $(lib_OBJECTS)
 
-lib_LTLIBRARIES		= libhttp_s.la
-libhttp_s_la_SOURCES	= $(lib_SOURCES)
-libhttp_s_la_LIBADD	= $(lib_LTOBJECTS)
-libhttp_s_la_DEPENDENCIES = $(lib_LTOBJECTS)
+lib_LTLIBRARIES		= libhttp_s-@bigloo_revision@.la
+libhttp_s_@bigloo_revision@_la_SOURCES	= $(lib_SOURCES)
+libhttp_s_@bigloo_revision@_la_LIBADD	= $(lib_LTOBJECTS)
+libhttp_s_@bigloo_revision@_la_DEPENDENCIES = $(lib_LTOBJECTS)
 
 SCM		= http html-form-adapter http-cgi http-parse http-response
 EXTRA_SCM	= http-charset

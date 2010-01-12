@@ -28,10 +28,10 @@
  (library common)
  (include "common.sch")
  (export
-  (http-request-read-status-line::pair #!optional)
-  (http-request-read::pair-nil #!optional)
+  (http-request-read-status-line::pair #!optional port)
+  (http-request-read::pair-nil #!optional port)
   (http-url-decode::bstring str::bstring)
-  (http-url-encode::bstring str::bstring #!optional)
+  (http-url-encode::bstring str::bstring #!optional (escape "%"))
   (inline http-url-encode-double::bstring s::bstring)
   (http-decode-x-www-form-urlencoded::pair str::bstring)
   (http-print-query ::pair)
@@ -39,7 +39,8 @@
   (http-process-message-header::pair-nil alist::pair-nil)
   ))
 
-(define(http-request-read-status-line #!optional (port(current-input-port)))
+(define (http-request-read-status-line #!optional port)
+  (let ((port (or port (current-input-port))))
   (read/rp (regular-grammar
     ((crlf (: (? #\return) #\newline ))
      (word(+(out #\space #\tab #\newline #\return))))
@@ -51,10 +52,11 @@
      (list(the-submatch 1)(the-submatch 2)(the-submatch 3)))
     (else
      (error "http-request-read-status-line" "Unexpected EOF"(the-failure))))
-   port))
+   port)))
 ;;(pp(http-request-read-status-line (open-input-string #"HTTP/1.1 200 Ok\r\n")))
 
-(define(http-request-read #!optional (port(current-input-port)))
+(define (http-request-read #!optional port)
+  (let ((port (or port (current-input-port))))
   (let((attributes '()))
     (read/rp (regular-grammar
       ((crlf (: #\return #\newline)))
@@ -71,7 +73,7 @@
       (crlf(reverse attributes))
       (else
        (error "http-request-read" "Unexpected EOF"(the-failure))))
-     port)))
+     port))))
 
 ;;(pp(http-request-read(open-input-string #"Date: Tue, 21 Sep 1999 11:02:47 GMT\r\nServer: Apache/1.2.4 rus/PL20.7\r\nexpires: Wed Sep 22 15:02:52 1999\r\nConnection: close\r\nContent-Type: text/html\r\nVary: accept-charset\r\n\r\nbody")))
 
