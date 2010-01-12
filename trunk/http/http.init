@@ -3,10 +3,10 @@
 (define-inline(make-tree-adapter name source::symbol path::pair)
   `(define(,name #!optional value)
      (if value
-	 (set-cdr!
-	  (tree-lookup! ,source  ',path)
-	  value)
-	 (tree-lookup ,source ',path))))
+         (set-cdr!
+          (tree-lookup! ,source  ',path)
+          value)
+         (tree-lookup ,source ',path))))
 
 
 (define-macro(define-http-context-adapter name)
@@ -14,13 +14,13 @@
 
 (define-macro(define-query-adapter name)
   (make-tree-adapter name
-		     '*current-http-context*
-		     (list 'current-http-query name)))
+                     '*current-http-context*
+                     (list 'current-http-query name)))
 
 
 (define-macro(define-cookie-adapter name)
   (make-tree-adapter name
-		     '*current-http-context*
-		     (list 'current-http-cookies name)))
+                     '*current-http-context*
+                     (list 'current-http-cookies name)))
 
 

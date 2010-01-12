@@ -1,76 +1,75 @@
 ;; -*-Scheme-*-
 
-;************************************************************************/
-;*                                                                      */
-;* Copyright (c) 2003 Vladimir Tsichevski <wowa1@online.ru>             */
-;*                                                                      */
-;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
-;*                                                                      */
-;* This library is free software; you can redistribute it and/or        */
-;* modify it under the terms of the GNU Lesser General Public           */
-;* License as published by the Free Software Foundation; either         */
-;* version 2 of the License, or (at your option) any later version.     */
-;*                                                                      */
-;* This library is distributed in the hope that it will be useful,      */
-;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
-;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
-;* Lesser General Public License for more details.                      */
-;*                                                                      */
-;* You should have received a copy of the GNU Lesser General Public     */
-;* License along with this library; if not, write to the Free Software  */
-;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
-;* USA                                                                  */
-;*                                                                      */
-;************************************************************************/
+;;************************************************************************/
+;;*                                                                      */
+;;* Copyright (c) 2003 Vladimir Tsichevski <tsichevski@gmail.com>        */
+;;*                                                                      */
+;;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;;*                                                                      */
+;;* This library is free software; you can redistribute it and/or        */
+;;* modify it under the terms of the GNU Lesser General Public           */
+;;* License as published by the Free Software Foundation; either         */
+;;* version 2 of the License, or (at your option) any later version.     */
+;;*                                                                      */
+;;* This library is distributed in the hope that it will be useful,      */
+;;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;;* Lesser General Public License for more details.                      */
+;;*                                                                      */
+;;* You should have received a copy of the GNU Lesser General Public     */
+;;* License along with this library; if not, write to the Free Software  */
+;;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;;* USA                                                                  */
+;;*                                                                      */
+;;************************************************************************/
 
 (define (make-version-name name) (symbol-append '* name '-version*))
 
 (let((args(map string->symbol(cdr(command-line)))))
   (unless(pair? args)
-	 (print "Usage: "(car(command-line))" library-name [required-library] ...")
-	 (exit 1))
+         (print "Usage: "(car(command-line))" library-name [required-library] ...")
+         (exit 1))
   (let((this-library(car args)))
     (for-each
      pp
      `((module
-	test
-	,@(map(lambda(name)`(library ,name)) args)
-	(main main)
-	)
+        test
+        ,@(map(lambda(name)`(library ,name)) args)
+        (main main)
+        )
        
        ,@(map make-version-name args)
        
        (define(main argv)
-	 (let((in '()))
-	   
-	   (args-parse
-	    (cdr argv)
-	    
-	    (section "Help")
-	    (("--version" (help "Print version info and exit"))
-	     (print ,(make-version-name (car args)))
-	     (exit 0))
-	    
-	    ((("-h" "--help")(help "Print this help message and exit"))
-	     (args-parse-usage #f)
-	     (exit 0))
-	    
-	    (section "Options")
-	    ((("-I" "--include")
-	      ?dir (synopsis "Add  to load file search path"))
-	     (set! *load-path* (cons dir *load-path*)))
-	   
-	    (section "Misc")
+         (let((in '()))
+           
+           (args-parse
+            (cdr argv)
+            
+            (section "Help")
+            (("--version" (help "Print version info and exit"))
+             (print ,(make-version-name (car args)))
+             (exit 0))
+            
+            ((("-h" "--help")(help "Print this help message and exit"))
+             (args-parse-usage #f)
+             (exit 0))
+            
+            (section "Options")
+            ((("-I" "--include")
+              ?dir (synopsis "Add  to load file search path"))
+             (set! *load-path* (cons dir *load-path*)))
+            
+            (section "Misc")
 
-	    ((("-e" "--eval")
-	      ?sexp (synopsis "Evaluate a scheme expression"))
-	     (eval (with-input-from-string sexp read)))
-	   
-	    (else (set! in (cons else in))))
-	   
-	   (if(null? in)
-	      (repl)
-	      (let((args(reverse in)))
-		
-		(set! *the-command-line* args)
-		(loadq (car args))))))))))
+            ((("-e" "--eval")
+              ?sexp (synopsis "Evaluate a scheme expression"))
+             (eval (with-input-from-string sexp read)))
+            
+            (else (set! in (cons else in))))
+           
+           (if(null? in)
+              (repl)
+              (let((args(reverse in)))                
+                (set! *the-command-line* args)
+                (loadq (car args))))))))))

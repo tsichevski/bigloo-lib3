@@ -28,9 +28,7 @@
  cache-node
  (export
   (make-cache get-key::procedure make::procedure)
-  )
- (eval(export-all))
- )
+  ))
 
 (define(make-cache get-key make)
   (let((ht (make-hashtable)))
