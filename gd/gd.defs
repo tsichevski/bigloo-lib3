@@ -1,0 +1,522 @@
+;; -*-Scheme-*-
+
+;;************************************************************************/
+;;*                                                                      */
+;;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;;*                                                                      */
+;;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;;*                                                                      */
+;;* This library is free software; you can redistribute it and/or        */
+;;* modify it under the terms of the GNU Lesser General Public           */
+;;* License as published by the Free Software Foundation; either         */
+;;* version 2 of the License, or (at your option) any later version.     */
+;;*                                                                      */
+;;* This library is distributed in the hope that it will be useful,      */
+;;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;;* Lesser General Public License for more details.                      */
+;;*                                                                      */
+;;* You should have received a copy of the GNU Lesser General Public     */
+;;* License along with this library; if not, write to the Free Software  */
+;;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;;* USA                                                                  */
+;;*                                                                      */
+;;************************************************************************/
+
+(module
+ gd
+ (include "gd.sch")
+ (extern (include "gd.h")
+	 
+	 ;; remove the include directives below along with corresponding
+	 ;; gd-font-... defs, if you do not wand buil-in fonts
+	 (include "gdfontg.h")
+	 (include "gdfontl.h")
+	 (include "gdfontmb.h")
+	 (include "gdfonts.h")
+	 (include "gdfontt.h")
+	 )
+ (export
+  (gd-image-transparent gd::gd-image)
+  *gd-font-tiny*
+  *gd-font-small*
+  *gd-font-medium-bold*
+  *gd-font-large*
+  *gd-font-giant*
+  (gd-image-polygon gd::gd-image points::pair color::gd-color)
+  (gd-image-filled-polygon gd::gd-image points::pair color::gd-color)
+  (gd-image-set-style im::gd-image . style)
+  )
+ (extern
+  ;;(export gd-source "gd_source")
+  )
+ )
+
+(define-object gdImage ()
+  (fields
+   (int sx)
+   (int sy)
+   (int colorsTotal)
+   ))
+
+;;; return index of transparent color or #f if not defined
+(define(gd-image-transparent gd::gd-image)
+  (let((raw(pragma::int "gdImageGetTransparent($1)"gd)))
+    (and(>fx raw 0)
+	raw)))
+
+(define-func gdImageCopy
+  none
+  ((gd-image dst)
+   (gd-image src)
+   (int dstx)
+   (int dsty)
+   (int srcx (= "0"))
+   (int srcy (= "0"))
+   (int w (= "gdImageSX($1)" src))
+   (int h (= "gdImageSY($1)" src))))
+
+;;; this is identical to bigloo 'file' type with modified
+;;; coercion to boolean type
+;;;(define-object (gd-file FILE*) ())
+
+(define-func gdImageCreate
+  gdImage
+  ((int sx) (int sy)))
+
+;;(define(gd-source::int context buffer::string len::int)
+;;  (let((res(context)))
+;;    (if(string? res)
+;;       (begin
+;;	 (pragma "memcpy($1, $2, $3)"buffer
+;;		 ($bstring->string res)
+;;		 len)
+;;	 0)
+;;       -1)))
+;;
+;;(define(gd-sink context buffer::string len::int)
+;;  (context(pragma::bstring "string_to_bstring_len($1, $2)"buffer len)))
+
+(define-func gdImageDestroy
+  none
+  ((gdImage im)))
+
+(define-enum-extended
+  (gd-color int)
+  (styled gdStyled)
+  (brushed gdBrushed)
+  (styled-brushed gdStyledBrushed)
+  (tiled gdTiled))
+
+(define-func gdImageSetPixel
+  none
+  ((gdImage im) (int x) (int y) (gd-color color)))
+
+(define-func gdImageGetPixel
+  int
+  ((gdImage im) (int x) (int y)))
+
+(define-func gdImageLine
+  none
+  ((gdImage im) (int x1) (int y1) (int x2) (int y2) (gd-color color)))
+
+(define-func gdImageDashedLine
+  none
+  ((gdImage im) (int x1) (int y1) (int x2) (int y2) (gd-color color)))
+
+(define-func gdImageRectangle
+  none
+  ((gdImage im) (int x1) (int y1) (int x2) (int y2) (gd-color color)))
+
+(define-func gdImageFilledRectangle
+  none
+  ((gdImage im) (int x1) (int y1) (int x2) (int y2) (gd-color color)))
+
+(define-func gdImageBoundsSafe
+  int
+  ((gdImage im) (int x) (int y)))
+
+(define-object gdFont()
+  (fields
+   ;; # of characters in font
+   (int nchars)
+   ;; First character is numbered... (usually 32 = space)
+   (int offset)
+   ;; Character width and height
+   (int w)
+   (int h)))
+
+(define-func gdImageChar
+  none
+  ((gdImage im) (gdFont f) (int x) (int y) (int c) (gd-color color)))
+
+(define-func gdImageCharUp
+  none
+  ((gdImage im) (gdFont f) (int x) (int y) (char c) (gd-color color)))
+
+(define-func gdImageString
+  none
+  ((gdImage im) (gdFont f) (int x) (int y) (string s) (gd-color color)))
+
+(define-func gdImageStringUp
+  none
+  ((gdImage im) (gdFont f) (int x) (int y) (string s) (gd-color color)))
+
+(define *gd-font-tiny*         (pragma::gd-font "gdFontTiny"))
+(define *gd-font-small*        (pragma::gd-font "gdFontSmall"))
+(define *gd-font-medium-bold*  (pragma::gd-font "gdFontMediumBold"))
+(define *gd-font-large*        (pragma::gd-font "gdFontLarge"))
+(define *gd-font-giant*        (pragma::gd-font "gdFontGiant"))
+
+(define-object gdPoint ()
+  (fields
+   (int x)
+   (int y)))
+
+(define (gd-image-polygon gd::gd-image
+			  points::pair
+			  color::gd-color)
+  (let*((l::int(length points))
+	(p*::gd-point
+	 (pragma::gd-point
+	  "(gdPoint*)GC_malloc_atomic(sizeof(gdPoint) * $1)"l)))
+    (let loop((i::int 0)
+	      (points points))
+      (unless(null? points)
+	     (pragma "$1[$2].x = $3; $1[$2].y = $4"
+		     p*
+		     i
+		     ($bint->int(caar points))
+		     ($bint->int(cdar points)))
+	     (loop(+fx i 1)
+		  (cdr points))))
+    
+    (pragma "gdImagePolygon($1, $2, $3, $4)"
+	    gd p* l color))
+  #unspecified)
+
+;;;(define-func gdImagePolygon
+;;;  none
+;;;  ((gdImage im) (gdPoint p) (int n) (int c)))
+
+(define (gd-image-filled-polygon gd::gd-image
+				points::pair
+				color::gd-color)
+  (let*((l::int(length points))
+	(p*::gd-point
+	 (pragma::gd-point
+	  "(gdPoint*)GC_malloc_atomic(sizeof(gdPoint) * $1)"l)))
+    (let loop((i::int 0)
+	      (points points))
+      (unless(null? points)
+	     (pragma "$1[$2].x = $3; $1[$2].y = $4"
+		     p* i
+		     ($bint->int(caar points))
+		     ($bint->int(cdar points)))
+	     (loop(+fx i 1)
+		  (cdr points))))
+    
+    (pragma "gdImageFilledPolygon($1, $2, $3, $4)"
+	    gd p* l color))
+  #unspecified)
+
+;;;(define-func gdImageFilledPolygon
+;;;  none
+;;;  ((gdImage im) (gdPoint p) (int n) (int c)))
+
+(define-func gdImageColorAllocate
+  int
+  ((gdImage im) (int r) (int g) (int b)))
+
+(define-func gdImageColorClosest
+  int
+  ((gdImage im) (int r) (int g) (int b)))
+
+(define-func gdImageColorExact
+  int
+  ((gdImage im) (int r) (int g) (int b)))
+
+(define-func gdImageColorDeallocate
+  none
+  ((gdImage im) (gd-color color)))
+
+(define-func gdImageColorTransparent
+  none
+  ((gdImage im) (gd-color color)))
+
+(define-func gdImageArc
+  none
+  ((gdImage im) (int cx) (int cy) (int w) (int h) (int s) (int e) (gd-color color)))
+
+(define-func gdImageFillToBorder
+  none
+  ((gdImage im) (int x) (int y) (int border) (gd-color color)))
+
+(define-func gdImageFill
+  none
+  ((gdImage im) (int x) (int y) (gd-color color)))
+
+(define-func gdImageCopyResized
+  none
+  ((gdImage dst) (gdImage src) (int dstX) (int dstY) (int srcX) (int srcY) (int dstW) (int dstH) (int srcW) (int srcH)))
+
+(define-func gdImageSetBrush
+  none
+  ((gdImage im) (gdImage brush)))
+
+(define-func gdImageSetTile
+  none
+  ((gdImage im) (gdImage tile)))
+
+(define-func gdImageInterlace
+  none
+  ((gdImage im) (bool interlaceArg)))
+
+;;; FIXME: needs checking for c < gdMaxColors
+(define-func gdImageGreen
+  gd-color
+  ((gdImage im) (int c)))
+
+(define-func gdImageRed
+  gd-color
+  ((gdImage im) (int c)))
+
+(define-func gdImageBlue
+  gd-color
+  ((gdImage im) (int c)))
+
+(define-func gdImageGetInterlaced
+  bool
+  ((gdImage im)))
+
+(make-gd-image-reader/writer "Gd")
+(make-gd-image-reader "Xbm")
+
+(define(gd-image-set-style im::gd-image . style)
+  (let*((len::int(length style))
+	(s::void* (pragma::void* "GC_malloc_atomic(sizeof(int) * $1)"len)))
+    (let loop((i 0)(style style))
+      (unless(null? style)
+	     (let((i::int i)
+		  (v::int(car style)))
+	       (pragma "((int*)$3)[$1] = $2"i v s))
+	     (loop(+fx i 1)(cdr style))))
+    (pragma "gdImageSetStyle($1, $3, $2)"im len s)
+    #unspecified))
+
+@if (memq 'gd-gif gd-targets)
+
+;;; gd GIF-specific stuff
+
+(module
+ gd-gif
+ (export
+  (gd-image-create-from-gif::gd-image #!optional fn)
+  (gd-image-write-gif im::gd-image #!optional fn)
+  )
+ )
+
+(make-gd-image-reader/writer "Gif")
+
+@endif
+
+@if (memq 'gd-png gd-targets)
+
+(module
+ gd-png
+ (export
+  (gd-image-create-from-png::gd-image #!optional fn)
+  (gd-image-write-png im::gd-image #!optional fn)
+  )
+ )
+
+(make-gd-image-reader/writer "Png")
+
+(define-object gdIOCtx ())
+
+(define-func gdImagePngCtx
+  none
+  ((gdImage im) (gdIOCtx *out)))
+
+(define-object gdSink ())
+;;typedef struct {
+;;        int (*sink) (void *context, const char *buffer, int len);
+;;        void *context;
+
+(define-func gdImagePngToSink
+  none
+  ((gdImage im) (gdSink out)))
+
+@endif
+
+@if (memq 'gd-ttf gd-targets)
+(module
+ gd-ttf
+ (export
+  (gd-image-string-ttf fg::int
+		       fontname::string
+		       ptsize::double
+		       angle::double
+		       x::int
+		       y::int
+		       string::string
+		       #!optional im)
+  )
+ )
+
+(define (gd-image-string-ttf fg::int
+			     fontname::string
+			     ptsize::double
+			     angle::double
+			     x::int
+			     y::int
+			     string::string
+			     #!optional im)
+  (let((im::gd-image (or im (pragma::gd-image "NULL")))
+       (rect::void*(pragma::void* "GC_malloc_atomic(sizeof(int) * 8)"))
+       )
+    (let((error-message::string
+	  (pragma::string "gdImageStringTTF($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+			  im
+			  rect
+			  fg
+			  fontname
+			  ptsize
+			  angle
+			  x
+			  y
+			  string)))
+      (if(pragma::bool "$1 == NULL" error-message)
+	 (values
+	  (pragma::int "((int*)$1)[0]"rect)
+	  (pragma::int "((int*)$1)[1]"rect)
+	  (pragma::int "((int*)$1)[2]"rect)
+	  (pragma::int "((int*)$1)[3]"rect)
+	  (pragma::int "((int*)$1)[4]"rect)
+	  (pragma::int "((int*)$1)[5]"rect)
+	  (pragma::int "((int*)$1)[6]"rect)
+	  (pragma::int "((int*)$1)[7]"rect))
+	 (error "gd-image-string-ttf" error-message "")))))
+@endif
+
+@if (memq 'gd-xpm gd-targets)
+
+(module
+ gd-xpm
+ (export
+  (gd-image-create-from-xpm::gd-image #!optional fn)
+  )
+ )
+
+(make-gd-image-reader "Xpm")
+
+@endif
+
+@if (memq 'gd-gd2 gd-targets)
+
+(module
+ gd-gd2
+ (export
+  (gd-image-create-from-gd2::gd-image #!optional fn)
+  (gd-image-write-gd2 im::gd-image #!optional fn cs size)
+  )
+ )
+
+(make-gd-image-reader "Gd2")
+
+(define(gd-image-write-gd2 im::gd-image #!optional fn cs size)
+  (let((cs::int (or cs (pragma::int "GD2_FMT_COMPRESSED")))
+       (size::int (or size (pragma::int "GD2_CHUNKSIZE")))
+       (fp::file
+	(cond
+	 ((string? fn)
+	  (let((fn::string fn))
+	    (pragma::file "fopen($1, \"wb\")" fn)))
+	 ((binary-port? fn)
+	  ($binary-port->file fn))	 
+	 ((not fn)
+	  (pragma::file "stdout"))
+	 (else
+	  (error "gd-image-write-gd2" "invalid argument"fn)))))
+    
+    (when (pragma::bool "$1 == NULL" fp)
+	  (error "gd-image-write-gd2" "cannot open for write"fn))
+    
+    (pragma "gdImageGd2($1, $2, $3, $4)" im fp cs size)
+    (when(string? fn)
+	 (pragma "fclose($1)" fp))
+    #unspecified))
+
+@endif
+
+@if (memq 'gd-jpeg gd-targets)
+
+(module
+ gd-jpeg
+ (export
+  (gd-image-create-from-jpeg::gd-image #!optional fn)
+  (gd-image-write-jpeg im::gd-image #!optional fn quality)
+  )
+ )
+
+(make-gd-image-reader "Jpeg")
+
+(define(gd-image-write-jpeg im::gd-image #!optional fn quality)
+  (let((quality::int (or quality -1))
+       (fp::file
+	(cond
+	 ((string? fn)
+	  (let((fn::string fn))
+	    (pragma::file "fopen($1, \"wb\")" fn)))
+	 ((binary-port? fn)
+	  ($binary-port->file fn))	 
+	 ((not fn)
+	  (pragma::file "stdout"))
+	 (else
+	  (error "gd-image-write-jpeg" "invalid argument"fn)))))
+    
+    (when (pragma::bool "$1 == NULL" fp)
+	  (error "gd-image-write-jpeg" "cannot open for write"fn))
+    
+    (pragma "gdImageJpeg($1, $2, $3)" im fp quality)
+    (when(string? fn)
+	 (pragma "fclose($1)" fp))
+    #unspecified))
+
+@endif
+
+@if (memq 'gd-wbmp gd-targets)
+
+(module
+ gd-wbmp
+ (export
+  (gd-image-create-from-wbmp::gd-image #!optional fn)
+  (gd-image-write-wbmp im::gd-image #!optional fn fg-color)
+  )
+ )
+
+(make-gd-image-reader "WBMP")
+
+(define(gd-image-write-wbmp im::gd-image #!optional fn fg-color)
+  (let((fg-color::int (or fg-color (gd-image-color-allocate im 0 0 0)))
+       (fp::file
+	(cond
+	 ((string? fn)
+	  (let((fn::string fn))
+	    (pragma::file "fopen($1, \"wb\")" fn)))
+	 ((binary-port? fn)
+	  ($binary-port->file fn))	 
+	 ((not fn)
+	  (pragma::file "stdout"))
+	 (else
+	  (error "gd-image-write-wbmp" "invalid argument"fn)))))
+    
+    (when (pragma::bool "$1 == NULL" fp)
+	  (error "gd-image-write-wbmp" "cannot open for write"fn))
+    
+    (pragma "gdImageWBMP($1, $2, $3)" im fg-color fp)
+    (when(string? fn)
+	 (pragma "fclose($1)" fp))
+    #unspecified))
+
+@endif
