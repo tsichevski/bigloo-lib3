@@ -14,7 +14,7 @@ dnl AM_PATH_GTKGL
 m4_include([bigloo-lib.m4])
 m4_include([common/common.m4])
 m4_include([xml/xml.m4])
-dnl m4_include([gd/gd.m4])
+m4_include([gd/gd.m4])
 dnl m4_include([expat/expat.m4])
 m4_include([rdbms/rdbms.m4])
 dnl m4_include([bgtk/bgtk.m4])
@@ -32,6 +32,7 @@ AC_OUTPUT([					\
   xml/config.texi				\
   xml/xml.init					\
   ldap/Makefile					\
+  gd/Makefile					\
   node/Makefile					\
   http/Makefile					\
   rdbms/Makefile				\
@@ -39,7 +40,6 @@ AC_OUTPUT([					\
   docs/Makefile					\
   docs/bigloo-lib-version.texi			\
 ])
-#  gd/Makefile					\
 #  expat/Makefile				\
 #  bgtk/Makefile					\
 #  bgtk/bgtk.init				\
