@@ -1,0 +1,2 @@
+;; -*-Scheme-*-
+(set! *include-foreign*(cons* "gd.h" *include-foreign*))
