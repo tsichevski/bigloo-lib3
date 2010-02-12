@@ -1,0 +1,165 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ entities
+ (import xmlregexp xtree)
+ (library common)
+ (include "common.sch")
+ (extern
+  (include "libxml/tree.h")
+  )
+ )
+
+;; void xmlInitializePredefinedEntities (void);
+
+;; xmlEntityPtr
+;;                      xmlNewEntity            (xmlDocPtr doc,
+;;                                               const string name,
+;;                                               int type,
+;;                                               const string ExternalID,
+;;                                               const string SystemID,
+;;                                               const string content);
+#|
+(define (xml-add-doc-entity::xml-entity
+         doc::xml-doc
+         name::string
+         type
+         external-id
+         system-id
+         content::string)
+  (let ((doc::xml-doc doc)
+        (name::string name)
+        (type::int (or type )
+        (external-id::string
+          (or external-id (pragma::string "NULL")))
+        (system-id::string
+          (or system-id (pragma::string "NULL")))
+        (content::string content))
+    (pragma::xml-entity
+      "xmlAddDocEntity($1, (char*)$2, $3, (char*)$4, (char*)$5, (char*)$6)"
+      doc
+      name
+      type
+      external-id
+      system-id
+      content)))
+|#
+
+(define-export (xml-add-doc-entity::xml-entity
+                doc::xml-doc
+                name::string
+                content::string
+                #!key
+                type
+                external-id
+                system-id
+                )
+  (let ((doc::xml-doc doc)
+        (name::string name)
+        (type::xml-entity-type (or type 'internal-general))
+        (external-id::string
+          (or external-id (pragma::string "NULL")))
+        (system-id::string
+          (or system-id (pragma::string "NULL")))
+        (content::string content))
+    (pragma::xml-entity
+      "xmlAddDocEntity($1, (char*)$2, $3, (char*)$4, (char*)$5, (char*)$6)"
+      doc
+      name
+      type
+      external-id
+      system-id
+      content)))
+
+(define-export (xml-add-dtd-entity::xml-entity
+                doc::xml-doc
+                name::string
+                content::string
+                #!key
+                type
+                external-id
+                system-id
+                )
+  (let ((doc::xml-doc doc)
+        (name::string name)
+        (type::xml-entity-type (or type 'internal-general))
+        (external-id::string
+          (or external-id (pragma::string "NULL")))
+        (system-id::string
+          (or system-id (pragma::string "NULL")))
+        (content::string content))
+    (pragma::xml-entity
+      "xmlAddDtdEntity($1, (char*)$2, $3, (char*)$4, (char*)$5, (char*)$6)"
+      doc
+      name
+      type
+      external-id
+      system-id
+      content)))
+
+;; xmlEntityPtr
+;;                      xmlGetPredefinedEntity  (const string name);
+;; xmlEntityPtr
+;;                      xmlGetDocEntity         (xmlDocPtr doc,
+;;                                               const string name);
+;; xmlEntityPtr
+;;                      xmlGetDtdEntity         (xmlDocPtr doc,
+;;                                               const string name);
+;; xmlEntityPtr
+;;                      xmlGetParameterEntity   (xmlDocPtr doc,
+;;                                               const string name);
+;; #ifdef LIBXML_LEGACY_ENABLED
+;; const string 
+;;                      xmlEncodeEntities       (xmlDocPtr doc,
+;;                                               const string input);
+;; #endif ;; LIBXML_LEGACY_ENABLED
+;; string 
+;;                      xmlEncodeEntitiesReentrant(xmlDocPtr doc,
+;;                                               const string input);
+;; string 
+;;                      xmlEncodeSpecialChars   (xmlDocPtr doc,
+;;                                               const string input);
+;; xmlEntitiesTablePtr
+;;                      xmlCreateEntitiesTable  (void);
+;; #ifdef LIBXML_TREE_ENABLED
+;; xmlEntitiesTablePtr
+;;                      xmlCopyEntitiesTable    (xmlEntitiesTablePtr table);
+;; #endif ;; LIBXML_TREE_ENABLED
+;; void
+;;                      xmlFreeEntitiesTable    (xmlEntitiesTablePtr table);
+;; #ifdef LIBXML_OUTPUT_ENABLED
+;; void
+;;                      xmlDumpEntitiesTable    (xmlBufferPtr buf,
+;;                                               xmlEntitiesTablePtr table);
+;; void
+;;                      xmlDumpEntityDecl       (xmlBufferPtr buf,
+;;                                               xmlEntityPtr ent);
+;; #endif ;; LIBXML_OUTPUT_ENABLED
+;; #ifdef LIBXML_LEGACY_ENABLED
+;; void
+;;                      xmlCleanupPredefinedEntities(void);
+;; #endif ;; LIBXML_LEGACY_ENABLED
+
