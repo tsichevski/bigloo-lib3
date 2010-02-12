@@ -20,7 +20,7 @@ libxml_s_@bigloo_revision@_la_LIBADD	= $(lib_LTOBJECTS)
 libxml_s_@bigloo_revision@_la_DEPENDENCIES = $(lib_LTOBJECTS)
 
 SCM		= xmlutils
-DEFS_SRC	= xmlio xmlsave xmlmemory xtree xmlregexp xpath xparser \
+DEFS_SRC	= entities xmlio xmlsave xmlmemory xtree xmlregexp xpath xparser \
 	xmlglobals encoding
 
 C		= 

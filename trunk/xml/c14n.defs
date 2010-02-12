@@ -1,11 +1,33 @@
-;; -*-scheme-*-
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
 (module
  c14n
 
 ;; Summary: Provide Canonical XML and Exclusive XML Canonicalization
-;; Description: the c14n modules provides a
-
-;; "Canonical XML" implementation 
+;; Description: the c14n modules provides a "Canonical XML" implementation 
 ;; http://www.w3.org/TR/xml-c14n
 
 ;; and an
@@ -13,18 +35,6 @@
 ;; "Exclusive XML Canonicalization" implementation
 ;; http://www.w3.org/TR/xml-exc-c14n
  
-;; Author: Aleksey Sanin <aleksey@aleksey.com>
-
-;; #include <libxml/xmlversion.h>
-;; #include <libxml/tree.h>
-;; #include <libxml/xpath.h> 
-
-;; XML Canonicazation
-;; http://www.w3.org/TR/xml-c14n
-
-;; Exclusive XML Canonicazation
-;; http://www.w3.org/TR/xml-exc-c14n
-
 ;; Canonical form of an XML document could be created if and only if
 ;;  a) default attributes (if any) are added to all nodes
 ;;  b) all character and parsed entity references are resolved
@@ -36,7 +46,6 @@
 
 ;; or corresponding parser context setting:
 ;;    xmlParserCtxt ctxt;
-   
 ;;    ... 
 ;;    ctxt->loadsubset = XML_DETECT_IDS | XML_COMPLETE_ATTRS;
 ;;    ctxt->replaceEntities = 1;
