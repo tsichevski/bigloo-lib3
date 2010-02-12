@@ -25,23 +25,23 @@
   (predicate
    (or (xml-node? o)
        (and (foreign? o)
-	    (case (foreign-id o)
-	      ((xml-attribute xml-attr-decl xml-element-decl
-			      xml-dtd)
-	       #t)
-	      (else #f))))))
+            (case (foreign-id o)
+              ((xml-attribute xml-attr-decl xml-element-decl
+                              xml-dtd)
+               #t)
+              (else #f))))))
 
 ;; xmlAttr: An attribute on an XML node.
 (define-object (xml-attribute xmlAttrPtr) ((xmlobj xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-attribute) #t)
-	  ((xml-node)
-	   (pragma::bool
-	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_NODE"
-	    o))
-	  (else #f))))
+        (case (foreign-id o)
+          ((xml-attribute) #t)
+          ((xml-node)
+           (pragma::bool
+            "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_NODE"
+            o))
+          (else #f))))
   (fields
    (xmlNs ns (false))             ; pointer to the associated namespace
    (xmlAttributeType atype) ; the attribute type if validating
@@ -52,13 +52,13 @@
 (define-object xmlNode ((xmlobj xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-node xml-element xml-text xml-cdata-section
-		     xml-entity-ref xml-entity xml-pi
-		     xml-comment xml-document-frag xml-notation
-		     xml-doc)
-	   #t)
-	  (else #f))))
+        (case (foreign-id o)
+          ((xml-node xml-element xml-text xml-cdata-section
+                     xml-entity-ref xml-entity xml-pi
+                     xml-comment xml-document-frag xml-notation
+                     xml-doc)
+           #t)
+          (else #f))))
 
   (fields
    (xmlNs ns (false))               ; pointer to the associated namespace
@@ -86,14 +86,14 @@
 (define-object (xml-element xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-element)
-	   #t)
-	  ((xml-node)
-	   (pragma::bool 
-	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_NODE"
-	    o))
-	  (else #f)))))
+        (case (foreign-id o)
+          ((xml-element)
+           #t)
+          ((xml-node)
+           (pragma::bool 
+            "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_NODE"
+            o))
+          (else #f)))))
 
 (define-export (xml-node->string::bstring nd::xmlobj)
   (let((buf (xml-buffer-create)))
@@ -115,7 +115,7 @@
             (pragma::bool
               "xmlNodeIsText((xmlNodePtr)FOREIGN_TO_COBJ($1))"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 (define-object (xml-cdata-section xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -126,7 +126,7 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_CDATA_SECTION_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 (define-object (xml-entity-ref xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -137,18 +137,43 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ENTITY_REF_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
-(define-object (xml-entity xmlNodePtr) ((xml-node xmlNodePtr))
+(define-enum xmlEntityType
+  (internal-general XML_INTERNAL_GENERAL_ENTITY)
+  (external-general-parsed XML_EXTERNAL_GENERAL_PARSED_ENTITY)
+  (external-general-unparsed XML_EXTERNAL_GENERAL_UNPARSED_ENTITY)
+  (internal-parameter XML_INTERNAL_PARAMETER_ENTITY)
+  (external-parameter XML_EXTERNAL_PARAMETER_ENTITY)
+  (internal-predefined XML_INTERNAL_PREDEFINED_ENTITY)
+  )
+
+(define-object (xml-entity xmlEntityPtr) ((xml-node xmlNodePtr))
   (predicate
     (and (foreign? o)
          (case (foreign-id o)
            ((xml-entity) #t)
            ((xml-node)
             (pragma::bool
-              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ENTITY_NODE"
+              "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ENTITY_NODE" ;; XML_ENTITY_DECL?
               o))
-	   (else #f)))))
+           (else #f))))
+  (fields
+   (string orig (false))        ;; content without ref substitution
+   (string content)     ;; content or ndata if unparsed
+   (int length) ;; the content length
+   (xmlEntityType etype)        ;; The entity type
+   (string ExternalID "char*")    ;; const External identifier for PUBLIC
+   (string SystemID "char*")      ;; const URI for a SYSTEM or PUBLIC Entity
+   
+   ;;(xmlEntity nexte)  ;; unused
+   (string URI "char*")   ;; const the full URI as computed
+   (int owner)  ;; does the entity own the childrens
+   (int checked)        ;; was the entity content checked
+   ;;                                   ;; this is also used to count entites
+   ;;                                    * references done from that entity
+   )
+  )
 
 (define-object (xml-pi xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -159,7 +184,7 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_PI_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 (define-object (xml-comment xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -170,7 +195,7 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_COMMENT_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 (define-object (xml-document-frag xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -181,7 +206,7 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_DOCUMENT_FRAG_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 (define-object (xml-notation xmlNodePtr) ((xml-node xmlNodePtr))
   (predicate
@@ -192,19 +217,19 @@
             (pragma::bool
               "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_NOTATION_NODE"
               o))
-	   (else #f)))))
+           (else #f)))))
 
 ;; An Attribute declaration in a DTD.
 (define-object (xml-attr-decl xmlAttributePtr) ((xmlobj xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-attr-decl) #t)
-	  ((xml-node)
-	   (pragma::bool
-	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_DECL"
-	    o))
-	  (else #f))))
+        (case (foreign-id o)
+          ((xml-attr-decl) #t)
+          ((xml-node)
+           (pragma::bool
+            "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ATTRIBUTE_DECL"
+            o))
+          (else #f))))
   (fields
    ((xml-attr-decl xmlAttributePtr) nexth)
    (xmlAttributeType atype)    ; The attribute type
@@ -221,13 +246,13 @@
 (define-object (xml-element-decl xmlElementPtr) ((xmlobj xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-element) #t)
-	  ((xml-node)
-	   (pragma::bool
-	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_DECL"
-	    o))
-	  (else #f))))
+        (case (foreign-id o)
+          ((xml-element) #t)
+          ((xml-node)
+           (pragma::bool
+            "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_ELEMENT_DECL"
+            o))
+          (else #f))))
   (fields
    (xmlElementTypeVal etype) ; The type
    (xmlElementContent content) ; the allowed element content
@@ -242,13 +267,13 @@
 (define-object xmlDtd ((xmlobj xmlNodePtr))
   (predicate
    (and (foreign? o)
-	(case (foreign-id o)
-	  ((xml-dtd) #t)
-	  ((xml-node)
-	   (pragma::bool
-	    "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_DTD_NODE"
-	    o))
-	  (else #f))))
+        (case (foreign-id o)
+          ((xml-dtd) #t)
+          ((xml-node)
+           (pragma::bool
+            "((xmlNodePtr)FOREIGN_TO_COBJ($1))->type == XML_DTD_NODE"
+            o))
+          (else #f))))
   (fields
    ;; End of common part
    ;; void *notations; Hash table for notations if any
@@ -438,8 +463,8 @@
 (define-object xmlBuffer () 
   (fields
    ;;(string content "char*") ; The buffer content UTF8. Use
-			    ; xmlBufferContent() instead of refering
-			    ; this slot directly
+                            ; xmlBufferContent() instead of refering
+                            ; this slot directly
    ;; (uint use)                        ; The buffer size used
    (uint size)                       ; The buffer size
    (xmlBufferAllocationScheme alloc) ; The realloc method
@@ -465,9 +490,9 @@
 (define-func xmlValidateName int ((string value "char*")(int space)))
 (define-func xmlValidateNMToken int ((string value "char*")(int space)))
 (define-func xmlBuildQName string ((string ncname "char*")
-				   (string prefix "char*")
-				   (string memory "char*")
-				   (int len)))
+                                   (string prefix "char*")
+                                   (string memory "char*")
+                                   (int len)))
 ;;(define-func xmlSplitQName2 string ((string name "char*")(string *prefix)))
 ;;(define-func xmlSplitQName3 string ((string name)(int *len)))
 
@@ -494,55 +519,55 @@ This is not working since output_port_t.file does not exist
   (define (file? o)
     (and (foreign? o)(eq? 'file(foreign-id o))))
   (let ((file::file
-	 (cond
-	  ;;((file? output) output)
-	  ((output-port? output)
-	   (pragma::file "$1->output_port_t.file" output))
-	  ((string? output)
-	   (open-output-file output))
-	  (else
-	   [error "xml-buffer-dump"
-		  "Invalid argument: must be either output-port or filename"
-		  output])))
-	(buf::xml-buffer buf))
+         (cond
+          ;;((file? output) output)
+          ((output-port? output)
+           (pragma::file "$1->output_port_t.file" output))
+          ((string? output)
+           (open-output-file output))
+          (else
+           [error "xml-buffer-dump"
+                  "Invalid argument: must be either output-port or filename"
+                  output])))
+        (buf::xml-buffer buf))
     (begin0
      (pragma::int "xmlBufferDump($1, $2)" file buf)
      (fclose file))))
 |#
 
 (define-export (xml-buffer-add
-		buf::xml-buffer
-		str::string)
+                buf::xml-buffer
+                str::string)
   (let ((buf::xml-buffer buf)
         (str::string str)
         (len::int (string-length str)))
     (let((result::int
-	  (pragma::int
-	   "xmlBufferAdd($1, $2, $3)"
-	   buf
-	   str
-	   len)))
+          (pragma::int
+           "xmlBufferAdd($1, $2, $3)"
+           buf
+           str
+           len)))
       (unless (=fx result 0)
-	      [error "xml-buffer-add"
-		     "Internal error"
-		     result]))))
+              [error "xml-buffer-add"
+                     "Internal error"
+                     result]))))
 
 (define-export (xml-buffer-add-head
-		buf::xml-buffer
-		str::string)
+                buf::xml-buffer
+                str::string)
   (let ((buf::xml-buffer buf)
         (str::string str)
         (len::int (string-length str)))
     (let((result::int
-	  (pragma::int
-	   "xmlBufferAddHead($1, $2, $3)"
-	   buf
-	   str
-	   len)))
+          (pragma::int
+           "xmlBufferAddHead($1, $2, $3)"
+           buf
+           str
+           len)))
       (unless (=fx result 0)
-	      [error "xml-buffer-add"
-		     "Internal error"
-		     result]))))
+              [error "xml-buffer-add"
+                     "Internal error"
+                     result]))))
 
 ;; Superceded by the xml-buffer-add
 ;;(define-func xmlBufferCat int ((xmlBuffer buf)(string str)))
@@ -569,46 +594,46 @@ This is not working since output_port_t.file does not exist
 ;; Creating/freeing new structures 
 
 (define-export (xml-create-int-subset::xml-dtd
-		doc::xml-doc
-		name::string
-		#!key external-id system-id)
+                doc::xml-doc
+                name::string
+                #!key external-id system-id)
   (let ((doc::xml-doc doc)
         (name::string name)
         (external-id::string (or external-id (pragma::string "NULL")))
-	(system-id::string  (or system-id (pragma::string "NULL"))))
+        (system-id::string  (or system-id (pragma::string "NULL"))))
     (pragma::xml-dtd
      "xmlCreateIntSubset($1, $2, $3, $4)"
      doc name external-id system-id)))
 
 (define-func xmlNewDtd xmlDtd ((xmlDoc doc)
-			       (string name)
-			       (string ExternalID)
-			       (string SystemID)))
+                               (string name)
+                               (string ExternalID)
+                               (string SystemID)))
 
 (define-export (xml-get-int-subset doc::xml-doc)
   (let* ((doc::xml-doc doc)
-	 (result::xml-dtd (pragma::xml-dtd #"xmlGetIntSubset($1)" doc)))
+         (result::xml-dtd (pragma::xml-dtd #"xmlGetIntSubset($1)" doc)))
     (and (pragma::bool "$1 != NULL" result)
-	 result)))
+         result)))
 
 (define-func xmlFreeDtd void ((xmlDtd cur)))
 
 (define-export (xml-new-ns::xml-ns
-		prefix::string
-		#!optional
-		node
-		href
-		)
+                prefix::string
+                #!optional
+                node
+                href
+                )
   (let* ((cnode::xml-element (or node (pragma::xml-node "NULL")))
-	 (chref::string (or href (pragma::string "NULL")))
-	 (cprefix::string prefix)
-	 (ns::xml-ns
-	  (pragma::xml-ns
-	   "xmlNewNs($1, $2, $3)"
-	   cnode chref cprefix)))
+         (chref::string (or href (pragma::string "NULL")))
+         (cprefix::string prefix)
+         (ns::xml-ns
+          (pragma::xml-ns
+           "xmlNewNs($1, $2, $3)"
+           cnode chref cprefix)))
     (if (pragma::bool "$1 == NULL" ns)
-	[error "xml-new-ns" "Illegal arguments" (list prefix node href)]
-	ns)))
+        [error "xml-new-ns" "Illegal arguments" (list prefix node href)]
+        ns)))
 
 (define-func xmlFreeNs void ((xmlNs cur)))
 (define-func xmlFreeNsList void ((xmlNs cur)))
@@ -616,16 +641,16 @@ This is not working since output_port_t.file does not exist
 (define-func xmlFreeDoc void ((xmlDoc cur)))
 
 (define-func xmlNewDocProp (xml-attribute xmlAttrPtr) ((xmlDoc doc)
-				    (string name)
-				    (string value)))
+                                    (string name)
+                                    (string value)))
 
 (define-export (xml-new-prop::xml-attribute
-		node::xml-node
-		name::string
-		value::string
-		#!optional
-		ns
-		)
+                node::xml-node
+                name::string
+                value::string
+                #!optional
+                ns
+                )
   (let ((node::xml-node node)
         (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
         (name::string name)
@@ -641,9 +666,9 @@ This is not working since output_port_t.file does not exist
 ;; strings, this is unappropriate for Bigloo
 
 ; (define-func xmlNewNsPropEatName (xml-attribute xmlAttrPtr) ((xmlNode node)
-; 							     (xmlNs ns)
-; 							     (string name)
-; 							     (string value)))
+;                                                            (xmlNs ns)
+;                                                            (string name)
+;                                                            (string value)))
 
 (define-func xmlFreePropList void (((xml-attribute xmlAttrPtr) cur)))
 (define-func xmlFreeProp void (((xml-attribute xmlAttrPtr) cur)))
@@ -655,18 +680,18 @@ This is not working since output_port_t.file does not exist
 
 ;; Creating new nodes.
 (define-func xmlNewDocNode xmlNode ((xmlDoc doc)
-				    (xmlNs ns)
-				    (string name)
-				    (string content)))
+                                    (xmlNs ns)
+                                    (string name)
+                                    (string content)))
 
 ; (define-func xmlNewDocNodeEatName xmlNode ((xmlDoc doc)
-; 					   (xmlNs ns)
-; 					   (string name)
-; 					   (string content)))
+;                                          (xmlNs ns)
+;                                          (string name)
+;                                          (string content)))
 (define-func xmlNewDocRawNode xmlNode ((xmlDoc doc)
-				       (xmlNs ns)
-				       (string name)
-				       (string content)))
+                                       (xmlNs ns)
+                                       (string name)
+                                       (string content)))
 
 (define-export (xml-new-node::xml-node name::string #!optional ns)
   (let ((ns::xml-ns (or ns (pragma::xml-ns "NULL")))
@@ -677,31 +702,31 @@ This is not working since output_port_t.file does not exist
 
 
 (define-export (xml-new-child::xml-node
-		parent::xml-node
-		name::string
-		#!optional
-		content
-		ns
-		)
+                parent::xml-node
+                name::string
+                #!optional
+                content
+                ns
+                )
   (let* ((cparent::xml-node parent)
-	 (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
-	 (cname::string name)
-	 (content::string (or content (pragma::string "NULL")))
-	 (result::xml-node
-	  (pragma::xml-node
-	   "xmlNewChild($1, $2, $3, $4)"
-	   cparent
-	   ns
-	   cname
-	   content)))
+         (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
+         (cname::string name)
+         (content::string (or content (pragma::string "NULL")))
+         (result::xml-node
+          (pragma::xml-node
+           "xmlNewChild($1, $2, $3, $4)"
+           cparent
+           ns
+           cname
+           content)))
     (if (pragma::bool "$1 == NULL" result)
-	[error "xml-new-child" "Illegal argument" (cons name parent)]
-	result)))
+        [error "xml-new-child" "Illegal argument" (cons name parent)]
+        result)))
 
 (define-func xmlNewTextChild xmlNode ((xmlNode parent)
-				      (xmlNs ns)
-				      (string name)
-				      (string content)))
+                                      (xmlNs ns)
+                                      (string name)
+                                      (string content)))
 (define-func xmlNewDocText xmlNode ((xmlDoc doc)(string content)))
 ;;(define-func xmlNewText xmlNode ((string content)))
 (define-func xmlNewDocPI xmlNode ((xmlDoc doc)(string name)(string content)))
@@ -711,7 +736,7 @@ This is not working since output_port_t.file does not exist
 ;; Create a new text node
 (define-export (xml-new-text::xml-node content::bstring)
   (let ((content::string content)
-	(len::int (string-length content)))
+        (len::int (string-length content)))
     (pragma::xml-node
      "xmlNewTextLen($1, $2)"
      content
@@ -722,8 +747,8 @@ This is not working since output_port_t.file does not exist
 
 
 (define-export (xml-new-cdata-block::xml-cdata-section
-		doc::xml-doc
-		content::bstring)
+                doc::xml-doc
+                content::bstring)
   (let ((doc::xml-doc doc)
         (content::string content)
         (len::int (string-length content)))
@@ -734,8 +759,8 @@ This is not working since output_port_t.file does not exist
      len)))
 
 (define-export (xml-new-cdata-child::xml-cdata-section
-		self::xml-element
-		content::bstring)
+                self::xml-element
+                content::bstring)
   (let((cdata (xml-new-cdata-block (xmlobj-doc self) content)))
     (xml-add-child self cdata)
     cdata))
@@ -745,8 +770,8 @@ This is not working since output_port_t.file does not exist
 (define-func xmlNewReference xmlNode ((xmlDoc doc)(string name)))
 (define-func xmlCopyNode xmlNode ((xmlNode node)(int recursive)))
 (define-func xmlDocCopyNode xmlNode ((xmlNode node)
-				     (xmlDoc doc)
-				     (int recursive)))
+                                     (xmlDoc doc)
+                                     (int recursive)))
 (define-func xmlDocCopyNodeList xmlNode ((xmlDoc doc)(xmlNode node)))
 (define-func xmlCopyNodeList xmlNode ((xmlNode node)))
 (define-func xmlNewDocFragment xmlNode ((xmlDoc doc)))
@@ -762,8 +787,8 @@ This is not working since output_port_t.file does not exist
 
 (define-export (xml-doc-get-root-element doc::xml-doc)
   (let* ((doc::xml-doc doc)
-	 (root::xml-node
-	  (pragma::xml-node "xmlDocGetRootElement($1)" doc)))
+         (root::xml-node
+          (pragma::xml-node "xmlDocGetRootElement($1)" doc)))
     (and (pragma::bool "$1 != NULL" root) root)))
 
 (define-func xmlGetLastChild xmlNode ((xmlNode parent)))
@@ -773,13 +798,13 @@ This is not working since output_port_t.file does not exist
 
 ;; Changing the structure.
 (define-export (xml-doc-set-root-element
-		doc::xml-doc
-		root::xml-node)
+                doc::xml-doc
+                root::xml-node)
   (let* ((doc::xml-doc doc)
-	 (root::xml-node root)
-	 (old-root::xml-node
-	  (pragma::xml-node
-	   "xmlDocSetRootElement($1, $2)" doc root)))
+         (root::xml-node root)
+         (old-root::xml-node
+          (pragma::xml-node
+           "xmlDocSetRootElement($1, $2)" doc root)))
     (and (pragma::bool "$1 != NULL" old-root) old-root)))
 
 (define-func (xmlobj-set-name xmlNodeSetName) void
@@ -805,40 +830,40 @@ This is not working since output_port_t.file does not exist
 ;; Namespaces.
 
 (define-export (xml-search-ns
-		node::xml-node
-		#!optional
-		ns-prefix
-		doc)
+                node::xml-node
+                #!optional
+                ns-prefix
+                doc)
   (let* ((doc::xml-doc (or doc (pragma::xml-doc "NULL")))
-	 (node::xml-node node)
-	 (cns-prefix::string (or ns-prefix (pragma::string "NULL")))
-	 (doc::xml-doc doc)
-	 (cns-prefix::string cns-prefix)
-	 (ns (pragma::xml-ns
-	      "xmlSearchNs($1, $2, $3)"
-	      doc
-	      node
-	      cns-prefix)))
+         (node::xml-node node)
+         (cns-prefix::string (or ns-prefix (pragma::string "NULL")))
+         (doc::xml-doc doc)
+         (cns-prefix::string cns-prefix)
+         (ns (pragma::xml-ns
+              "xmlSearchNs($1, $2, $3)"
+              doc
+              node
+              cns-prefix)))
     (and (pragma::bool "$1 != NULL"ns) ns)))
 
 (define-export (xml-search-ns-by-href::xml-ns
-		node::xml-node
-		#!optional
-		href
-		doc)
+                node::xml-node
+                #!optional
+                href
+                doc)
   (let* ((doc::xml-doc (or doc (pragma::xml-doc "NULL")))
-	 (node::xml-node node)
-	 (chref::string (or href (pragma::string "NULL")))
-	 (doc::xml-doc doc)
-	 (chref::string chref)
-	 (ns (pragma::xml-ns
-	      "xmlSearchNsByHref($1, $2, $3)"
-	      doc
-	      node
-	      chref)))
+         (node::xml-node node)
+         (chref::string (or href (pragma::string "NULL")))
+         (doc::xml-doc doc)
+         (chref::string chref)
+         (ns (pragma::xml-ns
+              "xmlSearchNsByHref($1, $2, $3)"
+              doc
+              node
+              chref)))
     (if (pragma::bool "$1 == NULL"ns)
-	[error "xml-search-ns-by-href" "unknown namespace" href]
-	ns)))
+        [error "xml-search-ns-by-href" "unknown namespace" href]
+        ns)))
 
 
 ;; xmlNs * 
@@ -883,18 +908,18 @@ This is not working since output_port_t.file does not exist
 ;; Returns the attribute value or #f if not found.
 
 (define-export (xml-get-prop node::xml-node
-			     name::string
-			     #!optional
-			     ns-uri)
+                             name::string
+                             #!optional
+                             ns-uri)
   (let* ((node::xml-node node)
-	 (name::string name)
-	 (ns-uri::string (or ns-uri (pragma::string "NULL")))
-	 (result (pragma::string "xmlGetNsProp($1, $2, $3)"
-				 node name ns-uri)))
+         (name::string name)
+         (ns-uri::string (or ns-uri (pragma::string "NULL")))
+         (result (pragma::string "xmlGetNsProp($1, $2, $3)"
+                                 node name ns-uri)))
     (and (pragma::bool "$1 != NULL" result)
-	 (let((bresult::bstring result))
-	   (pragma "xmlFree($1)" result)
-	   bresult))))
+         (let((bresult::bstring result))
+           (pragma "xmlFree($1)" result)
+           bresult))))
 
 (define-func xmlHasProp (xml-attribute xmlAttrPtr) ((xmlNode node)(string name)))
 (define-func xmlHasNsProp (xml-attribute xmlAttrPtr) ((xmlNode node)(string name)(string nameSpace)))
@@ -905,8 +930,8 @@ This is not working since output_port_t.file does not exist
 (define-func xmlNodeListGetRawString string ((xmlDoc doc)(xmlNode list)(int inLine)))
 
 (define-export (xml-node-set-content
-		cur::xml-node
-		content::bstring)
+                cur::xml-node
+                content::bstring)
   (let ((cur::xml-node cur)
         (content::string content)
         (len::int (string-length content)))
@@ -916,8 +941,8 @@ This is not working since output_port_t.file does not exist
     #unspecified))
 
 (define-export (xml-node-add-content
-		cur::xml-node
-		content::bstring)
+                cur::xml-node
+                content::bstring)
   (let ((cur::xml-node cur)
         (content::string content)
         (len::int (string-length content)))
@@ -954,11 +979,11 @@ This is not working since output_port_t.file does not exist
 (define-func xmlRemoveProp bool (((xml-attribute xmlAttrPtr) cur)))
 
 (define-export (xml-unset-prop::bool
-		node::xml-node
-		name::string
-		#!optional
-		ns
-		)
+                node::xml-node
+                name::string
+                #!optional
+                ns
+                )
   (let ((node::xml-node node)
         (ns::xml-ns (or ns (pragma::xml-ns "NULL")))
         (name::string name))
@@ -989,13 +1014,13 @@ This is not working since output_port_t.file does not exist
 ;; or xmlKeepBlanksDefault(0) was called
 
 (define-export (xml-doc->string::bstring
-		doc::xml-doc
-		#!key
-		encoding
-		indent)
+                doc::xml-doc
+                #!key
+                encoding
+                indent)
   (let ((doc-txt-ptr::string (pragma::string "NULL"))
-	(doc-txt-len::int (pragma::int "0"))
-	(doc::xml-doc doc)
+        (doc-txt-len::int (pragma::int "0"))
+        (doc::xml-doc doc)
         (encoding::string (or encoding (pragma::string "NULL")))
         (indent::bool indent))
     (pragma
@@ -1006,21 +1031,21 @@ This is not working since output_port_t.file does not exist
      encoding
      indent)
     (when (=fx 0 doc-txt-len)
-	  (error "xml-doc-dump-format-memory-enc" "empty document" doc))
+          (error "xml-doc-dump-format-memory-enc" "empty document" doc))
     (pragma::bstring "string_to_bstring_len($1, $2)"
-		     doc-txt-ptr
-		     doc-txt-len)))
+                     doc-txt-ptr
+                     doc-txt-len)))
 
 
 (define-export (xml-doc-save::int
-		doc::xml-doc
-		filename::string
-		#!key
-		encoding
-		indent)
+                doc::xml-doc
+                filename::string
+                #!key
+                encoding
+                indent)
   (let ((doc::xml-doc doc)
         (encoding::string (or encoding (pragma::string "NULL")))
-	(filename::string filename)
+        (filename::string filename)
         (indent::bool indent))
     (pragma::int
      "xmlSaveFormatFileEnc((char*)$1, $2, (char*)$3, $4)"
@@ -1033,22 +1058,22 @@ This is not working since output_port_t.file does not exist
 ;;(define-func xmlDocDump int ((file f)(xmlDoc cur)))
 ;;(define-func xmlElemDump void ((file f)(xmlDoc doc)(xmlNode cur)))
 ;;(define-func xmlSaveFile int ((string filename "char*")
-;;			      (xmlDoc cur)))
+;;                            (xmlDoc cur)))
 
 (define-func xmlKeepBlanksDefault bool ((bool newVal)))
 
 (define-export (xml-node-dump::int buf::xml-buffer
-				   cur::xmlobj
-				   #!optional
-				   level
-				   doc)
+                                   cur::xmlobj
+                                   #!optional
+                                   level
+                                   doc)
   (let((buf::xml-buffer buf)
        (doc::xml-doc (or doc (xmlobj-doc cur)))
        (cur::xmlobj cur)
        (level::int (or level (pragma::int "0")))
        (format::bool level))
     (pragma::int "xmlNodeDump($1, $2, $3, $4, $5)"
-		 buf doc cur level format)))
+                 buf doc cur level format)))
 
 ;;(define-func xmlSaveFileTo int ((xmlOutputBuffer buf)(xmlDoc cur)(string encoding "char*")))
 ;;(define-func xmlSaveFormatFileTo int ((xmlOutputBuffer buf)(xmlDoc cur)(string encoding "char*")(int format)))
