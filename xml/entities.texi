@@ -1,0 +1,29 @@
+@c ======================================================================
+@subsection xml-entities API
+@c ======================================================================
+@anchor{xml-entities API}
+
+@deffn {procedure} xml-add-doc-entity text::bstring  @result{} xml-entity
+@var{text}
+
+The procedure @code{xml-add-doc-entity} adds an entity to the document
+internal subset.
+
+Note: the internal subset must exist. You may use @code{xml-create-int-subset} to create it.
+
+For example:
+@example
+;; note: the minimal DOCTYPE declaration assures the internal
+;; subset is created
+(define doc (xml-add-doc-entity "<!DOCTYPE a><a></a>"))
+(xml-add-doc-entity doc "name" "value")
+(xml->string doc)
+@result{<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE a [
+<!ENTITY name "value">
+]>
+<a/>}
+@end example
+@end deffn
+
+

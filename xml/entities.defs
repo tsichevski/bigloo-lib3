@@ -120,46 +120,27 @@
       system-id
       content)))
 
-;; xmlEntityPtr
-;;                      xmlGetPredefinedEntity  (const string name);
-;; xmlEntityPtr
-;;                      xmlGetDocEntity         (xmlDocPtr doc,
-;;                                               const string name);
-;; xmlEntityPtr
-;;                      xmlGetDtdEntity         (xmlDocPtr doc,
-;;                                               const string name);
-;; xmlEntityPtr
-;;                      xmlGetParameterEntity   (xmlDocPtr doc,
-;;                                               const string name);
-;; #ifdef LIBXML_LEGACY_ENABLED
-;; const string 
-;;                      xmlEncodeEntities       (xmlDocPtr doc,
-;;                                               const string input);
-;; #endif ;; LIBXML_LEGACY_ENABLED
-;; string 
-;;                      xmlEncodeEntitiesReentrant(xmlDocPtr doc,
-;;                                               const string input);
-;; string 
-;;                      xmlEncodeSpecialChars   (xmlDocPtr doc,
-;;                                               const string input);
-;; xmlEntitiesTablePtr
-;;                      xmlCreateEntitiesTable  (void);
-;; #ifdef LIBXML_TREE_ENABLED
-;; xmlEntitiesTablePtr
-;;                      xmlCopyEntitiesTable    (xmlEntitiesTablePtr table);
-;; #endif ;; LIBXML_TREE_ENABLED
-;; void
-;;                      xmlFreeEntitiesTable    (xmlEntitiesTablePtr table);
-;; #ifdef LIBXML_OUTPUT_ENABLED
-;; void
-;;                      xmlDumpEntitiesTable    (xmlBufferPtr buf,
-;;                                               xmlEntitiesTablePtr table);
-;; void
-;;                      xmlDumpEntityDecl       (xmlBufferPtr buf,
-;;                                               xmlEntityPtr ent);
-;; #endif ;; LIBXML_OUTPUT_ENABLED
-;; #ifdef LIBXML_LEGACY_ENABLED
-;; void
-;;                      xmlCleanupPredefinedEntities(void);
-;; #endif ;; LIBXML_LEGACY_ENABLED
+(define-func xmlGetPredefinedEntity xmlEntity ((string name "char*")))
+;;(define-func xmlGetDocEntity xmlEntity ((xmlDoc doc)(string name "char*"))(false))
+
+(define-export (xml-get-doc-entity
+                doc::xml-doc
+                name::string)
+  (let* ((doc::xml-doc doc)
+         (name::string name)
+         (result::xml-entity (pragma::xml-entity "xmlGetDocEntity($1, (char*)$2)"
+                                                 doc
+                                                 name)))
+    (and (pragma::bool "$1 != NULL" result)
+         result)))
+
+(define-func xmlGetDtdEntity xmlEntity ((xmlDoc doc)(string name "char*")))
+(define-func xmlGetParameterEntity xmlEntity ((xmlDoc doc)(string name "char*")))
+(define-func xmlEncodeEntitiesReentrant string ((xmlDoc doc)(string input "char*")))
+(define-func xmlEncodeSpecialChars string ((xmlDoc doc)(string input "char*")))
+;; (define-func xmlCreateEntitiesTable xmlEntitiesTable ())
+;; (define-func xmlCopyEntitiesTable xmlEntitiesTable ((xmlEntitiesTable table)))
+;; (define-func xmlFreeEntitiesTable void ((xmlEntitiesTable table)))
+;; (define-func xmlDumpEntitiesTable void ((xmlBuffer buf)(xmlEntitiesTable table)))
+(define-func xmlDumpEntityDecl void ((xmlBuffer buf)(xmlEntity ent)))
 

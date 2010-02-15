@@ -369,7 +369,6 @@
    (xmlEnumeration next)
    (string name "char*")))
 
-
 ;; xmlElementContentType:
 ;; Possible definitions of element content types.
 (define-enum xmlElementContentType
@@ -767,6 +766,8 @@ This is not working since output_port_t.file does not exist
 
 ;;(define-func xmlNewCDataBlock xmlNode ((xmlDoc doc)(string content)(int len)))
 (define-func xmlNewCharRef xmlNode ((xmlDoc doc)(string name)))
+
+;; new entity reference
 (define-func xmlNewReference xmlNode ((xmlDoc doc)(string name)))
 (define-func xmlCopyNode xmlNode ((xmlNode node)(int recursive)))
 (define-func xmlDocCopyNode xmlNode ((xmlNode node)
