@@ -15,6 +15,7 @@
 * xml-output-buffer API::
 * xml-parser API::
 * xml-xpath API::
+* xml-entities API::
 * encoding API::
 * Convenience procedures::
 * Memory management::
@@ -1061,6 +1062,7 @@ For example:
 @c ======================================================================
 
 @include xpath.texi
+@include entities.texi
 @include encoding.texi
 
 @c ======================================================================
