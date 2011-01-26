@@ -25,7 +25,7 @@
 
 (module
  apropos
- (extern (symtab::obj "c_symtab"))
+ ;; (extern (symtab::obj "c_symtab"))
  (import regex srfi-1)
  (export
   (apropos::pair-nil rexp-string)
@@ -36,7 +36,7 @@
    ;; Force initialization of eval module
    (eval "")
    (let*((rexp(regexp rexp-string))
-	 (ht symtab)
+	 (ht (pragma::obj "(obj_t)bgl_get_symtab()"))
 	 (len(vector-length ht)))
       (let loop ((i 0)
 		 (accu '()))
