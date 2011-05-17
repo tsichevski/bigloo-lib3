@@ -1,46 +1,48 @@
-; -*-Scheme-*-
+;  -*-Scheme-*-
 
-;************************************************************************/
-;*                                                                      */
-;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
-;*                                                                      */
-;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
-;*                                                                      */
-;* This library is free software; you can redistribute it and/or        */
-;* modify it under the terms of the GNU Lesser General Public           */
-;* License as published by the Free Software Foundation; either         */
-;* version 2 of the License, or (at your option) any later version.     */
-;*                                                                      */
-;* This library is distributed in the hope that it will be useful,      */
-;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
-;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
-;* Lesser General Public License for more details.                      */
-;*                                                                      */
-;* You should have received a copy of the GNU Lesser General Public     */
-;* License along with this library; if not, write to the Free Software  */
-;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
-;* USA                                                                  */
-;*                                                                      */
-;************************************************************************/
+;* ***********************************************************************/
+;*                                                                       */
+;*  Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                       */
+;*  This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                       */
+;*  This library is free software; you can redistribute it and/or        */
+;*  modify it under the terms of the GNU Lesser General Public           */
+;*  License as published by the Free Software Foundation; either         */
+;*  version 2 of the License, or (at your option) any later version.     */
+;*                                                                       */
+;*  This library is distributed in the hope that it will be useful,      */
+;*  but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;*  Lesser General Public License for more details.                      */
+;*                                                                       */
+;*  You should have received a copy of the GNU Lesser General Public     */
+;*  License along with this library; if not, write to the Free Software  */
+;*  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;*  USA                                                                  */
+;*                                                                       */
+;* ***********************************************************************/
 
 (module
  oracle
- (extern(include "oci.h"))
+ (extern (include "oci.h")
+         (include "sys/types.h")
+         )
  (import rdbms)
  (library common)
  (export
   (class oracle-connection::connection
-	 env::oci-env
-	 impl::oci-svc-ctx
-	 err::oci-error
-	 )
+         env::oci-env
+         impl::oci-svc-ctx
+         err::oci-error
+         )
 
   (class oracle-session::session
-	 impl::oci-stmt
-	 (ibind::pair-nil(default '()))
-	 (obind::pair-nil(default '())))
+         impl::oci-stmt
+         (ibind::pair-nil(default '()))
+         (obind::pair-nil(default '())))
 
-;;  (oracle-connect::oracle-connection #!key dbname username password hostname)
+  ;;  (oracle-connect::oracle-connection #!key dbname username password hostname)
 
   ;; These procs have to be exported only if oci direct interface
   ;; compilation is on. See configure options
@@ -87,7 +89,7 @@
   (oci-describe OCI_HTYPE_DESCRIBE)
   (oci-server OCI_HTYPE_SERVER)
   (oci-session OCI_HTYPE_SESSION)
-@if #f
+  @if #f
   (oci-trans OCI_HTYPE_TRANS)
   (oci-complexobject OCI_HTYPE_COMPLEXOBJECT)
   (oci-security OCI_HTYPE_SECURITY)
@@ -96,7 +98,7 @@
   (oci-dirpath-column_array OCI_HTYPE_DIRPATH_COLUMN_ARRAY)
   (oci-dirpath-stream OCI_HTYPE_DIRPATH_STREAM)
   (oci-proc OCI_HTYPE_PROC)
-@endif
+  @endif
   )
 
 (define-static (ocihandle-type::int h)
@@ -109,7 +111,7 @@
    ((oci-define? h)(pragma::int "OCI_HTYPE_DEFINE"))
    ((oci-server? h)(pragma::int "OCI_HTYPE_SERVER"))
    ((oci-session? h)(pragma::int "OCI_HTYPE_SESSION"))
-@if #f
+   @if #f
    ((oci-trans? h)(pragma::int "OCI_HTYPE_TRANS"))
    ((oci-describe? h)(pragma::int "OCI_HTYPE_DESCRIBE"))
    ((oci-complexobject? h)(pragma::int "OCI_HTYPE_COMPLEXOBJECT"))
@@ -119,7 +121,7 @@
    ((oci-dirpath-column-array? h)(pragma::int "OCI_HTYPE_DIRPATH_COLUMN_ARRAY"))
    ((oci-dirpath-stream? h)(pragma::int "OCI_HTYPE_DIRPATH_STREAM"))
    ((oci-proc? h)(pragma::int "OCI_HTYPE_PROC"))
-@endif
+   @endif
    (else
     (error "ocihandle-type" "invalid argument"h))))
 
@@ -130,7 +132,7 @@
        "ocihandle-alloc" #f
        (pragma::int "OCIHandleAlloc((dvoid *)$1, (dvoid **)&$2, $3, 
                    (size_t)0,(dvoid **)0)"
-		    env result type))
+                    env result type))
       ;;(print "handle: "result)
       (coerce! typesym result))))
 ;;(ocihandle-alloc env 'error)
@@ -153,10 +155,10 @@
       "prepare"
       err
       (let((csql::string sql)
-	   (sqllen::int(string-length sql)))
-	(pragma::int
-	 "OCIStmtPrepare($1, $2, $3, $4, OCI_NTV_SYNTAX, OCI_DEFAULT)"
-	 impl err csql sqllen))
+           (sqllen::int(string-length sql)))
+        (pragma::int
+         "OCIStmtPrepare($1, $2, $3, $4, OCI_NTV_SYNTAX, OCI_DEFAULT)"
+         impl err csql sqllen))
       self)
      (set! ibind '())
      ))
@@ -165,14 +167,14 @@
 (define-static *default-oci-env* #f)
 (define (default-oci-env::oci-env)
   (unless (oci-env? *default-oci-env*)
-	  (pragma "OCIInitialize((ub4) OCI_DEFAULT, (dvoid *)0,
+          (pragma "OCIInitialize((ub4) OCI_DEFAULT, (dvoid *)0,
                (dvoid * (*)(dvoid *, size_t)) 0,
                (dvoid * (*)(dvoid *, dvoid *, size_t))0,
                (void (*)(dvoid *, dvoid *)) 0 )")
-	  (let((env::oci-env (pragma::oci-env "NULL")))
-	    (pragma::int "OCIEnvInit(&$1, OCI_DEFAULT, (size_t) 0, (dvoid **)0)"env)
-	    ;;(print "OCIEnvInit: " env)
-	    (set! *default-oci-env* env)))
+          (let((env::oci-env (pragma::oci-env "NULL")))
+            (pragma::int "OCIEnvInit(&$1, OCI_DEFAULT, (size_t) 0, (dvoid **)0)"env)
+            ;;(print "OCIEnvInit: " env)
+            (set! *default-oci-env* env)))
   *default-oci-env*)
 
 ;; FIXME: are attributes always strings or pointers?
@@ -181,16 +183,16 @@
     (check-oracle-error
      "OCIAttrSet" err
      (if(string? attribute)
-	(let((astring::string attribute)
-	     (alen::int (string-length attribute))
-	     (htype::int (ocihandle-type handle)))
-	  (pragma::int "OCIAttrSet (FOREIGN_TO_COBJ($1),$2,$3,$4,$5,$6)"
-		       handle htype astring alen atype err))
-	;;(print "here" "handle: " handle " htype: " htype " attribute: " attribute " atype: " atype " err: " err)
-	(pragma::int
-	 "OCIAttrSet (FOREIGN_TO_COBJ($1),$2,FOREIGN_TO_COBJ($3),0,$4,$5)"
-	 handle htype attribute atype err)))
-    #unspecified))		
+        (let((astring::string attribute)
+             (alen::int (string-length attribute))
+             (htype::int (ocihandle-type handle)))
+          (pragma::int "OCIAttrSet (FOREIGN_TO_COBJ($1),$2,$3,$4,$5,$6)"
+                       handle htype astring alen atype err))
+        ;;(print "here" "handle: " handle " htype: " htype " attribute: " attribute " atype: " atype " err: " err)
+        (pragma::int
+         "OCIAttrSet (FOREIGN_TO_COBJ($1),$2,FOREIGN_TO_COBJ($3),0,$4,$5)"
+         handle htype attribute atype err)))
+    #unspecified))    
 
 (define-flags (oci-session-mode int)
   (migrate OCI_MIGRATE)
@@ -200,37 +202,37 @@
 
 ;; New experimental version. Will allow to `connect as sysdba'
 (define (oracle-connect::oracle-connection
-	 #!key
-	 dbname
-	 username
-	 password
-	 hostname  ;; ignored, for compatibility only
-	 (mode '()))
+         #!key
+         dbname
+         username
+         password
+         hostname  ;; ignored, for compatibility only
+         (mode '()))
 
   (let*((env::oci-env(default-oci-env))
-	(err::oci-error(ocihandle-alloc env 'oci-error))
-	(server::oci-server(ocihandle-alloc env 'oci-server))
-	(sess::oci-session(ocihandle-alloc env 'oci-session))
-	(impl::oci-svc-ctx (ocihandle-alloc env 'oci-svc-ctx)))
+        (err::oci-error(ocihandle-alloc env 'oci-error))
+        (server::oci-server(ocihandle-alloc env 'oci-server))
+        (sess::oci-session(ocihandle-alloc env 'oci-session))
+        (impl::oci-svc-ctx (ocihandle-alloc env 'oci-svc-ctx)))
     (let((d::string (if(string? dbname) dbname (pragma::string "NULL")))
-	 (dlen::int (if(string? dbname) (string-length dbname) 0)))
+         (dlen::int (if(string? dbname) (string-length dbname) 0)))
       (pragma::int "OCIServerAttach ($1, $2, $3, $4, OCI_DEFAULT)"
-		   server err d dlen))
+                   server err d dlen))
     
     ;; set the server attribute in the service context handle
     (oci-attr-set impl server (pragma::int "OCI_ATTR_SERVER") err)
     
     (let((u::string (or username "scott"))
-	 (p::string (or password "tiger")))
+         (p::string (or password "tiger")))
       (oci-attr-set sess u (pragma::int "OCI_ATTR_USERNAME") err)
       (oci-attr-set sess p (pragma::int "OCI_ATTR_PASSWORD") err))
     
-    (let((mode::oci-session-mode mode))	 
+    (let((mode::oci-session-mode mode))  
       (check-oracle-error
        "OCISessionBegin" err
        (pragma::int
-	"OCISessionBegin($1,$2,$3,OCI_CRED_RDBMS,$4)"
-	impl err sess mode)
+        "OCISessionBegin($1,$2,$3,OCI_CRED_RDBMS,$4)"
+        impl err sess mode)
        sess))
     (oci-attr-set impl sess (pragma::int "OCI_ATTR_SESSION") err)
     
@@ -252,84 +254,84 @@
    (connection impl)
    (let((err::oci-error(oracle-connection-err connection)))
      (let loop((counter 1)
-	       (obind '()))
+               (obind '()))
        (let((param::oci-param(pragma::oci-param "NULL"))
-	    (counter::int counter))
-	 (if(pragma::bool
-	     "OCIParamGet($1, OCI_HTYPE_STMT, $2, (dvoid*)&$3, $4) == OCI_SUCCESS"
-	     impl err param counter)
-	    
-	    ;; Note:: all these are volatile, and used by
-	    ;; reference. Do not let bigloo guess that their values
-	    ;; are!
-	    (let((data-type::ushort (pragma::ushort "0"))
-		 (data-size::short  (pragma::short "0"))
-		 (precision::ushort (pragma::ushort "0"))
-		 (scale::char #a000)
-		 (nullable?::bool (pragma::bool "0"))
-		 (field-name::string (pragma::string "NULL"))
-		 (field-name-len::int (pragma::int "0"))
-		 )
-	      
-	      (check-oracle-error
-	       "oci-attr-get-data-type"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_DATA_TYPE, $3)"
-		param data-type err)
-	       self)
+            (counter::int counter))
+         (if(pragma::bool
+             "OCIParamGet($1, OCI_HTYPE_STMT, $2, (dvoid*)&$3, $4) == OCI_SUCCESS"
+             impl err param counter)
+            
+            ;; Note:: all these are volatile, and used by
+            ;; reference. Do not let bigloo guess that their values
+            ;; are!
+            (let((data-type::ushort (pragma::ushort "0"))
+                 (data-size::short  (pragma::short "0"))
+                 (precision::ushort (pragma::ushort "0"))
+                 (scale::char #a000)
+                 (nullable?::bool (pragma::bool "0"))
+                 (field-name::string (pragma::string "NULL"))
+                 (field-name-len::int (pragma::int "0"))
+                 )
+              
+              (check-oracle-error
+               "oci-attr-get-data-type"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_DATA_TYPE, $3)"
+                param data-type err)
+               self)
 
-	      (check-oracle-error
-	       "oci-attr-get-data-size"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_DATA_SIZE, $3)"
-		param data-size err)
-	       self)
+              (check-oracle-error
+               "oci-attr-get-data-size"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_DATA_SIZE, $3)"
+                param data-size err)
+               self)
 
-	      (check-oracle-error
-	       "oci-attr-get-precision"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_PRECISION, $3)"
-		param precision err)
-	       self)
-	      
-	      (check-oracle-error
-	       "oci-attr-get-scale"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_SCALE, $3)"
-		param scale err)
-	       self)
-	      
-	      (check-oracle-error
-	       "oci-attr-get-nullable"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_IS_NULL, $3)"
-		param nullable? err)
-	       self)
-	      
-	      (check-oracle-error
-	       "oci-attr-get-name"
-	       err
-	       (pragma::int
-		"OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, &$3, OCI_ATTR_NAME, $4)"
-		param field-name field-name-len err)
-	       self)
-	      (loop(+fx counter 1)
-		   (cons
-		    (list (pragma::bstring "string_to_bstring_len($1, $2)"
-					   field-name field-name-len)
-			  data-type
-			  data-size
-			  nullable?
-			  precision
-			  (char->integer scale)
-			  )
-		    obind)))
-	    (reverse obind)))))))
+              (check-oracle-error
+               "oci-attr-get-precision"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_PRECISION, $3)"
+                param precision err)
+               self)
+              
+              (check-oracle-error
+               "oci-attr-get-scale"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_SCALE, $3)"
+                param scale err)
+               self)
+              
+              (check-oracle-error
+               "oci-attr-get-nullable"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, 0, OCI_ATTR_IS_NULL, $3)"
+                param nullable? err)
+               self)
+              
+              (check-oracle-error
+               "oci-attr-get-name"
+               err
+               (pragma::int
+                "OCIAttrGet($1, OCI_DTYPE_PARAM, &$2, &$3, OCI_ATTR_NAME, $4)"
+                param field-name field-name-len err)
+               self)
+              (loop(+fx counter 1)
+                   (cons
+                    (list (pragma::bstring "string_to_bstring_len($1, $2)"
+                                           field-name field-name-len)
+                          data-type
+                          data-size
+                          nullable?
+                          precision
+                          (char->integer scale)
+                          )
+                    obind)))
+            (reverse obind)))))))
 
 (define-method(has-answer?::bool self::oracle-session)
   (with-access::oracle-session
@@ -337,11 +339,11 @@
    (let((err::oci-error(oracle-connection-err connection)))
      (let((result::short 0))
        (check-oracle-error
-	"oci-attr-get"
-	err
-	(pragma::int "OCIAttrGet($1, OCI_HTYPE_STMT, &$2, 0, OCI_ATTR_STMT_TYPE, $3)"
-		     impl result err)
-	self)
+        "oci-attr-get"
+        err
+        (pragma::int "OCIAttrGet($1, OCI_HTYPE_STMT, &$2, 0, OCI_ATTR_STMT_TYPE, $3)"
+                     impl result err)
+        self)
        (pragma::bool "OCI_STMT_SELECT == $1"result)))))
 
 (define-enum (oci-typecode int)
@@ -398,418 +400,420 @@
    self(connection impl ibind statement)
    ;; do real input binding
    (let((err::oci-error(oracle-connection-err connection))
-	(bind::oci-bind (pragma::oci-bind "NULL")))
+        (bind::oci-bind (pragma::oci-bind "NULL")))
      (let loop((ibind ibind)(position 1)(registry '()))
        (define (do-bind type::int buf::bstring)
-	 (let*((addr::string buf)
-	       (len::int(string-length buf))
-	       (elen::int
-		(if(pragma::bool "SQLT_STR == $1"type)
-		   (+fx 1 len)
-		   len)))
-	   (let((position::int position))
-	     (check-oracle-error
-	      "oci-bind-by-pos"
-	      err
-	      (pragma::int
-	       "OCIBindByPos($1, &$2, $3, $4, (void*)$5, $6, $7, NULL,
+         (let*((addr::string buf)
+               (len::int(string-length buf))
+               (elen::int
+                (if(pragma::bool "SQLT_STR == $1"type)
+                   (+fx 1 len)
+                   len)))
+           (let((position::int position))
+             (check-oracle-error
+              "oci-bind-by-pos"
+              err
+              (pragma::int
+               "OCIBindByPos($1, &$2, $3, $4, (void*)$5, $6, $7, NULL,
                  NULL, NULL, 0, NULL, OCI_DEFAULT)"
-	       impl bind err position addr elen type)
-	      self))
-	   (loop (cdr ibind) (+fx 1 position) (cons buf registry))))
+               impl bind err position addr elen type)
+              self))
+           (loop (cdr ibind) (+fx 1 position) (cons buf registry))))
        
        (if(pair? ibind)
-	  (let((o(car ibind)))
-	    (cond((eq? #unspecified o)
-		  (let*((position::int position)
-			(indicator (make-string 2))
-			(cindicator::string indicator))
-		    (pragma "(*(short*)$1) = -1"cindicator)
-		    (check-oracle-error
-		     "oci-bind-by-pos (null)"
-		     err
-		     (pragma::int
-		      "OCIBindByPos($1, &$2, $3, $4, (void*)\"\", 0, SQLT_STR, $5,
+          (let((o(car ibind)))
+            (cond((eq? #unspecified o)
+                  (let*((position::int position)
+                        (indicator (make-string 2))
+                        (cindicator::string indicator))
+                    (pragma "(*(short*)$1) = -1"cindicator)
+                    (check-oracle-error
+                     "oci-bind-by-pos (null)"
+                     err
+                     (pragma::int
+                      "OCIBindByPos($1, &$2, $3, $4, (void*)\"\", 0, SQLT_STR, $5,
                        NULL, NULL, 0, NULL, OCI_DEFAULT)"
-		      impl bind err position cindicator)
-		     self)
-		    (loop (cdr ibind) (+fx 1 position) (cons indicator registry))))
+                      impl bind err position cindicator)
+                     self)
+                    (loop (cdr ibind) (+fx 1 position) (cons indicator registry))))
 
-		 ((string? o)
-		  (do-bind(pragma::int "SQLT_STR")o))
+                 ((string? o)
+                  (do-bind(pragma::int "SQLT_STR")o))
 
-		 ((integer? o)
-		  (let*((buf (make-string (pragma::int "sizeof(int)")))
-			(cobj::int o)
-			(cbuf::string buf))
-		    (pragma "*((int*)$1) = $2"cbuf cobj)
-		    (do-bind (pragma::int "SQLT_INT") buf)))
-		 
-		 ((elong? o)
-		  (let*((buf (make-string (pragma::int "sizeof(long)")))
-			(o::elong o)
-			(cobj::long (pragma::long "$1" o))
-			(cbuf::string buf))
-		    (pragma "*((long*)$1) = $2" cbuf cobj)
-		    (do-bind (pragma::int "SQLT_INT") buf)))
-		 
-		 ((flonum? o)
-		  (let*((buf(make-string(pragma::int "sizeof(float)")))
-			(cobj::float o)
-			(cbuf::string buf))
-		    (pragma "*((float*)$1) = $2"cbuf cobj)
-		    (do-bind(pragma::int "SQLT_FLT")buf)))
-		 
-		 ((tm? o)
-		  (let((buf(make-string 7)))
-		    (string-set! buf 0 (integer->char(+fx 119(/fx(tm-year o)100))))
-		    (string-set! buf 1 (integer->char(+fx 100(remainder(tm-year o)100))))
-		    (string-set! buf 2 (integer->char(+fx 1(tm-mon o))))
-		    (string-set! buf 3 (integer->char(tm-mday o)))
-		    (string-set! buf 4 (integer->char(+fx 1(tm-hour o))))
-		    (string-set! buf 5 (integer->char(+fx 1(tm-min o))))
-		    (string-set! buf 6 (integer->char(+fx 1(tm-sec o))))
-		    (do-bind(pragma::int "SQLT_DAT")buf)))
-		 
-		 
-		 (else
-		  (error "oci-bind-by-pos"
-			 "object type is unsupported"
-			 (list
-			  o
-			  position
-			  statement)))))
+                 ((integer? o)
+                  (let*((buf (make-string (pragma::int "sizeof(int)")))
+                        (cobj::int o)
+                        (cbuf::string buf))
+                    (pragma "*((int*)$1) = $2"cbuf cobj)
+                    (do-bind (pragma::int "SQLT_INT") buf)))
+                 
+                 ((elong? o)
+                  (let*((buf (make-string (pragma::int "sizeof(long)")))
+                        (o::elong o)
+                        (cobj::long (pragma::long "$1" o))
+                        (cbuf::string buf))
+                    (pragma "*((long*)$1) = $2" cbuf cobj)
+                    (do-bind (pragma::int "SQLT_INT") buf)))
+                 
+                 ((flonum? o)
+                  (let*((buf(make-string(pragma::int "sizeof(float)")))
+                        (cobj::float o)
+                        (cbuf::string buf))
+                    (pragma "*((float*)$1) = $2"cbuf cobj)
+                    (do-bind(pragma::int "SQLT_FLT")buf)))
+                 
+                 ((tm? o)
+                  (let((buf(make-string 7)))
+                    (string-set! buf 0 (integer->char(+fx 119(/fx(tm-year o)100))))
+                    (string-set! buf 1 (integer->char(+fx 100(remainder(tm-year o)100))))
+                    (string-set! buf 2 (integer->char(+fx 1(tm-mon o))))
+                    (string-set! buf 3 (integer->char(tm-mday o)))
+                    (string-set! buf 4 (integer->char(+fx 1(tm-hour o))))
+                    (string-set! buf 5 (integer->char(+fx 1(tm-min o))))
+                    (string-set! buf 6 (integer->char(+fx 1(tm-sec o))))
+                    (do-bind(pragma::int "SQLT_DAT")buf)))
+                 
+                 
+                 (else
+                  (error "oci-bind-by-pos"
+                         "object type is unsupported"
+                         (list
+                          o
+                          position
+                          statement)))))
 
-	  (let*((has-answer(has-answer? self))
-		(iters::int(if has-answer 0 1)))
-	    (let((svch::oci-svc-ctx(oracle-connection-impl connection)))
-	      (check-oracle-error
-	       "oci-stmt-execute"
-	       err
-	       (pragma::int
-		"OCIStmtExecute($1, $2, $3, $4, 0, NULL, NULL, OCI_DEFAULT)"
-		svch impl err iters)
-	       self))
+          (let*((has-answer(has-answer? self))
+                (iters::int(if has-answer 0 1)))
+            (let((svch::oci-svc-ctx(oracle-connection-impl connection)))
+              (check-oracle-error
+               "oci-stmt-execute"
+               err
+               (pragma::int
+                "OCIStmtExecute($1, $2, $3, $4, 0, NULL, NULL, OCI_DEFAULT)"
+                svch impl err iters)
+               self))
 
-	    (and has-answer
-		 (let loop((descs(describe self))
-			   (counter 1)
-			   (obind '()))
-		   
-		   (if(pair? descs)
-		      (let*((desc(car descs))
-			    (colname(first desc))
-			    (data-type::short(second desc))
-			    (data-size::int(third desc))
-			    (nullable?(fourth desc))
-			    (indicator(make-string(pragma::int "sizeof(short)")))
-			    (rlen(make-string(pragma::int "sizeof(short)"))))
-			
-			(define(do-define type::int buf::bstring getter::procedure)
-			  (let*((cbuf::string buf)
-				(len::int(string-length buf))
-				(pos::int counter)
-				(cindicator::string indicator)
-				(crlen::string rlen)
-				(cdefp::oci-define (pragma::oci-define "NULL"))
-				)
-			    (check-oracle-error
-			     "oci-define-by-pos"
-			     err
-			     (pragma::int
-			      "OCIDefineByPos($1, &$2, $3, $4, $5, $6,
+            (and has-answer
+                 (let loop((descs(describe self))
+                           (counter 1)
+                           (obind '()))
+                   
+                   (if(pair? descs)
+                      (let*((desc(car descs))
+                            (colname(first desc))
+                            (data-type::short(second desc))
+                            (data-size::int(third desc))
+                            (nullable?(fourth desc))
+                            (indicator(make-string(pragma::int "sizeof(short)")))
+                            (rlen(make-string(pragma::int "sizeof(short)"))))
+                        
+                        (define(do-define type::int buf::bstring getter::procedure)
+                          (let*((cbuf::string buf)
+                                (len::int(string-length buf))
+                                (pos::int counter)
+                                (cindicator::string indicator)
+                                (crlen::string rlen)
+                                (cdefp::oci-define (pragma::oci-define "NULL"))
+                                )
+                            (check-oracle-error
+                             "oci-define-by-pos"
+                             err
+                             (pragma::int
+                              "OCIDefineByPos($1, &$2, $3, $4, $5, $6,
                           $7, (dvoid *) $8, (ub2 *) $9, (ub2 *) 0, OCI_DEFAULT)"
-			      impl cdefp err pos cbuf len type cindicator crlen)
-			     self)
-			    )
-			  (loop(cdr descs)(+fx 1 counter)(cons getter obind)))
-			
-			(define(make-getter getter::procedure)
-			  (if nullable?
-			      (lambda()
-				(let*((cind::string indicator)
-				      (index(pragma::short "*((short*)$1)"cind)))
-				  (if (<fx index 0)
-				      #unspecified
-				      (getter))))
-			      
-			      getter))
-			
-			(cond
-			 ((or(pragma::bool "$1 == SQLT_BLOB" data-type)
-			     (pragma::bool "$1 == SQLT_CLOB" data-type)
-			     )
-			  (let*((buf(make-string (pragma::int "sizeof(OCILobLocator*)")))
-				(cbuf::string buf)
-				(env::oci-env(oracle-connection-env connection))
-				)
-			    (check-oracle-error
-			     "oci-descriptor-alloc"
-			     err
-			     (pragma::int
-			      "OCIDescriptorAlloc($1,(dvoid **)$2,(ub4)OCI_DTYPE_LOB,(size_t)0,(dvoid **) 0)"
-			      env
-			      cbuf)
-			     self)
-			    (do-define(if (pragma::bool "$1 == SQLT_BLOB" data-type)
-					  (pragma::int "SQLT_BLOB")
-					  (pragma::int "SQLT_CLOB"))
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let*((cbuf::string buf)
-					       (lob::oci-lob-locator
-						(pragma::oci-lob-locator "*((OCILobLocator**)$1)"cbuf))
-					       (len::int (pragma::int "0"))
-					       (svch::oci-svc-ctx(oracle-connection-impl connection))
-					       (err::oci-error(oracle-connection-err connection))
-					       )
-					   (check-oracle-error
-					    "OCILobGetLength" err
-					    (pragma::int "OCILobGetLength($1, $2, $3, &$4)"
-							 svch err lob len)
-					    self)
-					   (let*((res(make-string len))
-						 (cres::string res))
-					     (check-oracle-error
-					      "OCILobRead" err
-					      (pragma::int
-					       "OCILobRead($1, $2, $3, &$4, 1 /* offset */,
+                              impl cdefp err pos cbuf len type cindicator crlen)
+                             self)
+                            )
+                          (loop(cdr descs)(+fx 1 counter)(cons getter obind)))
+                        
+                        (define(make-getter getter::procedure)
+                          (if nullable?
+                              (lambda()
+                                (let*((cind::string indicator)
+                                      (index(pragma::short "*((short*)$1)"cind)))
+                                  (if (<fx index 0)
+                                      #unspecified
+                                      (getter))))
+                              
+                              getter))
+                        
+                        (cond
+                         ((or(pragma::bool "$1 == SQLT_BLOB" data-type)
+                             (pragma::bool "$1 == SQLT_CLOB" data-type)
+                             )
+                          (let*((buf(make-string (pragma::int "sizeof(OCILobLocator*)")))
+                                (cbuf::string buf)
+                                (env::oci-env(oracle-connection-env connection))
+                                )
+                            (check-oracle-error
+                             "oci-descriptor-alloc"
+                             err
+                             (pragma::int
+                              "OCIDescriptorAlloc($1,(dvoid **)$2,(ub4)OCI_DTYPE_LOB,(size_t)0,(dvoid **) 0)"
+                              env
+                              cbuf)
+                             self)
+                            (do-define(if (pragma::bool "$1 == SQLT_BLOB" data-type)
+                                          (pragma::int "SQLT_BLOB")
+                                          (pragma::int "SQLT_CLOB"))
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let*((cbuf::string buf)
+                                               (lob::oci-lob-locator
+                                                (pragma::oci-lob-locator "*((OCILobLocator**)$1)"cbuf))
+                                               (len::int (pragma::int "0"))
+                                               (svch::oci-svc-ctx(oracle-connection-impl connection))
+                                               (err::oci-error(oracle-connection-err connection))
+                                               )
+                                           (check-oracle-error
+                                            "OCILobGetLength" err
+                                            (pragma::int "OCILobGetLength($1, $2, $3, &$4)"
+                                                         svch err lob len)
+                                            self)
+                                           (let*((res(make-string len))
+                                                 (cres::string res))
+                                             (check-oracle-error
+                                              "OCILobRead" err
+                                              (pragma::int
+                                               "OCILobRead($1, $2, $3, &$4, 1 /* offset */,
                                                 (dvoid *) $5, (ub4)$4 , (dvoid *) 0,
                                                 NULL, (ub2) 0, (ub1) SQLCS_IMPLICIT)"
-					       svch err lob len cres)
-					      self)
-					     res
-					     )))))))
-			 
-			 ((or(pragma::bool "$1 == SQLT_LNG" data-type)
-			     (pragma::bool "$1 == SQLT_LBI" data-type)
-			     )
-			  (let*((pos::int counter)
-				(cindicator::string indicator)
-				(crlen::string rlen)
-				(cdefp::oci-define (pragma::oci-define "NULL"))
-				)
-			    (check-oracle-error
-			     "oci-define-by-pos"
-			     err
-			     (pragma::int
-			      "OCIDefineByPos($1, &$2, $3, $4, NULL, 100000000,
+                                               svch err lob len cres)
+                                              self)
+                                             res
+                                             )))))))
+                         
+                         ((or(pragma::bool "$1 == SQLT_LNG" data-type)
+                             (pragma::bool "$1 == SQLT_LBI" data-type)
+                             )
+                          (let*((pos::int counter)
+                                (cindicator::string indicator)
+                                (crlen::string rlen)
+                                (cdefp::oci-define (pragma::oci-define "NULL"))
+                                )
+                            (check-oracle-error
+                             "oci-define-by-pos"
+                             err
+                             (pragma::int
+                              "OCIDefineByPos($1, &$2, $3, $4, NULL, 100000000,
                                    $7, (dvoid *) $5, (ub2 *) $6, (ub2 *) 0, OCI_DYNAMIC_FETCH)"
-			      impl cdefp err pos cindicator crlen
-			      (if(pragma::bool "$1 == SQLT_LNG" data-type)
-				 (pragma::int "SQLT_CHR")
-				 (pragma::int "SQLT_BIN"))
-			      )
-			     self)
-			    )
-			  (loop(cdr descs)
-			       (+fx 1 counter)
-			       (cons
-				(let((buf(make-string 1024)))
-				  (make-getter
-				   (lambda()
-				     (let*((cbuf::string buf)
-					   (len::int (string-length buf))
-					   (err::oci-error(oracle-connection-err connection))
-					   (indicator::int (pragma::int "0"))
-					   (rcode::ushort (pragma::ushort "0"))
-					   
-					   (hdlptr::void* (pragma::void* "NULL"))
-					   (hdltype::uint (pragma::uint "0"))
-					   (in_out::uchar (pragma::uchar "0"))
-					   (iter::uint (pragma::uint "0"))
-					   (idx::uint (pragma::uint "0"))
-					   (piece::uchar (pragma::uchar "OCI_FIRST_PIECE"))
-					   (out(open-output-string)))
-				       
-				       (let loop ()
-					 (check-oracle-error
-					  "OCIStmtGetPieceInfo" err
-					  (pragma::int
-					   "OCIStmtGetPieceInfo($1,$2,&$3,&$4,&$5,&$6,&$7,&$8)"
-					   impl err hdlptr hdltype in_out iter idx piece)
-					  self)
-					 
-					 (check-oracle-error
-					  "OCIStmtSetPieceInfo" err
-					  (pragma::int
-					   "OCIStmtSetPieceInfo($1, $2, $3, $4, &$5, $6, &$7, &$8)"
-					   hdlptr hdltype err cbuf len piece indicator rcode)
-					  self)
-					 (let((status::int
-					       (pragma::int
-						"OCIStmtFetch($1, $2, (ub4) 1, (ub2) OCI_FETCH_NEXT, (ub4) OCI_DEFAULT)"
-						impl err)))
-					   (cond ((pragma::bool "$1 == OCI_SUCCESS" status)
-						  (display(substring/shared buf 0 len)out)
-						  (get-output-string out))
-						 ((pragma::bool "$1 == OCI_NEED_DATA" status)
-						  (display(substring/shared buf 0 len)out)
-						  (loop))
-						 (else
-						  (error "OCIStmtFetch" "invalid return code" status)))))))))
-				obind)))
-			 
-			 ((pragma::bool
-			   "$1 == OCI_TYPECODE_RAW ||
+                              impl cdefp err pos cindicator crlen
+                              (if(pragma::bool "$1 == SQLT_LNG" data-type)
+                                 (pragma::int "SQLT_CHR")
+                                 (pragma::int "SQLT_BIN"))
+                              )
+                             self)
+                            )
+                          (loop(cdr descs)
+                               (+fx 1 counter)
+                               (cons
+                                (let((buf(make-string 1024)))
+                                  (make-getter
+                                   (lambda()
+                                     (let*((cbuf::string buf)
+                                           (len::int (string-length buf))
+                                           (err::oci-error(oracle-connection-err connection))
+                                           (indicator::int (pragma::int "0"))
+                                           (rcode::ushort (pragma::ushort "0"))
+                                           
+                                           (hdlptr::void* (pragma::void* "NULL"))
+                                           (hdltype::uint (pragma::uint "0"))
+                                           (in_out::uchar (pragma::uchar "0"))
+                                           (iter::uint (pragma::uint "0"))
+                                           (idx::uint (pragma::uint "0"))
+                                           (piece::uchar (pragma::uchar "OCI_FIRST_PIECE"))
+                                           (out(open-output-string)))
+                                       
+                                       (let loop ()
+                                         (check-oracle-error
+                                          "OCIStmtGetPieceInfo" err
+                                          (pragma::int
+                                           "OCIStmtGetPieceInfo($1,$2,&$3,&$4,&$5,&$6,&$7,&$8)"
+                                           impl err hdlptr hdltype in_out iter idx piece)
+                                          self)
+                                         
+                                         (check-oracle-error
+                                          "OCIStmtSetPieceInfo" err
+                                          (pragma::int
+                                           "OCIStmtSetPieceInfo($1, $2, $3, $4, &$5, $6, &$7, &$8)"
+                                           hdlptr hdltype err cbuf len piece indicator rcode)
+                                          self)
+                                         (let((status::int
+                                               (pragma::int
+                                                "OCIStmtFetch($1, $2, (ub4) 1, (ub2) OCI_FETCH_NEXT, (ub4) OCI_DEFAULT)"
+                                                impl err)))
+                                           (cond ((pragma::bool "$1 == OCI_SUCCESS" status)
+                                                  (display(substring/shared buf 0 len)out)
+                                                  (get-output-string out))
+                                                 ((pragma::bool "$1 == OCI_NEED_DATA" status)
+                                                  (display(substring/shared buf 0 len)out)
+                                                  (loop))
+                                                 (else
+                                                  (error "OCIStmtFetch" "invalid return code" status)))))))))
+                                obind)))
+                         
+                         ((pragma::bool
+                           "$1 == OCI_TYPECODE_RAW ||
                             $1 == OCI_TYPECODE_UNSIGNED8" data-type)
-			  (let((buf(make-string (+fx 1 data-size))))
-			    (do-define(pragma::int "SQLT_BIN")
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let((res::string buf))res))))))
+                          (let((buf(make-string (+fx 1 data-size))))
+                            (do-define(pragma::int "SQLT_BIN")
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let((res::string buf))res))))))
 
-			 ((pragma::bool
-			   "$1 == OCI_TYPECODE_CHAR ||
+                         ((pragma::bool
+                           "$1 == OCI_TYPECODE_CHAR ||
                             $1 == OCI_TYPECODE_VARCHAR" data-type)
-			  ;; FIXME: we must handle wide chartacters
-			  ;; properly, for now just double buffer
-			  ;; length for possible unicode characters
-			  (let((buf (make-string (+fx 1 (*fx 2 data-size)))))
-			    (do-define (pragma::int "SQLT_STR")
-				       buf
-				       (make-getter
-					(lambda()
-					  (let((res::string buf))res))))))
-			 
-			 ((pragma::bool "$1 == OCI_TYPECODE_NUMBER" data-type)
-			  ;;[print "data-size: " data-size]
-			  (let((buf(make-string (pragma::int "sizeof(float)")))
-			       (precision (fifth desc))
-			       (scale (sixth desc))
-			       )
-			    (cond
-			     ((>fx scale 0)
-			      ;; return as float
-			      (do-define(pragma::int "SQLT_FLT")
-					buf
-					(make-getter
-					 (lambda()
-					   (let((cbuf::string buf))
-					     (pragma::float "*((float*)$1)"cbuf))))))
-			     ((<fx precision 9)
-			      (do-define(pragma::int "SQLT_INT")
-					buf
-					(make-getter
-					 (lambda()
-					   (let((cbuf::string buf))
-					     (pragma::long "*((long*)$1)"cbuf))))))
-			     (else
-			      (do-define(pragma::int "SQLT_FLT")
-					buf
-					(make-getter
-					 (lambda()
-					   (let*((cbuf::string buf)
-						 (result(pragma::float "*((float*)$1)"cbuf))
-						 (iresult(inexact->exact result)))
-					     (if(=(exact->inexact iresult)result)
-						iresult
-						result)))))))))
-			
-;			  (if(positive? (sixth desc)) ;; scale
-;			     (let((buf(make-string (pragma::int "sizeof(float)"))))
-;			       (do-define(pragma::int "SQLT_FLT")
-;					 buf
-;					 (make-getter
-;					  (lambda()
-;					    (let((cbuf::string buf))
-;					      (pragma::float "*((float*)$1)"cbuf))))))
-;			     (let((buf(make-string (pragma::int "sizeof(long long)"))))
-;			       (do-define(pragma::int "SQLT_INT")
-;					 buf
-;					 (make-getter
-;					  (lambda()
-;					    (let((cbuf::string buf))
-;					      (pragma::int "*((long long*)$1)"cbuf))))))))
-			 
-			 ((pragma::bool
-			   "$1 == OCI_TYPECODE_OCTET ||
+                          ;; FIXME: we must handle wide chartacters
+                          ;; properly, for now just double buffer
+                          ;; length for possible unicode characters
+                          (let((buf (make-string (+fx 1 (*fx 2 data-size)))))
+                            (do-define (pragma::int "SQLT_STR")
+                                       buf
+                                       (make-getter
+                                        (lambda()
+                                          (let((res::string buf))res))))))
+                         
+                         ((pragma::bool "$1 == OCI_TYPECODE_NUMBER" data-type)
+                          ;;[print "data-size: " data-size]
+                          (let((buf(make-string (pragma::int "sizeof(float)")))
+                               (precision (fifth desc))
+                               (scale (sixth desc))
+                               )
+                            (cond
+                             ((>fx scale 0)
+                              ;; return as float
+                              (do-define(pragma::int "SQLT_FLT")
+                                        buf
+                                        (make-getter
+                                         (lambda()
+                                           (let((cbuf::string buf))
+                                             (pragma::float "*((float*)$1)"cbuf))))))
+                             ((<fx precision 9)
+                              (do-define (pragma::int "SQLT_INT")
+                                         buf
+                                         (make-getter
+                                          (lambda()
+                                            (let((cbuf::string buf))
+                                              (pragma::long "*((int32_t*)$1)" cbuf))))))
+                             (else
+                              (do-define(pragma::int "SQLT_FLT")
+                                        buf
+                                        (make-getter
+                                         (lambda()
+                                           (let*((cbuf::string buf)
+                                                 (result(pragma::float "*((float*)$1)"cbuf))
+                                                 (iresult(inexact->exact result)))
+                                             (if(=(exact->inexact iresult)result)
+                                                iresult
+                                                result)))))))))
+                         ;;       (if(positive? (sixth desc)) ;; scale
+                         ;;          (let((buf(make-string (pragma::int "sizeof(float)"))))
+                         ;;            (do-define(pragma::int "SQLT_FLT")
+                         ;;          buf
+                         ;;          (make-getter
+                         ;;           (lambda()
+                         ;;             (let((cbuf::string buf))
+                         ;;               (pragma::float "*((float*)$1)"cbuf))))))
+                         ;;          (let((buf(make-string (pragma::int "sizeof(long long)"))))
+                         ;;            (do-define(pragma::int "SQLT_INT")
+                         ;;          buf
+                         ;;          (make-getter
+                         ;;           (lambda()
+                         ;;             (let((cbuf::string buf))
+                         ;;               (pragma::int "*((long long*)$1)"cbuf))))))))
+                         
+                         ((pragma::bool
+                           "$1 == OCI_TYPECODE_OCTET ||
                             $1 == OCI_TYPECODE_SMALLINT ||
                             $1 == OCI_TYPECODE_INTEGER"
-			   data-type)
-			  (let((buf(make-string (pragma::int "sizeof(int)"))))
-			    (do-define(pragma::int "SQLT_INT")
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let((cbuf::string buf))
-					   (pragma::int "*((int*)$1)"cbuf)))))))
-			 
-			 ((pragma::bool
-			   "$1 == OCI_TYPECODE_UNSIGNED32 ||
+                           data-type)
+                          (let((buf(make-string (pragma::int "sizeof(int)"))))
+                            (do-define(pragma::int "SQLT_INT")
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let((cbuf::string buf))
+                                           (pragma::int "*((int*)$1)"cbuf)))))))
+                         
+                         ((pragma::bool
+                           "$1 == OCI_TYPECODE_UNSIGNED32 ||
                             $1 == OCI_TYPECODE_UNSIGNED16"
-			   data-type)
-			  (let((buf(make-string (pragma::int "sizeof(uint)"))))
-			    (do-define(pragma::int "SQLT_UIN")
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let((cbuf::string buf))
-					   (pragma::int "*((unsigned*)$1)"cbuf)))))))
-			 
-			 ((pragma::bool
-			   "$1 == OCI_TYPECODE_OBJECT"
-			   data-type)
-			  (let((buf(make-string (+fx 1 data-size))))
-			    (do-define(pragma::int "SQLT_NTY")
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let((res::string buf))res))))))
-			 
-			 ((or
-			   (pragma::bool "$1 == OCI_TYPECODE_DATE" data-type)
-			   (pragma::bool "$1 == OCI_TYPECODE_TIMESTAMP" data-type)
-			   )
-			  (let((buf(make-string data-size)))
-			    (do-define(pragma::int "SQLT_DAT")
-				      buf
-				      (make-getter
-				       (lambda()
-					 (let((oracent::uchar(string-ref buf 0))
-					      (orayear::uchar(string-ref buf 1))
-					      (oramonth::uchar(string-ref buf 2))
-					      (oraday::uchar(string-ref buf 3))
-					      (orahour::uchar(string-ref buf 4))
-					      (oramin::uchar(string-ref buf 5))
-					      (orasec::uchar(string-ref buf 6)))
-					   (mktime
-					    (+fx
-					     (*fx(-fx(char->integer oracent)100)100)
-					     (-fx(char->integer orayear)100))
-					    (char->integer oramonth)
-					    (char->integer oraday)
-					    (-fx(char->integer orahour)1)
-					    (-fx(char->integer oramin)1)
-					    (-fx(char->integer orasec)1))
-					   ))))))
-			 (else
-			  (let*((code::oci-typecode data-type)
-				(code::symbol code))
-			    (error "oci-stmt-describe"
-				   (string-append colname
-						  " column : unsupported typecode")
-				   code)))))
-		      
-		      (oracle-session-obind-set! self (reverse obind)))))))))))
+                           data-type)
+                          (let((buf(make-string (pragma::int "sizeof(uint)"))))
+                            (do-define(pragma::int "SQLT_UIN")
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let((cbuf::string buf))
+                                           (pragma::int "*((unsigned*)$1)"cbuf)))))))
+                         
+                         ((pragma::bool
+                           "$1 == OCI_TYPECODE_OBJECT"
+                           data-type)
+                          (let((buf(make-string (+fx 1 data-size))))
+                            (do-define(pragma::int "SQLT_NTY")
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let((res::string buf))res))))))
+                         
+                         ((or
+                           (pragma::bool "$1 == OCI_TYPECODE_DATE" data-type)
+                           (pragma::bool "$1 == OCI_TYPECODE_TIMESTAMP" data-type)
+                           )
+                          (let((buf(make-string data-size)))
+                            (do-define(pragma::int "SQLT_DAT")
+                                      buf
+                                      (make-getter
+                                       (lambda()
+                                         (let((oracent::uchar(string-ref buf 0))
+                                              (orayear::uchar(string-ref buf 1))
+                                              (oramonth::uchar(string-ref buf 2))
+                                              (oraday::uchar(string-ref buf 3))
+                                              (orahour::uchar(string-ref buf 4))
+                                              (oramin::uchar(string-ref buf 5))
+                                              (orasec::uchar(string-ref buf 6)))
+                                           (mktime
+                                            (+fx
+                                             (*fx(-fx(char->integer oracent)100)100)
+                                             (-fx(char->integer orayear)100))
+                                            (char->integer oramonth)
+                                            (char->integer oraday)
+                                            (-fx(char->integer orahour)1)
+                                            (-fx(char->integer oramin)1)
+                                            (-fx(char->integer orasec)1))
+                                           ))))))
+                         (else
+                          (let*((code::oci-typecode data-type)
+                                (code::symbol code))
+                            (error "oci-stmt-describe"
+                                   (string-append colname
+                                                  " column : unsupported typecode")
+                                   code)))))
+                      
+                      (oracle-session-obind-set! self (reverse obind)))))))))))
 
 (define-method(fetch!::pair-nil self::oracle-session)
   (with-access::oracle-session
    self (connection impl obind)
    (let*((err (oracle-connection-err connection))
-	 (res::int(pragma::int
-		   "OCIStmtFetch($1, $2, (ub4) 1, OCI_FETCH_NEXT, OCI_DEFAULT)"
-		   impl err)))
-     (cond ((or(pragma::bool "OCI_SUCCESS == $1" res)
-	       (pragma::bool "OCI_NEED_DATA == $1" res)
-	       (pragma::bool "OCI_SUCCESS_WITH_INFO == $1" res)
-	       )
-	    (map (lambda(p)(p)) obind))
-	   ((pragma::bool "OCI_NO_DATA == $1" res)
-	    '())
-	   (else (check-oracle-error "oci-stmt-fetch" err res self))))))
+         (res::int(pragma::int
+                   "OCIStmtFetch($1, $2, (ub4) 1, OCI_FETCH_NEXT, OCI_DEFAULT)"
+                   impl err)))
+     (check-oracle-error "oci-stmt-fetch" err res self)
+     (cond ((or (pragma::bool "OCI_SUCCESS == $1" res)
+                (pragma::bool "OCI_NEED_DATA == $1" res)
+                (pragma::bool "OCI_SUCCESS_WITH_INFO == $1" res)
+                )
+            (map (lambda(p)(p)) obind))
+           ((pragma::bool "OCI_NO_DATA == $1" res)
+            '())
+           (else
+            [error "fetch!" "unknown OCI result code: " (cons res err)]
+            )))))
 
 (define-method(_dismiss! self::oracle-connection)
   (with-access::oracle-connection
@@ -840,13 +844,13 @@
 ;; returns the `Invalid handle' error! So we do nothing
 (define-method(begin-transaction!::bool self::oracle-connection . timeout)
   #t
-;  (with-access::oracle-connection
-;   self(impl err)
-;   (check-oracle-error
-;    "begin-transaction!" err
-;    (let((timeout::int (if(pair? timeout)(car timeout)60)))
-;      (pragma::int"OCITransStart($1, $2, $3, OCI_TRANS_NEW)"
-;		  impl err timeout)self)))
+  ;;  (with-access::oracle-connection
+  ;;   self(impl err)
+  ;;   (check-oracle-error
+  ;;    "begin-transaction!" err
+  ;;    (let((timeout::int (if(pair? timeout)(car timeout)60)))
+  ;;      (pragma::int"OCITransStart($1, $2, $3, OCI_TRANS_NEW)"
+  ;;     impl err timeout)self)))
   )
 
 (define-method(commit-transaction! self::oracle-connection)
@@ -867,14 +871,14 @@
 
 (define (oci-error-get err::oci-error #!optional recordno)
   (let*((recordno::long (or recordno 1))
-	(sqlstate::string (pragma::string "NULL"))
-	(errcode::long (pragma::long "0"))
-	(buffer(make-string 512))
-	(cbuffer::string buffer)
-	(res::int
-	 (pragma::int
-	  "OCIErrorGet($1, $2, (text*)&$3, (sb4*)&$4, $5, 512, OCI_HTYPE_ERROR)"
-	  err recordno sqlstate errcode cbuffer)))
+        (sqlstate::string (pragma::string "NULL"))
+        (errcode::long (pragma::long "0"))
+        (buffer(make-string 512))
+        (cbuffer::string buffer)
+        (res::int
+         (pragma::int
+          "OCIErrorGet($1, $2, (text*)&$3, (sb4*)&$4, $5, 512, OCI_HTYPE_ERROR)"
+          err recordno sqlstate errcode cbuffer)))
     (if(=fx res 0)
        (values cbuffer errcode sqlstate res)
        (error "oci-error-get" "error while retrieving error info" ""))))
@@ -883,27 +887,35 @@
 (define (check-oracle-error who err code #!optional obj)
   (let ((code::int code))
     (cond
-     ((=fx(pragma::int "OCI_SUCCESS") code) #f)
-     ((=fx(pragma::int "OCI_ERROR") code)
-      (if(oci-error? err)
-	 (multiple-value-bind
-	  (ora-message errcode sqlstate result)
-	  (oci-error-get err)
-	  (error who ora-message (or obj code)))
-	 (error who "Unknown error" (or obj code))))
+     ((=fx (pragma::int "OCI_SUCCESS") code) #f)
      
-     ((=fx(pragma::int "OCI_SUCCESS_WITH_INFO")code)
+     ((=fx (pragma::int "OCI_SUCCESS_WITH_INFO")code)
       'success-with-info)
-     ((=fx(pragma::int "OCI_NO_DATA")code)
+
+     ((=fx (pragma::int "OCI_NO_DATA")code)
       'no-data)
-     ((=fx(pragma::int "OCI_INVALID_HANDLE")code)
+
+     ((=fx (pragma::int "OCI_INVALID_HANDLE")code)
       (error who "Invalid Handle" ""))
-     ((=fx(pragma::int "OCI_NEED_DATA")code)
+
+     ((=fx (pragma::int "OCI_NEED_DATA")code)
       'need-data)
-     ((=fx(pragma::int "OCI_STILL_EXECUTING")code)
+
+     ((=fx (pragma::int "OCI_STILL_EXECUTING")code)
       'still-executing)
-     ((=fx(pragma::int "OCI_CONTINUE")code)
-      'continue))))
+
+     ((=fx (pragma::int "OCI_CONTINUE")code)
+      'continue)
+
+     ((oci-error? err)
+      (multiple-value-bind
+       (ora-message errcode sqlstate result)
+       (oci-error-get err)
+       (error who ora-message (or obj code))))
+     
+     ((=fx (pragma::int "OCI_ERROR") code)
+      (error who "Unknown error" (or obj code))))))
+
 
 ;; Client Character Set Control from OCI
 
