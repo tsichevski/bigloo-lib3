@@ -1,0 +1,50 @@
+# -*-rpm-spec-*-
+%define version	@VERSION@
+%define release	1
+%define name 	bigloo-expat
+%define realname  bigloo-expat
+
+Summary: 	GD interface (GIF/PNG image processing library) for Bigloo
+Name:    	%{name}
+Version: 	%{version}
+Release: 	%{release}
+Copyright: 	LGPL
+Vendor:		Vladimir Tsichevski <wowa1@online.ru>
+Source: 	bigloo-expat-@VERSION@.tar.gz
+Group:		Development
+Packager:	Vladimir Tsichevski <wowa1@online.ru>
+BuildRoot:	/var/tmp/bigloo-expat
+Requires:	bigloo >= 2.5c, bigloo-common >= 0.20, bigloo-node >= 0.20
+BuildRequires:	bigloo >= 2.5c, bigloo-common >= 0.20, bigloo-node >= 0.20
+
+%description
+
+expat support for Bigloo.
+
+%prep
+
+%setup
+%configure
+
+%build
+make
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+make install DESTDIR=%{buildroot}
+
+%clean
+#rm -rf %{buildroot}
+
+%post
+
+%postun
+
+%files
+%{_bindir}/*
+%{_libdir}/bigloo/*
+
+%changelog
+* Sat Jun  7 2003 Vladimir Tsichevski <wowa1@online.ru> @VERSION@-1
+- first edition

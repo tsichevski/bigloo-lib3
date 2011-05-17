@@ -1,0 +1,17 @@
+2003-09-12  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* add tests for new functionality
+
+	* change implementation to using expat ability to parse SGML
+	comments -- modify `xml-build-node'
+
+	* expat.m4: add check for the new expat namespaces * expat.defs
+	(xml-parse): add support for the new expat namespaces API; add
+	documentation; change to using Bigloo class to hold all parser
+	data instead of using vectors
+	(xml-parse): add documentation for new keyword options:
+	use-namespaces?  start-namespace-decl-handler
+	end-namespace-decl-handler namespace-delim
+
+	* explore other new expat features
+

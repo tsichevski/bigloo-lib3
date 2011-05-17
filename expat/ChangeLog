@@ -1,0 +1,11 @@
+2003-09-12  Vladimir Tsichevski  <wowa@jet.msk.su>
+
+	* expat.defs: expat namespace support featured. The `xml-parse'
+	now accepts new keyword options: use-namespaces?
+	start-namespace-decl-handler end-namespace-decl-handler
+	namespace-delim
+
+	* expat-utils.scm (xml-build-node): ability to filter
+	particular XML namespace was added
+
+
