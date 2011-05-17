@@ -1,0 +1,4 @@
+;; -*-Scheme-*-
+(set! *include-foreign* (cons* "expat.h" *include-foreign*))
+(set! *ld-post-options*
+      (string-append *ld-post-options* "-lexpat"))

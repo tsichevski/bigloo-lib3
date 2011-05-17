@@ -1,0 +1,29 @@
+AC_INIT(Makefile.rules)
+AM_INIT_AUTOMAKE(bigloo-expat, 0.20alpha_pl1)
+
+m4_include([../bigloo-lib.m4])
+m4_include([../common/common.m4])
+m4_include([expat.m4])
+
+if test -z "$expat" ; then
+  AC_MSG_ERROR([expat development package is required])
+fi
+
+AC_CHECK_PROG_VER(bigloo_common, bigloo-common,
+    [--version],
+    [\([0-9][.][0-9]\+\)],
+    [0.2[0123]],
+    AC_MSG_ERROR([bigloo-common package found but is too old]))	
+
+AC_CHECK_PROG_VER(bigloo_node, bigloo-node,
+    [--version],
+    [\([0-9][.][0-9]\+\)],
+    [0.2[0123]],
+    AC_MSG_ERROR([bigloo-node package found but is too old]))	
+
+AM_PROG_LIBTOOL
+
+AC_OUTPUT([					\
+  Makefile					\
+  bigloo-expat.spec				\
+])

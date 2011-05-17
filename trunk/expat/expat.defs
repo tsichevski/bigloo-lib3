@@ -1,0 +1,200 @@
+; -*-Scheme-*-
+
+;************************************************************************/
+;*                                                                      */
+;* Copyright (c) 2003-2009 Vladimir Tsichevski <tsichevski@gmail.com>   */
+;*                                                                      */
+;* This file is part of bigloo-lib (http://bigloo-lib.sourceforge.net)  */
+;*                                                                      */
+;* This library is free software; you can redistribute it and/or        */
+;* modify it under the terms of the GNU Lesser General Public           */
+;* License as published by the Free Software Foundation; either         */
+;* version 2 of the License, or (at your option) any later version.     */
+;*                                                                      */
+;* This library is distributed in the hope that it will be useful,      */
+;* but WITHOUT ANY WARRANTY; without even the implied warranty of       */
+;* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU    */
+;* Lesser General Public License for more details.                      */
+;*                                                                      */
+;* You should have received a copy of the GNU Lesser General Public     */
+;* License along with this library; if not, write to the Free Software  */
+;* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+;* USA                                                                  */
+;*                                                                      */
+;************************************************************************/
+
+(module
+ expat
+ (library common)
+ (extern
+  ;;(include "config.h")
+  (include "expat.h")
+  
+  (type XML_Error int "enum XML_Error")
+
+  (xmlparser-error-code::XML_Error(parser::xml-parser)"XML_GetErrorCode")
+
+  (export start-element-handler "start_element_handler")
+  (export end-element-handler "end_element_handler")
+  (export cdata-element-handler "cdata_element_handler")
+  (export default-handler "default_handler")
+  (export unparsed-entity-decl-handler "unparsed_entity_decl_handler")
+  (export external-entity-ref-handler "external_entity_ref_handler")
+  (export start-namespace-decl-handler "start_namespace_decl_handler")
+  (export end-namespace-decl-handler "end_namespace_decl_handler")
+
+  (make-sized-string::bstring (::string ::int) "string_to_bstring_len")
+  (macro xml-parser-create::xml-parser (::string) "XML_ParserCreate")
+  (macro xml-parser-create-ns::xml-parser (::string ::char) "XML_ParserCreateNS")
+  )
+
+ (export
+  (start-element-handler udata::obj name::string atts)
+  (end-element-handler udata::obj name::string)
+  (cdata-element-handler udata::obj data::string len::int)
+  (default-handler udata::obj data::string len::int)
+  (unparsed-entity-decl-handler udata::obj
+				entityName::string
+				base::string
+				systemId::string
+				publicId::string
+				notationName::string)
+  (external-entity-ref-handler parser::xml-parser
+			       openEntityNames::string
+			       base::string
+			       systemId::string
+			       publicId::string)
+
+  (xml-parse str #!key)
+  (start-namespace-decl-handler udata::obj prefix::string uri::string) 
+  (end-namespace-decl-handler udata::obj prefix::string) 
+  )
+ (eval (export xml-parse))
+ )
+
+(define-object (xml-parser XML_Parser) ())
+
+(define (start-element-handler udata::obj name::string atts)
+  (let loop((count 0)(accu (list)))
+    (let((attname::string (pragma::string "((char**)$1)[$2]"atts count)))
+      (if(pragma::bool "$1 == NULL" attname)
+	 ((vector-ref udata 0)
+	  name
+	  (reverse accu))
+	 (loop(+fx 2 count)
+	      (cons(cons attname
+			 ($string->bstring
+			  (pragma::string "((char**)$1)[$2]"atts
+					  (+fx 1 count))))accu))))))
+
+(define (end-element-handler udata::obj name::string)
+  ((vector-ref udata 1)name))
+
+(define (cdata-element-handler udata::obj data::string len::int)
+  ((vector-ref udata 2)
+   (make-sized-string data len)))   
+
+(define (default-handler udata::obj data::string len::int)
+  ((vector-ref udata 3)
+   (make-sized-string data len)))
+
+(define (unparsed-entity-decl-handler udata::obj
+				      entityName::string
+				      base::string
+				      systemId::string
+				      publicId::string
+				      notationName::string)
+  ((vector-ref udata 5)
+   entityName
+   (and(pragma::bool "$1 != NULL" base) base)
+   systemId
+   (and(pragma::bool "$1 != NULL" publicId) publicId)
+   notationName))
+
+(define(external-entity-ref-handler parser::xml-parser
+				    openEntityNames::string
+				    base::string
+				    systemId::string
+				    publicId::string)
+  ((vector-ref(pragma::vector "(obj_t)XML_GetUserData($1)"parser)4)
+   parser
+   openEntityNames
+   (and(pragma::bool "$1 != NULL" base) base)
+   systemId
+   (and(pragma::bool "$1 != NULL" publicId) publicId)))
+				    
+(define (start-namespace-decl-handler udata::obj prefix::string uri::string)
+  ((vector-ref udata 6) prefix uri))
+
+(define (end-namespace-decl-handler udata::obj prefix::string)
+  ((vector-ref udata 7) prefix))
+
+(define(xmlparser-error-string::string code::int)
+  (if(zero? code)
+     "No Error"
+     (pragma::string "(char*)XML_ErrorString($1)"code)))
+
+
+(define (xml-parse src #!key
+		   (encoding "iso-8859-1")
+		   (stag-handler values)
+		   (etag-handler values)
+		   (cdata-handler values)
+		   (default-handler values)
+		   (external-entity-ref-handler values)
+		   (unparsed-entity-decl-handler values)
+		   
+		   (use-namespaces #f)
+		   (start-namespace-decl-handler values)
+		   (end-namespace-decl-handler values)
+		   (namespace-delim #\:)
+		   )
+
+  [assert(src)(or (string? src) (ucs2-string? src))]
+
+  (let* ((encoding (if (string? src) encoding "utf-8"))
+	 (parser::xml-parser
+	  (if use-namespaces
+	      (xml-parser-create-ns encoding namespace-delim)
+	      (xml-parser-create encoding))))
+    
+    (unless parser(error "xml-parse" "cannot create" ""))
+    (pragma "XML_SetElementHandler($1, (XML_StartElementHandler) start_element_handler, (XML_EndElementHandler)end_element_handler)"parser)
+    (pragma "XML_SetCharacterDataHandler($1, (XML_CharacterDataHandler)cdata_element_handler)"parser)
+    (pragma "XML_SetDefaultHandler($1, (XML_DefaultHandler)default_handler)"parser)
+    (pragma "XML_SetExternalEntityRefHandler($1, (XML_ExternalEntityRefHandler)external_entity_ref_handler)"parser)
+    (pragma "XML_SetUnparsedEntityDeclHandler($1, (XML_UnparsedEntityDeclHandler)unparsed_entity_decl_handler)"parser)
+    
+    (pragma "
+XML_SetNamespaceDeclHandler($1,
+  (XML_StartNamespaceDeclHandler)start_namespace_decl_handler,
+  (XML_EndNamespaceDeclHandler) end_namespace_decl_handler)"
+	    parser)
+
+    ;; FIXME: these may be organized into class object
+    
+    (pragma "XML_SetUserData($1, (void*)$2)"
+	    parser
+	    (vector stag-handler
+		    etag-handler
+		    cdata-handler
+		    default-handler
+		    external-entity-ref-handler
+		    unparsed-entity-decl-handler
+		    start-namespace-decl-handler
+		    end-namespace-decl-handler
+		    ))
+    
+    (unless
+     (=fx 1
+	  (if(string? src)
+	     (pragma::int"XML_Parse($1, $2, $3, 1)"
+			 parser
+			 ($bstring->string src)
+			 (string-length src))
+	     (pragma::int"XML_Parse($1, (char*)&($2->ucs2_string_t.char0), $3 * 2, 1)"
+			 parser
+			 src
+			 (ucs2-string-length src))))
+     (let((code(xmlparser-error-code parser)))
+       (error "xml-parse"(xmlparser-error-string code) code)))))
