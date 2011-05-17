@@ -58,7 +58,7 @@ bigloo_xml_TEXINFOS = readme.texi authors.texi intro.texi \
 bigloo-xml.info: $(bigloo_xml_TEXINFOS)
 
 #======================================================================
-driver_SOURCES	= driver.defs
+driver_SOURCES	= driver.scm
 
 driver_DEPENDENCIES = lib$(SUBPACKAGE)$(TOOL_LIB_SUFFIX) \
 	$(SUBPACKAGE).heap driver.o
