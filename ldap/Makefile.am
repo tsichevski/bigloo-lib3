@@ -32,8 +32,7 @@ USE_LIBS	= node common
 data_DATA	= $(SUBPACKAGE).heap $(SUBPACKAGE).init ldap-t.sch
 include_HEADERS	= ldap-compat.h
 
-EXTRA_DIST	= test.scm $(SUBPACKAGE).init ldap-t.sch \
-	ldap.m4 Makefile.rules
+EXTRA_DIST = test.scm $(SUBPACKAGE).init ldap-t.sch ldap.m4
 
 bin_PROGRAMS	= driver ldapscheme2bigloo
 driver_SOURCES	= driver.scm

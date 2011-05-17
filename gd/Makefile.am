@@ -34,8 +34,8 @@ USE_LIBS	= common
 
 data_DATA	= $(SUBPACKAGE).heap $(SUBPACKAGE).init
 
-EXTRA_DIST	= test.scm $(SUBPACKAGE).init gd.sch gd.m4 \
-	bigloo-gd.spec.in Makefile.rules
+EXTRA_DIST = test.scm $(SUBPACKAGE).init gd.sch gd.m4	\
+	bigloo-gd.spec.in
 
 driver_SOURCES	= driver.scm
 driver_DEPENDENCIES = lib$(SUBPACKAGE)$(TOOL_LIB_SUFFIX) \

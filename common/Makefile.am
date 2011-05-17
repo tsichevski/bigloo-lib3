@@ -112,9 +112,8 @@ include_HEADERS	= md5.h common.h
 
 LIBS		= @common_libs@
 
-EXTRA_DIST	= test.scm test.sch $(SUBPACKAGE).sch \
-	$(cgen_SOURCES) $(bigloo_lib_afile_SOURCES) \
-	common.m4 bigloo-common.spec.in Makefile.rules
+EXTRA_DIST = test.scm test.sch $(SUBPACKAGE).sch $(cgen_SOURCES)	\
+	$(bigloo_lib_afile_SOURCES) common.m4 bigloo-common.spec.in
 
 driver_SOURCES	= driver.scm
 driver_DEPENDENCIES = lib$(SUBPACKAGE)$(TOOL_LIB_SUFFIX) $(SUBPACKAGE).heap driver.o

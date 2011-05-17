@@ -35,8 +35,7 @@ INCLUDES=@oracle_cflags@ @mysql_cflags@ @pgsql_cflags@
 data_DATA	= $(SUBPACKAGE).heap $(SUBPACKAGE).init
 # include_HEADERS	= rdbms.h
 
-EXTRA_DIST	= test.scm $(SUBPACKAGE).init adhoc.scm rdbms.m4 \
-	Makefile.rules test.sch
+EXTRA_DIST = test.scm $(SUBPACKAGE).init adhoc.scm rdbms.m4 test.sch
 
 bin_PROGRAMS	= driver
 driver_SOURCES	= driver.scm
