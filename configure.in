@@ -15,7 +15,7 @@ m4_include([bigloo-lib.m4])
 m4_include([common/common.m4])
 m4_include([xml/xml.m4])
 m4_include([gd/gd.m4])
-dnl m4_include([expat/expat.m4])
+m4_include([expat/expat.m4])
 m4_include([rdbms/rdbms.m4])
 dnl m4_include([bgtk/bgtk.m4])
 dnl m4_include([gl/gl.m4])
@@ -27,20 +27,20 @@ AC_OUTPUT([					\
   Makefile					\
   bigloo-lib.spec				\
   common/Makefile				\
-  common/common.init				\
+  common/common.init		\
+  expat/Makefile				\
   xml/Makefile					\
   xml/config.texi				\
   xml/xml.init					\
   ldap/Makefile					\
-  gd/Makefile					\
+  gd/Makefile					  \
   node/Makefile					\
   http/Makefile					\
   rdbms/Makefile				\
-  rdbms/rdbms.init				\
+  rdbms/rdbms.init			\
   docs/Makefile					\
   docs/bigloo-lib-version.texi			\
 ])
-#  expat/Makefile				\
 #  bgtk/Makefile					\
 #  bgtk/bgtk.init				\
 #  gl/Makefile					\

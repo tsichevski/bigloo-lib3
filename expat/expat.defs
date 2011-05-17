@@ -65,7 +65,21 @@
 			       systemId::string
 			       publicId::string)
 
-  (xml-parse str #!key)
+  (xml-parse str
+             #!key
+             (encoding "iso-8859-1")
+             (stag-handler values)
+             (etag-handler values)
+             (cdata-handler values)
+             (default-handler values)
+             (external-entity-ref-handler values)
+             (unparsed-entity-decl-handler values)
+             
+             (use-namespaces #f)
+             (start-namespace-decl-handler values)
+             (end-namespace-decl-handler values)
+             (namespace-delim #\:))
+
   (start-namespace-decl-handler udata::obj prefix::string uri::string) 
   (end-namespace-decl-handler udata::obj prefix::string) 
   )
