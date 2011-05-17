@@ -79,36 +79,36 @@
 
 (register-eval-srfi! 'curl)
 
-(define-export (curl-base64-encode data::bstring)
-  (let*((cdata::string data)
-	(length::int (string-length data))
-	(cresult::string (pragma::string "NULL"))
-	(result-length::int
-	 (pragma::int
-	  "Curl_base64_encode((const char *)$1, $2, &$3)"
-	  cdata length cresult)))
-    (if (< result-length 0)
-	[error "curl-base64-encode" "error" ""]
-	(begin0
-	 (pragma::bstring "string_to_bstring_len($1, $2)"
-			  cresult result-length)
-	 (pragma "free($1)" cresult)))))
-;;(curl-base64-encode (file-contents "test.png"))
+;; (define-export (curl-base64-encode data::bstring)
+;;   (let*((cdata::string data)
+;; 	(length::int (string-length data))
+;; 	(cresult::string (pragma::string "NULL"))
+;; 	(result-length::int
+;; 	 (pragma::int
+;; 	  "Curl_base64_encode((const char *)$1, $2, &$3)"
+;; 	  cdata length cresult)))
+;;     (if (< result-length 0)
+;; 	[error "curl-base64-encode" "error" ""]
+;; 	(begin0
+;; 	 (pragma::bstring "string_to_bstring_len($1, $2)"
+;; 			  cresult result-length)
+;; 	 (pragma "free($1)" cresult)))))
+;; ;;(curl-base64-encode (file-contents "test.png"))
 
-;; Note: this function seemes to be broken in curl-7.9.8, use more
-;; recent curl versions
-(define-export (curl-base64-decode data::bstring)
-  (let*((cdata::string data)
-	(length::int (string-length data))
-	(result::string
-	 (pragma::string "(char*)GC_malloc_atomic($1 * 4 / 3 + 4)"length))
-	(result-len::int
-	 (pragma::int
-	  "Curl_base64_decode((const char *)$1, $2)"
-	  cdata result)))
-    (pragma::bstring "string_to_bstring_len($1, $2)"
-		     result result-len)))
-;;(curl-base64-decode (curl-base64-encode (file-contents "test.png")))
+;; ;; Note: this function seemes to be broken in curl-7.9.8, use more
+;; ;; recent curl versions
+;; (define-export (curl-base64-decode data::bstring)
+;;   (let*((cdata::string data)
+;; 	(length::int (string-length data))
+;; 	(result::string
+;; 	 (pragma::string "(char*)GC_malloc_atomic($1 * 4 / 3 + 4)"length))
+;; 	(result-len::int
+;; 	 (pragma::int
+;; 	  "Curl_base64_decode((const char *)$1, $2)"
+;; 	  cdata result)))
+;;     (pragma::bstring "string_to_bstring_len($1, $2)"
+;; 		     result result-len)))
+;; ;;(curl-base64-decode (curl-base64-encode (file-contents "test.png")))
 
 (define-object CURL ())
 
@@ -422,8 +422,8 @@
       "curl-easy-setopt"
       (let((key(car options))
 	   (value(cadr options)))
-	(when (pointer? value)
-	      (object-data-set! curl value key))
+	;; (when (pointer? value)
+	;;       (object-data-set! curl value key))
 	     
 	(case key
 	  ((url:)
@@ -950,7 +950,9 @@
 (define (curl-easy-cleanup curl::curl)
   (let ((curl::curl curl))
     (pragma "curl_easy_cleanup($1)" curl)
-    (object-data-free! curl)))
+    ;; (object-data-free! curl)
+    #unspecified
+    ))
 
 (define (curl-easy-getinfo curl::curl what::symbol)
   (let((buffer::void* (pragma::void* "GC_malloc_atomic(sizeof(double))"))
