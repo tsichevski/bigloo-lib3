@@ -45,7 +45,7 @@
 	 (history-get offset::int)
 	 (previous-history)
 	 (next-history)
-	 (history-search string::string #!optional backward)
+	 (history-search string::string #!optional backward?)
 	 (history-read #!optional filename from to)
 	 (history-write #!optional filename from to)
 	 (history-append nelements::int filename::string)
@@ -215,8 +215,8 @@
       ((-1)(error "history-expand" result-string s))
       ((2) (list result-string)))))
 
-(define (history-arg-extract s::string #!optional (first 0) last)
-  (let*((first::int first)
+(define (history-arg-extract s::string #!optional first last)
+  (let*((first::int (or first 0))
 	(last::int (or last (pragma::int "'$'")))
 	(result::string
 	 (pragma::string "history_arg_extract($1, $2, $3)"

@@ -305,27 +305,30 @@
 ;;; Utility functions to bind keys to readline commands. 
 ; int rl_add_defun (char *, Function *, int)
 
-(define *rl-bind-key-callback-registry*
-  (make-hash-table 256 pair->0..255 cdr equal?))
+(define *rl-bind-key-callback-registry* (make-hashtable))
 
 (define (rl-bind-key-callback::bool a::int key::int)
-  (let((tuple(get-hash (list key (rl-get-keymap))
-		       *rl-bind-key-callback-registry*)))
-    [assert(a key tuple) (list? tuple)]
-    ((car tuple) a key)
+  (let((proc
+        (hashtable-get
+         *rl-bind-key-callback-registry*
+         (list key (rl-get-keymap)))))
+    (proc a key)
     ))
 
 (define (rl-bind-key::bool key::int handle #!optional map)
   (let((map::keymap (or map (rl-get-keymap))))
-    (put-hash! (list handle key map)
-	       *rl-bind-key-callback-registry*)
+    (hashtable-put! *rl-bind-key-callback-registry*
+                    (list key map)
+                    handle
+                    )
     (pragma::bool "rl_bind_key_in_map($1, rl_bind_key_callback, $2)"key map)))
 
 ; int rl_unbind_key (int)
 (define (rl-unbind-key key::int #!optional map)
   (let((map::keymap (or map (rl-get-keymap))))
-    (rem-key-hash! (list key map) *rl-bind-key-callback-registry*)
-    (pragma::bool "rl_unbind_key_in_map($1, $2)"key map)))
+    (hashtable-remove! *rl-bind-key-callback-registry*
+                       (list key map))
+    (pragma::bool "rl_unbind_key_in_map($1, $2)" key map)))
 
 ; int rl_unbind_function_in_map (Function *, Keymap)
 ; int rl_unbind_command_in_map (char *, Keymap)
@@ -655,7 +658,14 @@ rl_attempted_completion_function =(rl_completion_func_t *)NULL"))
 ; char *rl_completer_word_break_characters
 
 ;;; List of characters which can be used to quote a substring of the line. Completion occurs on the entire substring, and within the substring    rl_completer_word_break_characters are treated as any other character, unless they also appear within this list. 
-; char *rl_completer_quote_characters
+(define-export (completer-quote-characters #!optional s)
+  (let((old
+        (and (pragma::bool "rl_completer_quote_characters != NULL")
+             (pragma::string "(char*)rl_completer_quote_characters"))))
+    (when s
+          (let((s::string s))
+            (pragma "rl_completer_quote_characters = strdup($1);" s)))
+    old))
 
 ;;; List of quote characters which cause a word break. 
 ; char *rl_basic_quote_characters

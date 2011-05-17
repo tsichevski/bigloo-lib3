@@ -80,10 +80,10 @@ The procedure @code{rl-discard-keymap} frees the storage associated with
 @c ======================================================================
 @subsection Custom Completers
 
-@deffn {procedure} set-rl-completion-entry-function! #!optional generator 
+@deffn {procedure} set-rl-completion-function! #!optional generator 
 @var{generator}
 
-The procedure @code{set-rl-completion-entry-function!} sets or resets
+The procedure @code{set-rl-completion-function!} sets or resets
 the completions generator functions. The @var{generator} argument must
 be either a procedure taking a string to complete, and returning a
 list of possible completions for that string.

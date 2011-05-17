@@ -65,13 +65,14 @@ fi
 
 if test "$with_commandline" = "yes"; then
   echo yes
-#  AC_MSG_CHECKING(whether to build readline module)
+  AC_MSG_CHECKING(whether to build readline module)
   commandline_targets=termios
 
   AC_CHECK_LIB(readline,readline,have_readline=yes,,-lcurses)
 
   if test "$have_readline" = "yes"; then
-    commandline_targets="$commandline_targets readline history"
+    commandline_targets="$commandline_targets readline"
+    # commandline_targets="$commandline_targets readline history"
     commandline_libs="-lreadline -lcurses"
     common_headers="$common_headers \"readline/readline.h\""
     common_headers="$common_headers \"readline/history.h\""
