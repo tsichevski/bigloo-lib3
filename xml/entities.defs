@@ -71,7 +71,7 @@
 (define-export (xml-add-doc-entity::xml-entity
                 doc::xml-doc
                 name::string
-                content::string
+                content
                 #!key
                 type
                 external-id
@@ -84,7 +84,7 @@
           (or external-id (pragma::string "NULL")))
         (system-id::string
           (or system-id (pragma::string "NULL")))
-        (content::string content))
+        (content::string (or content (pragma::string "NULL"))))
     (pragma::xml-entity
       "xmlAddDocEntity($1, (char*)$2, $3, (char*)$4, (char*)$5, (char*)$6)"
       doc

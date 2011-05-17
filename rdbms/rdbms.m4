@@ -120,11 +120,13 @@ if test -n "$ORACLE_HOME" ; then
   cflags="-I$ORACLE_HOME/rdbms/demo \
 	-I$ORACLE_HOME/rdbms/public \
 	-I $ORACLE_HOME/network/public"
-  TMP=$CPPFLAGS
+  TMPCFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $cflags"
   AC_CHECK_HEADERS("oci.h",
     oci_h_present=yes
     )
+  TMPLIBS="$LIBS"
+  LIBS="$LIBS -L$ORACLE_HOME/lib"
   if test "$oci_h_present" = "yes" ; then
       # On 64-bit platform we must check for libclntsh.so is no 32-bit
       AC_CHECK_LIB(clntsh, OCIStmtPrepare,
@@ -135,7 +137,8 @@ if test -n "$ORACLE_HOME" ; then
           oracle_cflags=$cflags )
   fi
 
-  CPPFLAGS=$TMP
+  CPPFLAGS="$TMPCFLAGS"
+  LIBS="$TMPLIBS"
 fi
 AC_SUBST(oracle)
 AC_SUBST(oracle_libs)

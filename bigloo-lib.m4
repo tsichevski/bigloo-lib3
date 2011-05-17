@@ -267,8 +267,7 @@ AC_SEARCH_LIBS(dlopen, dl,
 AC_SUBST(dl_option)
 AC_SUBST(dl_targets)
 
-echo ac_pwd ${ac_pwd}
-
+AC_MSG_CHECKING([cgen program location])
 if test -z "$cgen" ; then
   if test -f "${ac_pwd}/cgen.scm" ; then
     # we are building the common package
@@ -279,9 +278,11 @@ if test -z "$cgen" ; then
   else
     # we are building bigloo-lib subpackage other then common, working
     # cgen must already be installed in the system
+    # AC_PATH_PROG(cgen, cgen,,[/usr/bin$PATH_SEPARATOR/usr/local/bin])
     AC_PATH_PROG(cgen, cgen)
   fi
 fi
+echo $cgen
 
 if test -z "$cgen"; then
   AC_MSG_ERROR([cannot find cgen utility, you need to install
