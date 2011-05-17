@@ -17,8 +17,8 @@ m4_include([xml/xml.m4])
 m4_include([gd/gd.m4])
 m4_include([expat/expat.m4])
 m4_include([rdbms/rdbms.m4])
-dnl m4_include([bgtk/bgtk.m4])
-dnl m4_include([gl/gl.m4])
+# bgtk/bgtk.m4
+# gl/gl.m4
 m4_include([ldap/ldap.m4])
 
 AM_PROG_LIBTOOL
