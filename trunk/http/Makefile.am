@@ -26,7 +26,7 @@ EXTRA_SCM_F	= @http_charset_target@
 USE_LIBS	= common
 LIBS		= @common_libs@
 
-EXTRA_DIST	= test.scm $(SUBPACKAGE).init Makefile.rules bigloo-http.spec.in
+EXTRA_DIST = test.scm $(SUBPACKAGE).init bigloo-http.spec.in
 data_DATA	= $(SUBPACKAGE).heap $(SUBPACKAGE).init
 
 bin_PROGRAMS	= driver

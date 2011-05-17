@@ -25,7 +25,7 @@ LIBS	= @common_libs@
 
 data_DATA	= $(SUBPACKAGE).heap
 
-EXTRA_DIST	= test.scm Makefile.rules bigloo-node.spec.in
+EXTRA_DIST	= test.scm bigloo-node.spec.in
 
 bin_PROGRAMS	= driver$(EXEEXT)
 driver_SOURCES	= driver.scm
