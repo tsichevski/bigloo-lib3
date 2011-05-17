@@ -48,10 +48,3 @@ xml2bigloo_LDADD	= xml2bigloo.o  $(TOOL_LIBS)
 xml2bigloo_DEPENDENCIES = xml2bigloo.o lib$(SUBPACKAGE)$(TOOL_LIB_SUFFIX) \
 	 $(SUBPACKAGE).heap
 
-driver_SOURCES	= driver.scm
-
-driver_DEPENDENCIES = lib$(SUBPACKAGE)$(TOOL_LIB_SUFFIX) \
-	$(SUBPACKAGE).heap driver.o
-
-driver_LDADD	= driver.o $(TOOL_LIBS)
-
