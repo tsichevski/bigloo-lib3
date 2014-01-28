@@ -175,7 +175,7 @@ used as C type name (for example, @code{"GtkButton"}).
 The corresponding scheme type name is created from C type name (without
 an asterisk) using the following translation:
 
-@table @minus
+@itemize @minus
 @item
 The minus sign is inserted between the two adjacent letters of different
 case, both letters are downcased. For example, the @code{GtkButton} is
@@ -186,7 +186,7 @@ converted to @code{gtk-button}, the @code{theABCDcode} becomes
 All underscores are replaced by minuses, for example,
 @code{gtk_window_new} is converted to @code{gtk-window-new}.
 
-@end table
+@end itemize
 
 @subsubsection Defining names of an accessor
 
@@ -195,7 +195,7 @@ accessors. The specification provides two names: a C type name and a C
 slot name. Then the names of each accessor are constructed using the
 following rules:
 
-@table @minus
+@itemize @minus
 @item
 The object type name is converted as described above (for example,
 @code{GtkButton} is converted to @code{gtk-button}), producing a scheme
@@ -222,7 +222,7 @@ a prototype:
 (gtk-statusbar-msg-context-id::int o::gtk-statusbar-msg)
 @end example
 
-@end table
+@end itemize
 
 @c ==================================================================
 @subsection Directives
@@ -262,14 +262,14 @@ of enum element.
 
 Each @code{define-enum} directive causes the following things to happen:
 
-@table @r
+@itemize @r
 @item
 The new bigloo type is created with predicate and all the coercions necessary.
 
 @item
 The addition conversion that coerces enum element symbolic name to enum
 element value
-@end table
+@end itemize
 
 Examples:
 

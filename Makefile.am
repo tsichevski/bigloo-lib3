@@ -8,8 +8,8 @@ LIB_SUBDIRS	= common @gd@ xml rdbms node @ldap@ http expat
 SUBDIRS		= $(LIB_SUBDIRS) docs
 # ext2fs
 
-DIST_SUBDIRS	= common xml node http ldap rdbms docs
-#  gd  expat  bgtk  gl oracle  ext2fs
+DIST_SUBDIRS	= gd expat common xml node http ldap rdbms docs
+#      bgtk  gl oracle  ext2fs
 
 EXTRA_DIST	= bigloo-lib.spec bigloo-lib.m4 Makefile.rules test.sch bootstrap \
 	make-driver README.rpm
