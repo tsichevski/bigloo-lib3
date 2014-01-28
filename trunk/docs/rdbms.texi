@@ -14,7 +14,7 @@ drivers for different database vendors.
 At the moment of writing the library supports MySQL, Oracle, PostgreSQL
 and SQLite. The support of ODBC and INFORMIX is planned still.
 
-@subsection Object types
+@section Object types
 
 This section describes the driver object types.
 
@@ -32,7 +32,7 @@ the SQL query results. Every @code{session} object is bound to only one
 
 @end deftp
 
-@subsection Connection management
+@section Connection management
 
 This section describes procedures for creating and destroying the
 database connections, and for transaction management.
@@ -147,9 +147,9 @@ support transactions.
 
 This creates new @code{session} for the given @code{connection}.
 
-@subsection Session management
-
 @end defmethod
+
+@section Session management
 
 @defmethod session cancel! 
 @cindex RDBMS session canceling
@@ -254,7 +254,7 @@ information:
 
 @end defmethod
 
-@subsubsection Complete example
+@subsection Complete example
 
 In the following example, the @code{connection} with MySQL database
 named @code{dept} is established. Next, the table named @code{person}
@@ -313,6 +313,6 @@ The output of the program looks like this :
 @end example
 
 @ignore
-@subsubsection More examples
+@subsection More examples
 TBD
 @end ignore
