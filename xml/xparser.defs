@@ -1008,22 +1008,29 @@
 ; to the xmlReadDoc() and similar calls.
 
 (define-flags xmlParserOption
-  (recover XML_PARSE_RECOVER)
-  (noent XML_PARSE_NOENT)
-  (dtdload XML_PARSE_DTDLOAD)
-  (dtdattr XML_PARSE_DTDATTR)
-  (dtdvalid XML_PARSE_DTDVALID)
-  (noerror XML_PARSE_NOERROR)
-  (nowarning XML_PARSE_NOWARNING)
-  (pedantic XML_PARSE_PEDANTIC)
-  (noblanks XML_PARSE_NOBLANKS)
-  (sax1 XML_PARSE_SAX1)
-  (xinclude XML_PARSE_XINCLUDE)
-  (nonet XML_PARSE_NONET)
-  (nodict XML_PARSE_NODICT)
-  (nsclean XML_PARSE_NSCLEAN)
-  (nocdata XML_PARSE_NOCDATA)
-  (noxincnode XML_PARSE_NOXINCNODE)
+  (recover XML_PARSE_RECOVER) ;; recover on errors
+  (noent XML_PARSE_NOENT) ;; substitute entities
+  (dtdload XML_PARSE_DTDLOAD) ;; load the external subset
+  (dtdattr XML_PARSE_DTDATTR) ;; default DTD attributes
+  (dtdvalid XML_PARSE_DTDVALID) ;; validate with the DTD
+  (noerror XML_PARSE_NOERROR) ;; suppress error reports
+  (nowarning XML_PARSE_NOWARNING) ;; suppress warning reports
+  (pedantic XML_PARSE_PEDANTIC) ;; pedantic error reporting
+  (noblanks XML_PARSE_NOBLANKS) ;; remove blank nodes
+  (sax1 XML_PARSE_SAX1) ;; use the SAX1 interface internally
+  (xinclude XML_PARSE_XINCLUDE) ;; Implement XInclude substitition
+  (nonet XML_PARSE_NONET) ;; Forbid network access
+  (nodict XML_PARSE_NODICT) ;; Do not reuse the context dictionary
+  (nsclean XML_PARSE_NSCLEAN) ;; remove redundant namespaces declarations
+  (nocdata XML_PARSE_NOCDATA) ;; merge CDATA as text nodes
+  (noxincnode XML_PARSE_NOXINCNODE) ;; do not generate XINCLUDE START/END nodes
+  (compact XML_PARSE_COMPACT) ;; compact small text nodes; no modification of the tree allowed afterwards (will possibly crash if you try to modify the tree)
+  (old10 XML_PARSE_OLD10) ;; parse using XML-1.0 before update 5
+  (nobasefix XML_PARSE_NOBASEFIX) ;; do not fixup XINCLUDE xml:base uris
+  (huge XML_PARSE_HUGE) ;; relax any hardcoded limit from the parser
+  (oldsax XML_PARSE_OLDSAX) ;; parse using SAX2 interface before 2.7.0
+  (ignore XML_PARSE_IGNORE_ENC) ;; ignore internal document encoding hint
+  (big XML_PARSE_BIG_LINES) ;; Store big lines numbers in text PSVI field
   )
 
 ; void
