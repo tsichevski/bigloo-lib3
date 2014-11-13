@@ -134,7 +134,19 @@
     (and (pragma::bool "$1 != NULL" result)
          result)))
 
-(define-func xmlGetDtdEntity xmlEntity ((xmlDoc doc)(string name "char*")))
+(define-export (xml-get-dtd-entity
+                doc::xml-doc
+                name::string)
+  (let* ((doc::xml-doc doc)
+         (name::string name)
+         (result::xml-entity (pragma::xml-entity "xmlGetDtdEntity($1, (char*)$2)"
+                                                 doc
+                                                 name)))
+    (and (pragma::bool "$1 != NULL" result)
+         result)))
+
+
+;; (define-func xmlGetDtdEntity xmlEntity ((xmlDoc doc)(string name "char*")))
 (define-func xmlGetParameterEntity xmlEntity ((xmlDoc doc)(string name "char*")))
 (define-func xmlEncodeEntitiesReentrant string ((xmlDoc doc)(string input "char*")))
 (define-func xmlEncodeSpecialChars string ((xmlDoc doc)(string input "char*")))
