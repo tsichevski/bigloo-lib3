@@ -2,11 +2,6 @@
 
 # create the autoconf/automake/libtool environment in the current directory
 
-# Also, this script help to get CVS distribution work
-# Run it just after checking out the CVS distribution for the first time
-# Install autoconf-2.57 automake >= 1.6 and 1.4.3
-
-
 aclocal
 libtoolize --force
 automake -a
