@@ -1,9 +1,8 @@
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_INIT(Makefile.rules)
-dnl note: I use underscore instead of minus sign in the
-dnl version id, since RPM doesn't accept minuses in version string
-AM_INIT_AUTOMAKE(bigloo-lib3, 0.11)
+AC_INIT([bigloo-lib3], [0.11])
+AC_CONFIG_SRCDIR([Makefile.rules])
+AM_INIT_AUTOMAKE
 
 dnl FIXME: these two declarations should appear in bgtk/bgtk.m4 and
 dnl gl/gl.m4 if aclocal would parse process these files
