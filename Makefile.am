@@ -3,8 +3,8 @@ ACLOCAL_AMFLAGS = -I m4
 # Note: the order of building of libraries is significant
 
 LIB_SUBDIRS	= common @gd@ xml rdbms node @ldap@ http expat
+# @gl@ @gtk@
 
-# @expat@  @gtk@ @gl@
 SUBDIRS		= $(LIB_SUBDIRS) docs
 # ext2fs
 
