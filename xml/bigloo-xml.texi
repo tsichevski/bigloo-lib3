@@ -23,9 +23,9 @@ Copyright @copyright{} 2003-2004 Vladimir Tsichevski
 
 @titlepage
 @sp 10
-@title{The libxml2/libxslt bindings for Bigloo}
-@subtitle{to add pleasure to Scheme developers}
-@author{Vladimir Tsichevski}
+@title The libxml2/libxslt bindings for Bigloo
+@subtitle to add pleasure to Scheme developers
+@author Vladimir Tsichevski
 @c The following two commands start the copyright page.
 @page
 This document describes @cite{bigloo-xml}, version @value{VERSION}.

@@ -48,7 +48,7 @@ Parse an xml file @var{url}. Optionally define the @var{encoding} and parse @var
 
 The options argument is a combination of the following tokens:
 TODO
-@table @bullet
+@table @samp
 @item recover
 @item noent
 @item dtdload

@@ -428,7 +428,7 @@ Return the document this @code{xmlobj} belongs to.
 
 Return the type identifier, according to the following table:
 
-@table @bullet
+@table @samp
 @item element-node
 @item attribute-node
 @item text-node

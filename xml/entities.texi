@@ -18,11 +18,12 @@ For example:
 (define doc (xml-add-doc-entity "<!DOCTYPE a><a></a>"))
 (xml-add-doc-entity doc "name" "value")
 (xml->string doc)
-@result{<?xml version="1.0" encoding="UTF-8"?>
+@result{}
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE a [
 <!ENTITY name "value">
 ]>
-<a/>}
+<a/>
 @end example
 @end deffn
 
