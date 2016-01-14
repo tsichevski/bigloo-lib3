@@ -43,6 +43,8 @@
 (define *xsl-style* #f)
 (define *xslt-parameters* '())
 
+(define *read-options* '())
+
 (define (find-file filename)
   (let((source (find-file/path filename *load-path*)))
     
@@ -129,7 +131,12 @@ Usage:
      (synopsis "Set output filename (default stdout)"))
     (set! *output-file* path))
    
-     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   ((("--read-options")
+     ?options
+     (synopsis "Set XML read options"))
+    (set! *read-options* (scheme-read-string options)))
+
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    (section "Commands")
      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    ((("-r" "--repl")
@@ -156,12 +163,12 @@ Usage:
       [trace 1 "XSL parameter: " name " => " value]
       (push! *xslt-parameters* (cons name value)))
      (else
-      (let((input (xml-parse-file (find-file else))))
-	(output-doc
-	 (if *xsl-style*
-	     (xslt-apply-stylesheet
-	      *xsl-style*
-	      input
-	      *xslt-parameters*)
-	     input)))))))
+      (let((input (xml-read-file (find-file else) options: *read-options*)))
+        (output-doc
+         (if *xsl-style*
+             (xslt-apply-stylesheet
+              *xsl-style*
+              input
+              *xslt-parameters*)
+             input)))))))
   0)
